@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MAi-RAG Personal Assistant</title>
+  <link rel="preload" as="image" href="/mai-rag-logo.png" />
+  <link rel="icon" type="image/svg+xml" href="/mai-rag-logo.png" />
+  <link rel="apple-touch-icon" href="/mai-rag-logo.png" />
+  <link rel="stylesheet" href="/src/styles/globals.css" />
+  <meta name="theme-color" content="#0c0f14" />
+  <script>
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+  </script>
+  <style>
+    @font-face {
+      font-family: 'Ubuntu';
+      src: url('/fonts/ubuntu-font-family/Ubuntu-R.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Ubuntu';
+      src: url('/fonts/ubuntu-font-family/Ubuntu-B.ttf') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+    }
+    body, html {
+      font-family: 'Ubuntu', sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

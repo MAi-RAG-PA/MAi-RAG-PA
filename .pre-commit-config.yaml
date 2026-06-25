@@ -1,0 +1,14 @@
+repos:
+  - repo: local
+    hooks:
+      - id: check-console-logs
+        name: Check for console.log
+        entry: bash -c 'grep -r "console.log" frontend/src && exit 1 || exit 0'
+        language: system
+        files: \.(ts|tsx|js|jsx)$
+      
+      - id: check-print-statements
+        name: Check for print statements
+        entry: bash -c 'grep -r "print(" app/ && exit 1 || exit 0'
+        language: system
+        files: \.py$

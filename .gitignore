@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+ENV/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/public/assets/
+
+# Runtime
+*.log
+*.flag
+*.pid
+*.seed
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Qdrant
+storage/collections/
+storage/chunks/
+
+# SQLite
+memory/*.db
+memory/*.db-shm
+memory/*.db-wal
+
+# Models (too large for GitHub)
+models/*/
+!models/README.md
+
+# Temporary
+snapshots/
+tmp/
