@@ -1634,7 +1634,9 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 4. Create new issue - Provide detailed information about your problem
 5. Join discussions - [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
 
-**Documentation:**
+-----------------------------------------------------------------------------------
+
+## Documentation
 
 <a href="MAi-README.md">Full Documentation</a> Complete feature overview and usage guide<br />
 <a href="MAi-INSTALLATION.md">Installation</a> Step-by-step setup for all platforms, System requirements, starting/stopping<br />
@@ -1642,7 +1644,7 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 <a href="MAi-SSH-SETUP.md">SSH & LAN</a> Access the system remotely from other devices via SSH or on the same network<br />
 <a href="MAi-LICENCE-LEGAL-NOTICE.md">Terms of use and commercial licensing</a>
 
-**Support & Contact:**
+## Support & Contact
 
 **Issues**: [GitHub Issues](https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues)
 **Discussions**: [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
