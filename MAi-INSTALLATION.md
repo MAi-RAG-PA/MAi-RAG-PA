@@ -700,6 +700,10 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 **Allow MAi-RAG-PA web interface:**
 
     sudo firewall-cmd --permanent --add-port=8000/tcp
+    
+**Allow Watchdog service**
+
+    sudo firewall-cmd --permanent --add-port=8001/tcp
 
 **Allow Ollama:**
 
@@ -725,12 +729,13 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 
 **For local-only use, you can restrict access to localhost:**
 
-**Only allow local connections (more secure):**
+# Only allow local connections (more secure)
 
     sudo ufw allow from 127.0.0.1 to any port 8000
+    sudo ufw allow from 127.0.0.1 to any port 8001
     sudo ufw allow from 127.0.0.1 to any port 11434
     sudo ufw allow from 127.0.0.1 to any port 6333
-
+    
 -----------------------------------------------------------------------------------
 
 ## Accessing MAi-RAG-PA from Other Devices
