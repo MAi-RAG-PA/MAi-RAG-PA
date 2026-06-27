@@ -15,7 +15,7 @@
   <a href="MAi-INSTALLATION.md">Installation</a> •
   <a href="MAi-OLLAMA-MODELS.md">Models</a> •
   <a href="MAi-SSH-SETUP.md">SSH & LAN</a> •
-  <a href="MAi-LICENCE-LEGAL-NOTICE.md">📄 License</a>
+  <a href="MAi-LICENCE-LEGAL-NOTICE.md">License</a>
 </p>
 
 <p align="center">
