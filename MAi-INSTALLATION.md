@@ -136,7 +136,9 @@ The installer will automatically handle most dependencies and guide you through 
 
 **One-Line Installer:**
 
-    curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
+```bash
+curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
+```
 
 **What the installer does:**
 - Detects your operating system
