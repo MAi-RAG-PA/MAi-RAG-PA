@@ -103,6 +103,7 @@
 | Port | Service | Protocol | Purpose | Required For |
 |------|---------|----------|---------|--------------|
 | 8000 | MAi-RAG-PA Web UI | TCP | Web interface access | LAN/Remote access |
+| 8001 | Watchdog Service | TCP | Start/Stop control | Web UI control buttons |
 | 11434 | Ollama | TCP | LLM inference API | Local operation |
 | 6333 | Qdrant | TCP | Vector database API | RAG features |
 | 22 | SSH | TCP | Remote access | SSH tunnel (optional) |
@@ -112,6 +113,10 @@
 **Allow MAi-RAG-PA web interface (LAN access):**
 
     sudo ufw allow 8000/tcp
+    
+**Allow Watchdog service (for WebUI control buttons)**
+
+    sudo ufw allow 8001/tcp
 
 **Allow Ollama (only needed if accessing from other machines):**
 
