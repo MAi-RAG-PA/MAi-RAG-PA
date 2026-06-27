@@ -507,8 +507,8 @@ If you set up Nginx or Apache as a reverse proxy, enable HTTP/2 for better perfo
 
 ## Support & Contact
 
-**Issues**: <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues">GitHub Issues</a>
-**Discussions**: <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions">GitHub Discussions</a>
+**Issues**: [GitHub Issues](https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues)
+**Discussions**: [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
 **Email**: MAi-RAG-PA@proton.me
 
 -----------------------------------------------------------------------------------
@@ -525,7 +525,7 @@ Every donation helps keep MAi-RAG-PA free and continuously improving.
 
 **Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
 
---------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
 
 <p align="center">
   <strong>MAi-RAG-PA — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
