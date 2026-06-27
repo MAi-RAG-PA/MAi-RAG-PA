@@ -33,19 +33,19 @@ MAi-RAG-PA is **completely model-agnostic**. You can use any model available in 
 
 ### Dense Models (Non-MoE)
 
-  **Dense models use all their parameters for every token. They are:**
-    - Highly consistent
-    - Reliable for complex logic
-    - Generally the safest choice for agentic workflows
-    - Require more RAM for larger models
+**Dense models use all their parameters for every token. They are:**
+- Highly consistent
+- Reliable for complex logic
+- Generally the safest choice for agentic workflows
+- Require more RAM for larger models
 
 ### MoE Models (Mixture of Experts)
 
-  **MoE models only activate a fraction of their total parameters per token. This allows them to:**
-    - Achieve "large model" intelligence on "small model" hardware
-    - Run faster than dense models of equivalent total size
-    - Excellent for high-end agentic tasks on consumer hardware
-    - May be less consistent than dense models for some tasks
+**MoE models only activate a fraction of their total parameters per token. This allows them to:**
+- Achieve "large model" intelligence on "small model" hardware
+- Run faster than dense models of equivalent total size
+- Excellent for high-end agentic tasks on consumer hardware
+- May be less consistent than dense models for some tasks
 
 -----------------------------------------------------------------------------------
 
@@ -81,142 +81,131 @@ MAi-RAG-PA is **completely model-agnostic**. You can use any model available in 
 
 -----------------------------------------------------------------------------------
 
-### How to Choose the Right Model
+## How to Choose the Right Model
 
 ### For General Daily Use (Chat, Notes, Simple Tasks)
 
-   **Recommended:** Qwen 2.5 Coder 7B or Mistral Nemo 12B
+**Recommended:** Qwen 2.5 Coder 7B or Mistral Nemo 12B
 
-   **Why:**
-   - Fast and responsive
-   - Handles MAi-RAG-PA system prompt perfectly
-   - Good balance of speed and capability
-   - Works well on 8GB-16GB RAM systems
+**Why:**
+- Fast and responsive
+- Handles MAi-RAG-PA system prompt perfectly
+- Good balance of speed and capability
+- Works well on 8GB-16GB RAM systems
 
-   **Installation:**
+**Installation:**
 
-    ```bash
-    ollama pull qwen2.5-coder:7b
-    ```
+```bash
+ollama pull qwen2.5-coder:7b
+```
+
 -----------------------------------------------------------------------------------
 
 ### For Writing, Heavy Coding & File Generation
 
-   **Recommended:** Qwen 2.5 Coder 14B, Qwen 2.5 Coder 32B, or Qwen 3 30B-A3B
+**Recommended:** Qwen 2.5 Coder 14B, Qwen 2.5 Coder 32B, or Qwen 3 30B-A3B
 
-   **Why:**
-   - Excellent code generation capabilities
-   - Strong tool-calling performance
-   - Handle complex file creation tasks
-   - Good at understanding context
+**Why:**
+- Excellent code generation capabilities
+- Strong tool-calling performance
+- Handle complex file creation tasks
+- Good at understanding context
 
-   **Installation:**
+**Installation:**
 
-# Dense model (more consistent)
+**Dense model (more consistent):**
 
-    ```bash
     ollama pull qwen2.5-coder:14b
-    ```
 
-# OR MoE model (faster if you have RAM)
+**OR MoE model (faster if you have RAM):**
 
-    ```bash
     ollama pull qwen3:30b-a3b
-    ```
+
 -----------------------------------------------------------------------------------
 
 ### For Complex Agentic Workflows (Multi-step tool calling, RAG, Planning)
 
-   **Recommended:** Llama 3.3 70B or Qwen 3 235B-A22B
+**Recommended:** Llama 3.3 70B or Qwen 3 235B-A22B
 
-   **Why:**
-   - Rarely hallucinates tool calls
-   - Follows strict JSON schemas flawlessly
-   - Handles complex multi-step reasoning
-   - Excellent for long agentic loops
+**Why:**
+- Rarely hallucinates tool calls
+- Follows strict JSON schemas flawlessly
+- Handles complex multi-step reasoning
+- Excellent for long agentic loops
 
-   **Installation:**
+**Installation:**
 
-# If you have 48GB+ RAM
+**If you have 48GB+ RAM:**
 
-    ```bash
     ollama pull llama3.3:70b
-    ```
 
-# If you have 128GB+ RAM
+**If you have 128GB+ RAM:**
 
-    ```bash
     ollama pull qwen3:235b-a22b
-    ```
+
 -----------------------------------------------------------------------------------
 
 ### For Low-End Hardware (4GB - 12GB RAM)
 
-   **Recommended:** Qwen 2.5 Coder 1.5B, Llama 3.2 3B, Granite 3.1 MoE 3B, or Granite 3.3 8B
+**Recommended:** Qwen 2.5 Coder 1.5B, Llama 3.2 3B, Granite 3.1 MoE 3B, or Granite 3.3 8B
 
-   **Why:**
-   - Keep MAi-RAG-PA UI responsive
-   - Handle basic memory tasks
-   - Work on older hardware
-   - Fast inference times
+**Why:**
+- Keep MAi-RAG-PA UI responsive
+- Handle basic memory tasks
+- Work on older hardware
+- Fast inference times
 
-   **Installation:**
+**Installation:**
 
-# Smallest option
+**Smallest option:**
 
-    ```bash
     ollama pull qwen2.5-coder:1.5b
-    ```
 
-# OR slightly better
+**OR slightly better:**
 
-    ```bash
     ollama pull llama3.2:3b
-    ```
 
-# OR MoE option
+**OR MoE option:**
 
-    ```bash
     ollama pull granite3.1-moe:3b
-    ```
------------------------------------------------------------------------------------
-
-### Understanding RAM Requirements
-
-   **Important Notes**
-
-   **"Min System RAM" assumes:**
-   - Running the model at default Ollama 4-bit quantization (Q4_K_M)
-   - No other major applications running
-   - Linux/macOS operating system
-
-   **If you use 8-bit quantization:**
-   - Double the RAM requirement
-   - Better quality but slower
-
-   **Always leave 2-4GB of RAM free for:**
-   - Your operating system
-   - MAi-RAG-PA backend (FastAPI, Qdrant)
-   - Browser and other applications
 
 -----------------------------------------------------------------------------------
 
-### GPU Acceleration
+## Understanding RAM Requirements
 
-   **If you have a dedicated NVIDIA GPU:**
-   - VRAM is the limiting factor instead of System RAM
-   - A 32B model requires ~20GB of VRAM to run entirely on GPU
-   - GPU inference is significantly faster than CPU
-   - Ollama automatically uses GPU if available
+**Important Notes**
 
-   **Check your GPU VRAM:**
+**"Min System RAM" assumes:**
+- Running the model at default Ollama 4-bit quantization (Q4_K_M)
+- No other major applications running
+- Linux/macOS operating system
 
-    ```bash
+**If you use 8-bit quantization:**
+- Double the RAM requirement
+- Better quality but slower
+
+**Always leave 2-4GB of RAM free for:**
+- Your operating system
+- MAi-RAG-PA backend (FastAPI, Qdrant)
+- Browser and other applications
+
+---
+
+## GPU Acceleration
+
+**If you have a dedicated NVIDIA GPU:**
+- VRAM is the limiting factor instead of System RAM
+- A 32B model requires ~20GB of VRAM to run entirely on GPU
+- GPU inference is significantly faster than CPU
+- Ollama automatically uses GPU if available
+
+**Check your GPU VRAM:**
+
     nvidia-smi
-    ```
+
 -----------------------------------------------------------------------------------
 
-### RAM Usage Examples
+## RAM Usage Examples
 
 | System RAM | Recommended Models | Notes |
 |------------|-------------------|-------|
@@ -231,194 +220,175 @@ MAi-RAG-PA is **completely model-agnostic**. You can use any model available in 
 
 -----------------------------------------------------------------------------------
 
-### Switching Models in MAi-RAG-PA
+## Switching Models in MAi-RAG-PA
 
-   **Via Web UI**
-   - Open MAi-RAG-PA in your browser
-   - Go to Chat Console
-   - Click the Model Selector dropdown
-   - Select your desired model
-   - (Optional) Check "Set as default" to make it permanent
+**Via Web UI:**
+- Open MAi-RAG-PA in your browser
+- Go to Chat Console
+- Click the Model Selector dropdown
+- Select your desired model
+- (Optional) Check "Set as default" to make it permanent
 
-   **Via Command Line**
+**Via Command Line:**
 
-# List available models
+**List available models:**
 
-    ```bash
     ollama list
-    ```
 
-# Pull a new model
+**Pull a new model:**
 
-    ```bash
     ollama pull qwen2.5-coder:14b
-    ```
 
-# Remove a model
-    ```bash
+**Remove a model:**
+
     ollama rm qwen2.5-coder:7b
-    ```
 
 ### Hot-Swapping
 
-   **You can switch models mid-conversation without restarting MAi-RAG-PA:**
-   1. Start a conversation with one model
-   2. Change the model in the dropdown
-   3. Continue the conversation with the new model
+**You can switch models mid-conversation without restarting MAi-RAG-PA:**
+1. Start a conversation with one model
+2. Change the model in the dropdown
+3. Continue the conversation with the new model
 
-   **Note: The new model won't have context from the previous model's responses.**
+**Note: The new model won't have context from the previous model's responses.**
 
 -----------------------------------------------------------------------------------
 
-### Performance Expectations
+## Performance Expectations
 
 **CPU-Only Systems (Intel i3-1215U example)**
 
-|Model	|Tokens/Second	|Response Time (100 tokens)|
-|-------|---------------|--------------------------|
-|1.5B	|20-30		|3-5 seconds		|
-|3B	|15-25		|4-7 seconds		|
-|7B	|8-15		|7-12 seconds		|
-|14B	|4-8		|12-25 seconds		|
-|32B	|2-5		|20-50 seconds		|
-
+| Model | Tokens/Second | Response Time (100 tokens) |
+|-------|---------------|---------------------------|
+| 1.5B | 20-30 | 3-5 seconds |
+| 3B | 15-25 | 4-7 seconds |
+| 7B | 8-15 | 7-12 seconds |
+| 14B | 4-8 | 12-25 seconds |
+| 32B | 2-5 | 20-50 seconds |
 
 **GPU-Accelerated Systems (RTX 3060 example)**
 
-|Model	|Tokens/Second	|Response Time (100 tokens)|
-|-------|---------------|--------------------------|
-|7B	|50-80		|1-2 seconds		|
-|14B	|30-50		|2-3 seconds		|
-|32B	|15-25		|4-7 seconds		|
+| Model | Tokens/Second | Response Time (100 tokens) |
+|-------|---------------|---------------------------|
+| 7B | 50-80 | 1-2 seconds |
+| 14B | 30-50 | 2-3 seconds |
+| 32B | 15-25 | 4-7 seconds |
 
 **Note: Performance varies based on:**
-   - CPU/GPU model
-   - RAM speed
-   - System load
-   - Model quantization
-   - Context length
+- CPU/GPU model
+- RAM speed
+- System load
+- Model quantization
+- Context length
 
 -----------------------------------------------------------------------------------
 
-### Troubleshooting Model Issues
+## Troubleshooting Model Issues
 
-#### Model Not Appearing in Dropdown
+### Model Not Appearing in Dropdown
 
-# Check if Ollama is running
+**Check if Ollama is running:**
 
-    ```bash
     curl http://localhost:11434/api/tags
-    ```
 
-# Pull the model
+**Pull the model:**
 
-    ```bash
     ollama pull qwen2.5-coder:7b
-    ```
 
-# Restart MAi-RAG-PA
+**Restart MAi-RAG-PA:**
 
-    ```bash
     cd ~/MAi-RAG-PA
     ./stop.sh
     ./start.sh
-    ```
 
-#### Out of Memory Errors
+### Out of Memory Errors
 
-   **Symptoms:**
-   - Model fails to load
-   - System becomes unresponsive
-   - Ollama crashes
+**Symptoms:**
+- Model fails to load
+- System becomes unresponsive
+- Ollama crashes
 
-   **Solutions:**
-   1. Use a smaller model
-   2. Close other applications
-   3. Increase swap space (Linux)
-   4. Upgrade RAM
+**Solutions:**
+1. Use a smaller model
+2. Close other applications
+3. Increase swap space (Linux)
+4. Upgrade RAM
 
-#### Slow Response Times
+### Slow Response Times
 
-   **Solutions:**
-   1. Use a smaller model (7B instead of 32B)
-   2. Reduce context window size in Ollama
-   3. Close RAM-intensive applications
-   4. Enable GPU acceleration if available
+**Solutions:**
+1. Use a smaller model (7B instead of 32B)
+2. Reduce context window size in Ollama
+3. Close RAM-intensive applications
+4. Enable GPU acceleration if available
 
+### Model Produces Poor Results
 
-#### Model Produces Poor Results
+**Solutions:**
+1. Try a different model
+2. Adjust the system prompt in Assistant Settings
+3. Provide more specific instructions
+4. Use a model optimized for your task (coding vs. writing)
 
-   **Solutions:**
-   1. Try a different model
-   2. Adjust the system prompt in Assistant Settings
-   3. Provide more specific instructions
-   4. Use a model optimized for your task (coding vs. writing)
+### Advanced: Custom Models
 
+**You can use any model compatible with Ollama:**
 
-#### Advanced: Custom Models
+1. **Create a Modelfile:**
 
-   **You can use any model compatible with Ollama:**
-
-   1. Create a Modelfile:
-
-    ```
     FROM ./path/to/your/model.bin
     PARAMETER temperature 0.7
     SYSTEM "You are a helpful assistant."
-    ```
 
-   2. Create the model:
+2. **Create the model:**
 
-    ```bash
     ollama create my-custom-model -f Modelfile
-    ```
 
-   3. Use in MAi-RAG-PA:
-    Select "my-custom-model" from the dropdown menu in MAi-RAG-PA WebUI
+3. **Use in MAi-RAG-PA:**
+   Select "my-custom-model" from the dropdown menu in MAi-RAG-PA WebUI
 
+### Quantization Options
 
-#### Quantization Options
+**Ollama supports different quantization levels:**
+- Q4_K_M (default): 4-bit, good balance of speed and quality
+- Q5_K_M: 5-bit, better quality, slower
+- Q8_0: 8-bit, best quality, slowest
 
-   **Ollama supports different quantization levels:**
-   - Q4_K_M (default): 4-bit, good balance of speed and quality
-   - Q5_K_M: 5-bit, better quality, slower
-   - Q8_0: 8-bit, best quality, slowest
+**Specify quantization:**
 
-   **Specify quantization:**
-
-    ```bash
     ollama pull qwen2.5-coder:7b-q5_k_m
-    ```
 
-#### Getting Help
+### Getting Help
 
-   **Model Recommendations:**
-   - <a href="https://ollama.com/library">Check Ollama Library</a>
-   - Review model benchmarks
-   - Test different models for your use case
+**Model Recommendations:**
+- [Check Ollama Library](https://ollama.com/library)
+- Review model benchmarks
+- Test different models for your use case
 
-   **Performance Issues:**
-   - Run System Doctor from Assistant Settings
-   - Check system resources in Chat Console
-   - Review Ollama logs: `ollama logs`
+**Performance Issues:**
+- Run System Doctor from Assistant Settings
+- Check system resources in Chat Console
+- Review Ollama logs: `ollama logs`
 
-   **Community Support:**
-   - <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions">GitHub Discussions</a>
-   - <a href="https://discord.gg/ollama">Ollama Discord</a>
+**Community Support:**
+- [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
+- [Ollama Discord](https://discord.gg/ollama)
 
-   **Documentation:**
+-----------------------------------------------------------------------------------
 
-   <a href="MAi-README.md">Full Documentation</a> Complete feature overview and usage guide<br />
-   <a href="MAi-INSTALLATION.md">Installation</a> Step-by-step setup for all platforms, System requirements, starting/stopping<br />
-   <a href="MAi-OLLAMA-MODELS.md">Model Recommendations</a> Choosing the right AI model for your needs<br />
-   <a href="MAi-SSH-SETUP.md">SSH & LAN</a> Access the system remotely from other devices via SSH or on the same network<br />
-   <a href="MAi-LICENCE-LEGAL-NOTICE.md">Terms of use and commercial licensing</a>
+## Documentation
 
-   **Support & Contact:**
+<a href="MAi-README.md">Full Documentation</a> Complete feature overview and usage guide<br />
+<a href="MAi-INSTALLATION.md">Installation</a> Step-by-step setup for all platforms, System requirements, starting/stopping<br />
+<a href="MAi-OLLAMA-MODELS.md">Model Recommendations</a> Choosing the right AI model for your needs<br />
+<a href="MAi-SSH-SETUP.md">SSH & LAN</a> Access the system remotely from other devices via SSH or on the same network<br />
+<a href="MAi-LICENCE-LEGAL-NOTICE.md">Terms of use and commercial licensing</a>
 
-   **Issues**: <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues">GitHub Issues</a>
-   **Discussions**: <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions">GitHub Discussions</a>
-   **Email**: MAi-RAG-PA@proton.me
+## Support & Contact
+
+**Issues**: [GitHub Issues](https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues)
+**Discussions**: [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
+**Email**: MAi-RAG-PA@proton.me
 
 -----------------------------------------------------------------------------------
 
