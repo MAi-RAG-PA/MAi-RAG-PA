@@ -261,22 +261,6 @@ This software is provided **free of charge** for personal, non-commercial use. U
 
 -----------------------------------------------------------------------------------
 
-   **Documentation:**
-
-   <a href="MAi-README.md">Full Documentation</a> Complete feature overview and usage guide<br />
-   <a href="MAi-INSTALLATION.md">Installation</a> Step-by-step setup for all platforms, System requirements, starting/stopping<br />
-   <a href="MAi-OLLAMA-MODELS.md">Model Recommendations</a> Choosing the right AI model for your needs<br />
-   <a href="MAi-SSH-SETUP.md">SSH & LAN</a> Access the system remotely from other devices via SSH or on the same network<br />
-   <a href="MAi-LICENCE-LEGAL-NOTICE.md">Terms of use and commercial licensing</a>
-
-   **Support & Contact:**
-
-   **Issues**: <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues">GitHub Issues</a>
-   **Discussions**: <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions">GitHub Discussions</a>
-   **Email**: MAi-RAG-PA@proton.me
-
------------------------------------------------------------------------------------
-
 ## Documentation
 
 <a href="MAi-README.md">Full Documentation</a> Complete feature overview and usage guide<br />
