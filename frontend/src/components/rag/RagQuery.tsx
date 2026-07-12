@@ -1,5 +1,3 @@
-// MAi-RAG/frontend/src/components/rag/RagQuery.tsx
-
 import React, { useState } from "react";
 import axios from "axios";
 
@@ -16,21 +14,26 @@ const RagQuery: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (!query.trim()) return;
+
     setLoading(true);
     setError("");
     setAnswer("");
 
     try {
       const response = await axios.post("/api/rag/query", {
-        query,
+        query: query.trim(),
         model_name: model,
         collection_name: "local_docs",
         top_k: 5,
       });
-      setAnswer(response.data.answer);
+
+      setAnswer(response.data?.answer || "No answer returned.");
     } catch (err) {
+      console.error("Failed to query RAG API:", err);
       setError("Failed to get answer from RAG API.");
     } finally {
       setLoading(false);
@@ -50,7 +53,9 @@ const RagQuery: React.FC = () => {
             ))}
           </select>
         </label>
+
         <br />
+
         <label>
           Enter your query:
           <textarea
@@ -59,14 +64,23 @@ const RagQuery: React.FC = () => {
             rows={4}
             cols={50}
             required
+            aria-required="true"
           />
         </label>
+
         <br />
-        <button type="submit" disabled={loading}>
+
+        <button type="submit" disabled={loading || !query.trim()}>
           {loading ? "Loading..." : "Ask"}
         </button>
       </form>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      {error && (
+        <p role="alert" style={{ color: "red" }}>
+          {error}
+        </p>
+      )}
+
       {answer && (
         <div>
           <h3>Answer:</h3>

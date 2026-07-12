@@ -1,20 +1,28 @@
+// frontend/src/api/reminders.ts
 import api from "./client";
 
-export async function getReminders() {
-  const response = await api.get("/reminders");
+export async function getUpcomingReminders(limit: number = 20) {
+  const response = await api.get(`/api/memory/sqlite/reminders/upcoming?limit=${limit}`);
   return response.data;
 }
 
 export async function createReminder(reminder: {
-  reminder_id: string;
-  message: string;
-  run_date: string;
+  id?: string;
+  text: string;
+  due_time: string;
+  priority?: string;
+  completed?: boolean;
 }) {
-  const response = await api.post("/reminders", reminder);
+  const response = await api.post("/api/memory/sqlite/reminders", reminder);
   return response.data;
 }
 
 export async function deleteReminder(reminder_id: string) {
-  const response = await api.delete(`/reminders/${reminder_id}`);
+  const response = await api.delete(`/api/memory/sqlite/reminders/${reminder_id}`);
+  return response.data;
+}
+
+export async function checkDueAlerts() {
+  const response = await api.get("/api/memory/sqlite/reminders/check-alerts");
   return response.data;
 }

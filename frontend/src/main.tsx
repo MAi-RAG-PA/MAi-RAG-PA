@@ -1,10 +1,12 @@
-// MAi-RAG/frontend/src/main.tsx
+// frontend/src/main.tsx
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/globals.css';
 import { BrowserRouter } from 'react-router-dom';
+import './utils/axeReporter';
+import './i18n/config';
 
 // Force scroll to top on initial load and navigation
 if (window.location.hash) {
@@ -32,3 +34,15 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('SW registered:', registration);
+      })
+      .catch((error) => {
+        console.log('SW registration failed:', error);
+      });
+  });
+}

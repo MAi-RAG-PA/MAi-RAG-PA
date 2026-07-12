@@ -24,10 +24,10 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
     loadHeartbeat();
     loadHeartbeatPrompt();
     fetchStatus();
-    
+
     // Poll every 2 seconds for responsive updates
     const statusInterval = setInterval(fetchStatus, 2000);
-    
+
     return () => clearInterval(statusInterval);
   }, []);
 
@@ -57,17 +57,17 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
     try {
       const response = await apiClient.get('/api/heartbeat/status');
       const data = response.data;
-      
+
       setHeartbeatStatus(data);
       setLastStatus(data.last_status || 'UNKNOWN');
-      
+
       if (data.next_check) {
         const nextCheckDate = new Date(data.next_check);
         setNextBeat(nextCheckDate.toLocaleTimeString());
       } else {
         setNextBeat('Calculating...');
       }
-      
+
     } catch (error) {
       console.error('Failed to fetch heartbeat status:', error);
       setLastStatus('Offline');
@@ -96,11 +96,11 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
     setIsLoading(true);
     try {
       await apiClient.post('/api/heartbeat/trigger');
-      showToast('✅ Heartbeat triggered');
+      showToast('Heartbeat triggered');
       fetchStatus();
     } catch (error) {
       console.error('Failed to trigger heartbeat:', error);
-      showToast('❌ Failed to trigger heartbeat');
+      showToast('Failed to trigger heartbeat');
     } finally {
       setIsLoading(false);
     }
@@ -113,41 +113,45 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
     }
     setIsLoading(true);
     try {
-      await apiClient.post('/api/settings/heartbeat-prompt', { 
-        prompt: heartbeatPrompt.trim() 
+      await apiClient.post('/api/settings/heartbeat-prompt', {
+        prompt: heartbeatPrompt.trim()
       });
-      showToast('✅ Heartbeat prompt saved');
+      showToast('Heartbeat prompt saved');
     } catch (error) {
       console.error('Failed to save heartbeat prompt:', error);
-      showToast('❌ Failed to save heartbeat prompt');
+      showToast('Failed to save heartbeat prompt');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <section 
-      className="panel reveal delay-3 glow-panel" 
+    <section
+      className="panel reveal delay-3 glow-panel"
+      role="region"
       aria-label="Heartbeat Settings"
     >
       <div className="panel-inner" style={{ padding: '22px 22px 16px' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h3 className="console-title" style={{ margin: 0 }}>Heartbeat</h3>
-          <span style={{ 
-            fontSize: '0.8rem', 
-            padding: '4px 12px', 
+          <span style={{
+            fontSize: '0.8rem',
+            padding: '4px 12px',
             borderRadius: 20,
-            backgroundColor: lastStatus === 'OK' ? 'rgba(34,197,94,0.2)' : 
-                           lastStatus === 'ERROR' ? 'rgba(239,68,68,0.2)' : 
+            backgroundColor: lastStatus === 'OK' ? 'rgba(34,197,94,0.2)' :
+                           lastStatus === 'ERROR' ? 'rgba(239,68,68,0.2)' :
                            lastStatus === 'RUNNING' ? 'rgba(245,158,11,0.2)' : 'rgba(107,114,128,0.2)',
-            color: lastStatus === 'OK' ? '#22c55e' : 
-                   lastStatus === 'ERROR' ? '#ef4444' : 
+            color: lastStatus === 'OK' ? '#22c55e' :
+                   lastStatus === 'ERROR' ? '#ef4444' :
                    lastStatus === 'RUNNING' ? '#f59e0b' : '#6b7280'
-          }}>
-            {lastStatus === 'OK' ? '● Active' : 
-             lastStatus === 'ERROR' ? '● Error' : 
-             lastStatus === 'RUNNING' ? '⏳ Running' : '○ Unknown'}
+          }}
+            role="status"
+            aria-live="polite"
+          >
+            {lastStatus === 'OK' ? '● Active' :
+             lastStatus === 'ERROR' ? '● Error' :
+             lastStatus === 'RUNNING' ? 'Running' : '○ Unknown'}
           </span>
         </div>
 
@@ -157,11 +161,11 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
         </p>
 
         {/* Interval Controls */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }} role="group" aria-label="Heartbeat interval controls">
           <label htmlFor="heartbeatInterval" style={{ fontSize: '0.9rem' }}>
             Check every:
           </label>
-          
+
           <input
             id="heartbeatInterval"
             type="number"
@@ -170,6 +174,8 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
             value={interval}
             onChange={(e) => setIntervalState(Math.max(1, Math.min(1440, Number(e.target.value))))}
             disabled={isLoading}
+            aria-label="Heartbeat check interval in minutes"
+            aria-describedby="interval-help"
             style={{
               width: 80,
               padding: '8px 12px',
@@ -181,13 +187,14 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
               textAlign: 'center'
             }}
           />
-          
+
           <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>minutes</span>
-          
+
           <button
             onClick={saveInterval}
             disabled={isLoading}
             className="btn"
+            aria-label={isLoading ? 'Saving heartbeat interval' : 'Save heartbeat interval'}
             style={{
               padding: '8px 16px',
               borderRadius: 8,
@@ -204,18 +211,23 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
         </div>
 
         {/* Status Info */}
-        <div style={{ 
-          padding: 12, 
-          borderRadius: 8, 
-          background: 'rgba(255,255,255,0.04)',
-          fontSize: '0.85rem',
-          marginBottom: 16
-        }}>
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Heartbeat status information"
+          style={{
+            padding: 12,
+            borderRadius: 8,
+            background: 'rgba(255,255,255,0.04)',
+            fontSize: '0.85rem',
+            marginBottom: 16
+          }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
             <span style={{ opacity: 0.7 }}>Last status:</span>
-            <span style={{ 
-              color: lastStatus === 'OK' ? '#22c55e' : 
-                     lastStatus === 'ERROR' ? '#ef4444' : 
+            <span style={{
+              color: lastStatus === 'OK' ? '#22c55e' :
+                     lastStatus === 'ERROR' ? '#ef4444' :
                      lastStatus === 'RUNNING' ? '#f59e0b' : '#6b7280'
             }}>
               {lastStatus}
@@ -238,16 +250,19 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
             </div>
           )}
         </div>
-        
+
         {/* Heartbeat Prompt Section */}
-        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--line)' }}>
-          <label style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
+        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--line)' }} role="group" aria-label="Heartbeat prompt settings">
+          <label htmlFor="heartbeatPrompt" style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
             Heartbeat Prompt
           </label>
           <textarea
+            id="heartbeatPrompt"
             value={heartbeatPrompt}
             onChange={(e) => setHeartbeatPrompt(e.target.value)}
             placeholder="Enter custom heartbeat instructions..."
+            aria-label="Custom heartbeat prompt instructions"
+            aria-describedby="prompt-help"
             style={{
               width: '100%',
               minHeight: '100px',
@@ -265,6 +280,7 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
             onClick={saveHeartbeatPrompt}
             disabled={isLoading || !heartbeatPrompt.trim()}
             className="chip"
+            aria-label={isLoading ? 'Saving heartbeat prompt' : 'Save heartbeat prompt'}
             style={{
               marginTop: '8px',
               padding: '6px 14px',
@@ -285,6 +301,7 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
           onClick={triggerNow}
           disabled={isLoading || heartbeatStatus.is_running}
           className="chip"
+          aria-label={heartbeatStatus.is_running ? 'Heartbeat check in progress' : 'Run heartbeat check manually'}
           style={{
             marginTop: '16px',
             padding: '10px 20px',
@@ -299,9 +316,22 @@ const HeartbeatPanel: React.FC<HeartbeatPanelProps> = ({ showToast }) => {
         </button>
 
         {/* Helper Text */}
-        <div style={{ marginTop: 16, fontSize: '0.75rem', opacity: 0.6, lineHeight: 1.4 }}>
-          <strong>Note:</strong> Shorter intervals = more responsive maintenance, but higher CPU usage. 
+        <div
+          id="interval-help"
+          style={{ marginTop: 16, fontSize: '0.75rem', opacity: 0.6, lineHeight: 1.4 }}
+          role="note"
+          aria-label="Heartbeat usage tips"
+        >
+          <strong>Note:</strong> Shorter intervals = more responsive maintenance, but higher CPU usage.
           Recommended: 15-60 minutes for most systems.
+        </div>
+
+        <div
+          id="prompt-help"
+          style={{ display: 'none' }}
+          role="description"
+        >
+          Enter custom instructions for the assistant's self-check and maintenance routine.
         </div>
       </div>
     </section>

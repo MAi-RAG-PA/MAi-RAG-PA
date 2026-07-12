@@ -8,11 +8,14 @@
   <link rel="icon" type="image/svg+xml" href="/mai-rag-logo.png" />
   <link rel="apple-touch-icon" href="/mai-rag-logo.png" />
   <link rel="stylesheet" href="/src/styles/globals.css" />
+  <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0c0f14" />
   <script>
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
   </script>
   <style>
     @font-face {

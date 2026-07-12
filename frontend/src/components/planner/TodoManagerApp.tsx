@@ -22,13 +22,11 @@ const TodoManagerApp: React.FC<TodoManagerAppProps> = ({ showToast }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
-  // Fetch todos from SQLite on mount
   const fetchTodos = useCallback(async () => {
     try {
       const res = await apiClient.get("/api/memory/sqlite/todos?limit=50");
       const todos: TodoItem[] = res.data.todos || [];
-      // Sort by order_index for manual reordering
-      const sorted = todos.sort((a, b) => (a.order_index ?? 999) - (b.order_index ?? 999));
+      const sorted = [...todos].sort((a, b) => (a.order_index ?? 999) - (b.order_index ?? 999));
       setItems(sorted);
     } catch (err) {
       console.warn("Failed to fetch todos:", err);
@@ -36,119 +34,70 @@ const TodoManagerApp: React.FC<TodoManagerAppProps> = ({ showToast }) => {
   }, []);
 
   useEffect(() => {
-    fetchTodos();
+    void fetchTodos();
   }, [fetchTodos]);
 
   const addItem = async () => {
     if (!inputText.trim()) return;
+
+    setLoading(true);
     const newItem: TodoItem = {
       id: crypto.randomUUID(),
       title: inputText.trim(),
       priority: "medium",
       completed: false,
-      order_index: items.length
+      order_index: items.length,
     };
+
     try {
       await apiClient.post("/api/memory/sqlite/todos", {
         id: newItem.id,
         title: newItem.title,
         priority: newItem.priority,
         completed: newItem.completed,
-        order_index: newItem.order_index
+        order_index: newItem.order_index,
       });
       setInputText("");
-      fetchTodos();
-      if (showToast) showToast("Task added");
+      await fetchTodos();
+      showToast?.("Task added");
     } catch (err) {
       console.error("Failed to save todo:", err);
-      if (showToast) showToast("Failed to add task");
+      showToast?.("Failed to add task");
+    } finally {
+      setLoading(false);
     }
   };
 
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`Delete ${selectedIds.size} selected task(s)?`)) return;
-    
+
+    setLoading(true);
+    const selectedCount = selectedIds.size;
+
     try {
-      for (const id of selectedIds) {
-        // Soft delete: mark as completed + hidden
-        await apiClient.post("/api/memory/sqlite/todos", {
-          id,
-          title: "",
-          priority: "medium",
-          completed: true,
-          description: "[deleted]"
-        });
-      }
+      await Promise.all(
+        Array.from(selectedIds).map((id) => apiClient.delete(`/api/memory/sqlite/todos/${id}`))
+      );
+
       setSelectedIds(new Set());
-      fetchTodos();
-      if (showToast) showToast("Deleted selected tasks");
-    } catch (err) {
+      await fetchTodos();
+      showToast?.(`Deleted ${selectedCount} task(s)`);
+    } catch (err: any) {
       console.error("Failed to delete todos:", err);
-      if (showToast) showToast("Failed to delete");
+      showToast?.(`Failed to delete: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      return newSet;
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-  };
-
-  const moveItem = async (direction: "up" | "down") => {
-    const index = singleSelectedIndex;
-    if (index === -1) return;
-
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= items.length) return;
-
-    // Reorder locally first for instant feedback
-    const newItems = [...items];
-    const [movedItem] = newItems.splice(index, 1);
-    newItems.splice(newIndex, 0, movedItem);
-    
-    // Update order_index for all items
-    const updated = newItems.map((item, idx) => ({ ...item, order_index: idx }));
-    setItems(updated);
-    
-    // Sync to backend
-    try {
-      for (const item of updated) {
-        await apiClient.post("/api/memory/sqlite/todos", {
-          id: item.id,
-          title: item.title,
-          priority: item.priority,
-          completed: item.completed,
-          order_index: item.order_index
-        });
-      }
-      if (showToast) showToast(`Moved item ${direction}`);
-    } catch (err) {
-      console.error("Failed to sync reorder:", err);
-      // Revert on error
-      fetchTodos();
-    }
-  };
-
-  const toggleComplete = async (id: string) => {
-    const item = items.find(i => i.id === id);
-    if (!item) return;
-    
-    try {
-      await apiClient.post("/api/memory/sqlite/todos", {
-        id: item.id,
-        title: item.title,
-        priority: item.priority,
-        completed: !item.completed,
-        order_index: item.order_index
-      });
-      fetchTodos();
-    } catch (err) {
-      console.error("Failed to toggle complete:", err);
-    }
   };
 
   const singleSelectedIndex = useMemo(() => {
@@ -157,11 +106,67 @@ const TodoManagerApp: React.FC<TodoManagerAppProps> = ({ showToast }) => {
     return items.findIndex((item) => item.id === selectedId);
   }, [selectedIds, items]);
 
+  const moveItem = async (direction: "up" | "down") => {
+    const index = singleSelectedIndex;
+    if (index === -1) return;
+
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= items.length) return;
+
+    const newItems = [...items];
+    const [movedItem] = newItems.splice(index, 1);
+    newItems.splice(newIndex, 0, movedItem);
+
+    const updated = newItems.map((item, idx) => ({ ...item, order_index: idx }));
+    setItems(updated);
+
+    setLoading(true);
+    try {
+      const swappedItems = [updated[index], updated[newIndex]];
+      await Promise.all(
+        swappedItems.map((item) =>
+          apiClient.post("/api/memory/sqlite/todos", {
+            id: item.id,
+            title: item.title,
+            priority: item.priority,
+            completed: item.completed,
+            order_index: item.order_index,
+          })
+        )
+      );
+      showToast?.(`Moved item ${direction}`);
+    } catch (err) {
+      console.error("Failed to sync reorder:", err);
+      await fetchTodos();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleComplete = async (id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+
+    try {
+      await apiClient.post("/api/memory/sqlite/todos", {
+        id: item.id,
+        title: item.title,
+        priority: item.priority,
+        completed: !item.completed,
+        order_index: item.order_index,
+      });
+      await fetchTodos();
+    } catch (err) {
+      console.error("Failed to toggle complete:", err);
+    }
+  };
+
   const isSelected = (id: string) => selectedIds.has(id);
 
   return (
     <section
       className="panel reveal delay-2 glow-panel"
+      role="region"
       aria-label="To Do List Manager"
       style={{
         flex: "1 1 45%",
@@ -183,21 +188,21 @@ const TodoManagerApp: React.FC<TodoManagerAppProps> = ({ showToast }) => {
           boxSizing: "border-box",
         }}
       >
-        {/* Header */}
-        <div 
-          className="console-title" 
-          style={{ 
-            color: 'var(--accent)', 
-            fontSize: '1.3rem',
-            fontWeight: 'bold',
-            marginBottom: '12px'
+        <div
+          className="console-title"
+          style={{
+            color: "var(--accent)",
+            fontSize: "1.3rem",
+            fontWeight: "bold",
+            marginBottom: "12px",
           }}
         >
           To Do List
         </div>
 
-        {/* Scrollable List */}
         <ul
+          role="list"
+          aria-label="List of todo items"
           style={{
             listStyle: "none",
             padding: 0,
@@ -208,13 +213,16 @@ const TodoManagerApp: React.FC<TodoManagerAppProps> = ({ showToast }) => {
           }}
         >
           {items.length === 0 ? (
-            <li style={{ textAlign: "center", padding: "20px 0", opacity: 0.6 }}>
-              No tasks saved to SQLite yet
+            <li role="status" aria-live="polite" style={{ textAlign: "center", padding: "20px 0", opacity: 0.6 }}>
+              No tasks saved to The To Do List yet
             </li>
           ) : (
             items.map((item) => (
               <li
                 key={item.id}
+                role="listitem"
+                aria-label={`${item.title} ${item.completed ? "completed" : "pending"}`}
+                tabIndex={0}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -222,8 +230,8 @@ const TodoManagerApp: React.FC<TodoManagerAppProps> = ({ showToast }) => {
                   background: isSelected(item.id)
                     ? "rgba(124, 246, 211, 0.1)"
                     : item.completed
-                    ? "rgba(47, 133, 90, 0.2)"
-                    : "rgba(255,255,255,0.05)",
+                      ? "rgba(47, 133, 90, 0.2)"
+                      : "rgba(255,255,255,0.05)",
                   borderRadius: 6,
                   marginBottom: 6,
                   cursor: "pointer",
@@ -231,19 +239,20 @@ const TodoManagerApp: React.FC<TodoManagerAppProps> = ({ showToast }) => {
                   transition: "background 0.2s",
                 }}
               >
-                {/* Checkbox: SELECT for reordering/delete */}
                 <input
                   type="checkbox"
                   checked={isSelected(item.id)}
                   onChange={() => toggleSelect(item.id)}
                   style={{ marginRight: 12, cursor: "pointer", accentColor: "var(--accent)" }}
-                  aria-label={`Select ${item.title}`}
+                  aria-label={`Select ${item.title} for reordering or deletion`}
                   onClick={(e) => e.stopPropagation()}
                 />
-                
-                {/* Text: CLICK to toggle complete */}
+
                 <span
                   onClick={() => toggleComplete(item.id)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={item.completed ? `Mark ${item.title} as incomplete` : `Mark ${item.title} as complete`}
                   style={{
                     flex: 1,
                     textDecoration: item.completed ? "line-through" : "none",
@@ -253,97 +262,119 @@ const TodoManagerApp: React.FC<TodoManagerAppProps> = ({ showToast }) => {
                 >
                   {item.title}
                 </span>
-                
               </li>
             ))
           )}
         </ul>
 
-        {/* Input + Controls at BOTTOM */}
-        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div
+          style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}
+          role="group"
+          aria-label="Task input and controls"
+        >
           <div className="field">
+            <label htmlFor="task-input" style={{ display: "none" }}>
+              New Task
+            </label>
             <input
+              id="task-input"
               type="text"
               placeholder="Add items here. Check boxes and use Up & Down to change order, or to delete items."
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addItem()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void addItem();
+              }}
               aria-label="New task text"
+              aria-describedby="input-help"
               style={{
                 padding: "8px 12px",
-                borderRadius: 6, // ✅ Rounded rectangular
+                borderRadius: 6,
                 border: "1px solid var(--line)",
                 background: "rgba(255,255,255,0.04)",
                 color: "var(--text)",
-                fontSize: "0.9rem"
+                fontSize: "0.9rem",
               }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button 
-                className="btn" 
-                onClick={() => moveItem("up")} 
+
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }} role="group" aria-label="Task management buttons">
+            <div style={{ display: "flex", gap: 8 }} role="group" aria-label="Reorder controls">
+              <button
+                className="btn"
+                onClick={() => void moveItem("up")}
                 disabled={singleSelectedIndex <= 0 || loading}
-                style={{ 
-                  padding: "8px 16px", 
-                  borderRadius: 6, // ✅ Rounded rectangular, not pill
+                aria-label="Move selected task up"
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 6,
                   border: "1px solid var(--line)",
                   background: "rgba(255,255,255,0.08)",
                   color: "var(--text)",
-                  cursor: singleSelectedIndex <= 0 || loading ? "not-allowed" : "pointer"
+                  cursor: singleSelectedIndex <= 0 || loading ? "not-allowed" : "pointer",
                 }}
               >
                 Up
               </button>
               <button
                 className="btn"
-                onClick={() => moveItem("down")}
+                onClick={() => void moveItem("down")}
                 disabled={singleSelectedIndex === -1 || singleSelectedIndex === items.length - 1 || loading}
-                style={{ 
-                  padding: "8px 16px", 
-                  borderRadius: 6, // ✅ Rounded rectangular
+                aria-label="Move selected task down"
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 6,
                   border: "1px solid var(--line)",
                   background: "rgba(255,255,255,0.08)",
                   color: "var(--text)",
-                  cursor: singleSelectedIndex === -1 || singleSelectedIndex === items.length - 1 || loading ? "not-allowed" : "pointer"
+                  cursor:
+                    singleSelectedIndex === -1 || singleSelectedIndex === items.length - 1 || loading
+                      ? "not-allowed"
+                      : "pointer",
                 }}
               >
                 Down
               </button>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button 
-                className="btn" 
-                onClick={addItem} 
+
+            <div style={{ display: "flex", gap: 8 }} role="group" aria-label="Action buttons">
+              <button
+                className="btn"
+                onClick={() => void addItem()}
                 disabled={!inputText.trim() || loading}
-                style={{ 
-                  padding: "8px 16px", 
+                aria-label="Add new task"
+                style={{
+                  padding: "8px 16px",
                   borderRadius: 6,
                   border: "1px solid var(--line)",
                   background: !inputText.trim() || loading ? "rgba(255,255,255,0.08)" : "var(--accent)",
                   color: !inputText.trim() || loading ? "#666" : "#000",
-                  cursor: !inputText.trim() || loading ? "not-allowed" : "pointer"
+                  cursor: !inputText.trim() || loading ? "not-allowed" : "pointer",
                 }}
               >
                 {loading ? "..." : "Add"}
               </button>
               <button
                 className="btn"
-                onClick={deleteSelected}
+                onClick={() => void deleteSelected()}
                 disabled={selectedIds.size === 0 || loading}
-                style={{ 
-                  padding: "8px 16px", 
+                aria-label={`Delete ${selectedIds.size} selected task(s)`}
+                style={{
+                  padding: "8px 16px",
                   borderRadius: 6,
                   border: "1px solid var(--line)",
                   background: selectedIds.size === 0 || loading ? "rgba(255,255,255,0.08)" : "rgba(239, 68, 68, 0.2)",
                   color: selectedIds.size === 0 || loading ? "#666" : "#ef4444",
-                  cursor: selectedIds.size === 0 || loading ? "not-allowed" : "pointer"
+                  cursor: selectedIds.size === 0 || loading ? "not-allowed" : "pointer",
                 }}
               >
                 Delete
               </button>
             </div>
+          </div>
+
+          <div id="input-help" style={{ fontSize: "0.75rem", opacity: 0.6, marginTop: "4px" }} role="note" aria-label="Usage instructions">
+            Check boxes and use Up &amp; Down to change order, or to delete items.
           </div>
         </div>
       </div>
