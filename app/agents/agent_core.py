@@ -22,6 +22,14 @@ from app.rag.retriever import AdvancedRetriever
 logger = logging.getLogger(__name__)
 
 # =============================================================================
+# Configuration & Paths
+# =============================================================================
+PROJECT_ROOT: Path = Path(__file__).parent.parent.parent.resolve()
+WORKSPACE: Path = PROJECT_ROOT / "workspace"
+DEV_SANDBOX: Path = PROJECT_ROOT / "dev-sandbox"
+SANDBOX_ROOT: Path = DEV_SANDBOX / "MAi-RAG-DEV"  # Self-healing workspace
+
+# =============================================================================
 # DEFAULT SYSTEM PROMPT - The "Ultimate" Prompt
 # =============================================================================
 
@@ -188,10 +196,14 @@ Operate with precision and authority. Deviation from these standards is not perm
 # SELF-HEALING PROTOCOL (Only for capable models)
 # =============================================================================
 
-SELF_HEALING_PROTOCOL = """
+# =============================================================================
+# SELF-HEALING PROTOCOL (Only for capable models)
+# =============================================================================
+
+SELF_HEALING_PROTOCOL = f"""
 ## PROJECT SELF-HEALING & ARCHITECTURE AWARENESS
 
-You have read/write access to ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/ (staging sandbox).
+You have read/write access to {SANDBOX_ROOT} (staging sandbox).
 
 ### ARCHITECTURE CONTEXT
 Before modifying any file, you MUST:
@@ -211,7 +223,7 @@ When fixing errors:
 
 ### CRITICAL SAFETY RULES (NON-NEGOTIABLE)
 
-1. **WORKING DIRECTORY**: You are STRICTLY CONFINED to ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/
+1. **WORKING DIRECTORY**: You are STRICTLY CONFINED to {SANDBOX_ROOT}
    - NEVER read, write, or reference files outside this directory
    - NEVER create subdirectories containing "workspace" or "MAi-RAG-DEV"
    
@@ -223,12 +235,12 @@ When fixing errors:
    - If you need to process more than 50 files, ask for explicit approval
    
 3. **FORBIDDEN PATHS** (NEVER access these):
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/workspace/
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/venv/
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/node_modules/
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/.git/
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/__pycache__/
-   - Any path containing "workspace/workspace"
+   - {SANDBOX_ROOT}/dev-sandbox/
+   - {SANDBOX_ROOT}/venv/
+   - {SANDBOX_ROOT}/node_modules/
+   - {SANDBOX_ROOT}/.git/
+   - {SANDBOX_ROOT}/__pycache__/
+   - Any path containing "dev-sandbox/dev-sandbox"
    
 4. **FILESYSTEM TRAVERSAL LIMITS**:
    - Maximum recursive depth: 5 levels
@@ -239,18 +251,8 @@ When fixing errors:
 5. **OPERATION VALIDATION**:
    - Before any file operation, verify the target path is within allowed boundaries
    - Use `pathlib.Path.resolve()` to get absolute paths
-   - Verify path starts with ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/
+   - Verify path starts with {SANDBOX_ROOT}
    - Verify path does NOT contain forbidden patterns
-
-### VERIFICATION CHECKLIST
-
-Before providing code:
-- [ ] Python: `python -m py_compile <filepath>` will pass
-- [ ] TypeScript: All imports are valid, hooks are at top level
-- [ ] Database: Schema matches queries, uses parameterized arguments
-- [ ] API: Pydantic models match request/response structure
-- [ ] Frontend: No infinite loops in useEffect, proper cleanup
-- [ ] Path validation: All file operations use validated paths
 """
 
 # =============================================================================
@@ -331,10 +333,6 @@ def get_protected_models_status() -> List[Dict[str, Any]]:
 # Configuration
 # =============================================================================
 
-PROJECT_ROOT: Path = Path(__file__).parent.parent.parent.resolve()
-WORKSPACE: Path = PROJECT_ROOT / "workspace"
-DEV_SANDBOX: Path = PROJECT_ROOT / "dev-sandbox"
-SANDBOX_ROOT: Path = DEV_SANDBOX / "MAi-RAG-DEV"  # Self-healing workspace
 os.makedirs(WORKSPACE, exist_ok=True)
 os.makedirs(DEV_SANDBOX, exist_ok=True)
 
