@@ -3,21 +3,20 @@
 Agentic Workflow Core: Generate → Verify → Fix → Save
 Supports dynamic model selection, system prompt customization, tool-calling, and RAG integration.
 """
-import json
-import logging
 import os
 import re
+import json
 import sqlite3
+import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional, List, Dict, Any, Tuple
 
-from langchain_core.messages import (AIMessage, HumanMessage, SystemMessage,
-                                     ToolMessage)
-from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
+from langchain_core.tools import tool
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 
-from app.agents.verifier import ContentVerifier
 from app.memory.sqlite_memory import SQLiteMemoryManager
+from app.agents.verifier import ContentVerifier
 from app.rag.retriever import AdvancedRetriever
 
 logger = logging.getLogger(__name__)
@@ -215,14 +214,14 @@ When fixing errors:
 1. **WORKING DIRECTORY**: You are STRICTLY CONFINED to ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/
    - NEVER read, write, or reference files outside this directory
    - NEVER create subdirectories containing "workspace" or "MAi-RAG-DEV"
-
+   
 2. **INFINITE LOOP PREVENTION**:
    - NEVER recursively copy or move directories
    - NEVER create symbolic links
    - Maximum directory depth: 10 levels
    - Maximum files per operation: 50 files
    - If you need to process more than 50 files, ask for explicit approval
-
+   
 3. **FORBIDDEN PATHS** (NEVER access these):
    - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/workspace/
    - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/venv/
@@ -230,13 +229,13 @@ When fixing errors:
    - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/.git/
    - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/__pycache__/
    - Any path containing "workspace/workspace"
-
+   
 4. **FILESYSTEM TRAVERSAL LIMITS**:
    - Maximum recursive depth: 5 levels
    - Maximum files to read in single operation: 20 files
    - Maximum files to write in single operation: 10 files
    - If you exceed these limits, STOP and request approval
-
+   
 5. **OPERATION VALIDATION**:
    - Before any file operation, verify the target path is within allowed boundaries
    - Use `pathlib.Path.resolve()` to get absolute paths
@@ -267,15 +266,15 @@ SELF_HEALING_CAPABLE_MODELS = [
     "mistral-small:24b",
     "qwen3-coder-30b",
     "gemma3:27b",
+    
     # MoE models (fast + capable)
-    "qwen3-235b-a22b",  # Large MoE, excellent if hardware supports
-    "qwen3-30b-a3b",  # Consumer-friendly MoE
-    "qwen3.6-35b-a3b",  # Decent fast model
-    "mixtral-8x7b",  # Excellent MoE coder
-    "mixtral-8x22b",  # Large MoE, very capable
-    "deepseek-v2",  # Strong MoE coder
+    "qwen3-235b-a22b",      # Large MoE, excellent if hardware supports
+    "qwen3-30b-a3b",        # Consumer-friendly MoE
+    "qwen3.6-35b-a3b",      # Decent fast model
+    "mixtral-8x7b",         # Excellent MoE coder
+    "mixtral-8x22b",        # Large MoE, very capable
+    "deepseek-v2",          # Strong MoE coder
 ]
-
 
 def is_self_healing_capable(model_name: str) -> bool:
     """Check if model has sufficient capability for self-healing operations."""
@@ -283,7 +282,6 @@ def is_self_healing_capable(model_name: str) -> bool:
         return False
     model_lower = model_name.lower()
     return any(capable in model_lower for capable in SELF_HEALING_CAPABLE_MODELS)
-
 
 # =============================================================================
 # Protected System Models (Users Should Not Remove)
@@ -296,52 +294,44 @@ PROTECTED_SYSTEM_MODELS = [
         "reason": "Optimized for consumer hardware. Required for optimal system performance.",
         "min_ram_gb": 8,
         "size_gb": 4.2,
-        "critical": True,
+        "critical": True
     }
 ]
 
-
 def get_protected_models_status() -> List[Dict[str, Any]]:
     """Get status of protected system models using Ollama HTTP API (PATH-independent)."""
-    import json
     import urllib.request
-
+    import json
+    
     installed_models = []
     try:
         req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode("utf-8"))
             # Extract just the model names in lowercase
-            installed_models = [
-                m.get("name", "").lower() for m in data.get("models", [])
-            ]
+            installed_models = [m.get("name", "").lower() for m in data.get("models", [])]
     except Exception as e:
         logger.warning(f"Failed to fetch Ollama models for protected status: {e}")
-
+    
     model_status = []
     for model in PROTECTED_SYSTEM_MODELS:
         model_name_lower = model["name"].lower()
         # Check if the protected model name is in any of the installed model names
         is_installed = any(model_name_lower in m for m in installed_models)
-
-        model_status.append(
-            {
-                **model,
-                "installed": is_installed,
-                "warning": None
-                if is_installed
-                else f"{model['name']} is not installed. {model['reason']}",
-            }
-        )
-
+        
+        model_status.append({
+            **model,
+            "installed": is_installed,
+            "warning": None if is_installed else f"{model['name']} is not installed. {model['reason']}"
+        })
+    
     return model_status
-
 
 # =============================================================================
 # Configuration
 # =============================================================================
 
-PROJECT_ROOT: Path = Path(__file__).parent.parent.resolve()
+PROJECT_ROOT: Path = Path(__file__).parent.parent.parent.resolve()
 WORKSPACE: Path = PROJECT_ROOT / "workspace"
 DEV_SANDBOX: Path = PROJECT_ROOT / "dev-sandbox"
 SANDBOX_ROOT: Path = DEV_SANDBOX / "MAi-RAG-DEV"  # Self-healing workspace
@@ -353,35 +343,31 @@ retriever = AdvancedRetriever()
 
 FORBIDDEN_DIRS: List[str] = [
     # Environments & Dependencies (Prevent AI from deleting dependencies)
-    "venv",
-    "env",
-    ".venv",
-    "node_modules",
+    "venv", "env", ".venv", "node_modules",
+    
     # Version Control & Cache
-    ".git",
-    "__pycache__",
-    ".env",
+    ".git", "__pycache__", ".env",
+    
     # Build Artifacts
-    "dist",
-    "build",
-    "public",
+    "dist", "build", "public",
+    
     # CRITICAL SYSTEM DIRECTORIES (AI must NEVER touch these directly)
-    "memory",  # SQLite databases (prevent direct AI SQL manipulation)
-    "storage",  # Chunk cache
-    "models",  # Binary ML models (prevent accidental deletion of .gguf files)
-    "logs",  # Log files
-    "alembic",  # Database migrations
+    "memory",      # SQLite databases (prevent direct AI SQL manipulation)
+    "storage",     # Chunk cache
+    "models",      # Binary ML models (prevent accidental deletion of .gguf files)
+    "logs",        # Log files
+    "alembic",     # Database migrations
+    
     # DEVELOPMENT & TESTING (Prevent AI from breaking your test suite or scripts)
-    "tests",  # Pytest suites
-    "scripts",  # Your audit and runtime scripts
-    "dev-sandbox",  # Prevent the MAIN agent from altering the sandbox directly
+    "tests",       # Pytest suites
+    "scripts",     # Your audit and runtime scripts
+    "dev-sandbox", # Prevent the MAIN agent from altering the sandbox directly
 ]
-
 
 def initialize_dev_sandbox() -> Dict[str, Any]:
     """
     Initialize the MAi-RAG-DEV sandbox by copying source code.
-
+    
     Returns:
         Dict with status and details
     """
@@ -389,13 +375,13 @@ def initialize_dev_sandbox() -> Dict[str, Any]:
         return {
             "status": "exists",
             "path": str(SANDBOX_ROOT),
-            "message": "Sandbox already exists",
+            "message": "Sandbox already exists"
         }
-
+    
     try:
         # Create sandbox directory
         SANDBOX_ROOT.mkdir(parents=True, exist_ok=True)
-
+        
         # Define what to copy (source code only, no dependencies)
         items_to_copy = [
             ("app", "app"),
@@ -404,61 +390,55 @@ def initialize_dev_sandbox() -> Dict[str, Any]:
             ("requirements.txt", "requirements.txt"),
             ("frontend/package.json", "frontend/package.json"),
         ]
-
+        
         copied_files = []
         for src_rel, dst_rel in items_to_copy:
             src_path = PROJECT_ROOT / src_rel
             dst_path = SANDBOX_ROOT / dst_rel
-
+            
             if not src_path.exists():
                 logger.warning(f"Source not found: {src_path}")
                 continue
-
+            
             if src_path.is_dir():
                 # Copy directory
                 import shutil
-
                 if dst_path.exists():
                     shutil.rmtree(dst_path)
                 shutil.copytree(
-                    src_path,
+                    src_path, 
                     dst_path,
                     ignore=shutil.ignore_patterns(
-                        "__pycache__", "node_modules", "venv", ".git", "*.pyc"
-                    ),
+                        '__pycache__', 'node_modules', 'venv', '.git', '*.pyc'
+                    )
                 )
                 copied_files.append(f"{src_rel}/")
             else:
                 # Copy file
                 dst_path.parent.mkdir(parents=True, exist_ok=True)
                 import shutil
-
                 shutil.copy2(src_path, dst_path)
                 copied_files.append(src_rel)
-
-        logger.info(
-            f"Created dev sandbox at {SANDBOX_ROOT} with {len(copied_files)} items"
-        )
-
+        
+        logger.info(f"Created dev sandbox at {SANDBOX_ROOT} with {len(copied_files)} items")
+        
         return {
             "status": "success",
             "path": str(SANDBOX_ROOT),
             "copied_items": copied_files,
-            "message": f"Sandbox created with {len(copied_files)} items",
+            "message": f"Sandbox created with {len(copied_files)} items"
         }
-
+        
     except Exception as e:
         logger.error(f"Failed to create dev sandbox: {e}", exc_info=True)
         return {
             "status": "error",
             "path": str(SANDBOX_ROOT),
-            "message": f"Failed to create sandbox: {str(e)}",
+            "message": f"Failed to create sandbox: {str(e)}"
         }
-
 
 _sqlite_manager: Optional[SQLiteMemoryManager] = None
 _model_tool_support: Dict[str, bool] = {}
-
 
 def get_sqlite_manager() -> SQLiteMemoryManager:
     """Lazy initialization of SQLite manager."""
@@ -468,19 +448,17 @@ def get_sqlite_manager() -> SQLiteMemoryManager:
         _sqlite_manager = SQLiteMemoryManager(db_path=db_path)
     return _sqlite_manager
 
-
 # =============================================================================
 # Hardware Detection
 # =============================================================================
 
-
 def detect_hardware_capabilities() -> Dict[str, Any]:
     """Detect system hardware and recommend appropriate settings."""
     import psutil
-
-    ram_gb = psutil.virtual_memory().total / (1024**3)
+    
+    ram_gb = psutil.virtual_memory().total / (1024 ** 3)
     cpu_cores = psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True)
-
+    
     # Determine tier based on RAM and CPU
     if ram_gb >= 32 and cpu_cores >= 8:
         return {
@@ -489,12 +467,12 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
             "recommended_models": [  # NEW
                 "Qwen3.6-35b-a3b-Claude4.7-Opus-uncensored-mtp:latest",
                 "Mixtral-8x7B-Instruct-v0.1",
-                "DeepSeek-V2",
+                "DeepSeek-V2"
             ],
             "num_predict": 16384,
             "context_length": 8192,
             "tier": "high",
-            "max_concurrent_requests": 3,
+            "max_concurrent_requests": 3
         }
     elif ram_gb >= 16 and cpu_cores >= 4:
         return {
@@ -503,12 +481,12 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
             "recommended_models": [  # NEW
                 "Mixtral-8x7B-Instruct-v0.1",
                 "Qwen2.5-Coder-14B",
-                "DeepSeek-Coder-V2-Lite",
+                "DeepSeek-Coder-V2-Lite"
             ],
             "num_predict": 8192,
             "context_length": 4096,
             "tier": "medium",
-            "max_concurrent_requests": 2,
+            "max_concurrent_requests": 2
         }
     elif ram_gb >= 8:
         return {
@@ -517,24 +495,26 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
             "recommended_models": [  # NEW
                 "Qwen2.5-Coder-7B",
                 "DeepSeek-Coder-V2-Lite",
-                "CodeQwen-7B",
+                "CodeQwen-7B"
             ],
             "num_predict": 4096,
             "context_length": 2048,
             "tier": "low",
-            "max_concurrent_requests": 1,
+            "max_concurrent_requests": 1
         }
     else:
         return {
             "recommended_model_size": "3b",
             "recommended_model_type": "Dense",  # NEW
-            "recommended_models": ["Qwen2.5-3B", "Phi-3-mini"],  # NEW
+            "recommended_models": [  # NEW
+                "Qwen2.5-3B",
+                "Phi-3-mini"
+            ],
             "num_predict": 2048,
             "context_length": 1024,
             "tier": "minimal",
-            "max_concurrent_requests": 1,
+            "max_concurrent_requests": 1
         }
-
 
 # =============================================================================
 # LLM Instance Management
@@ -542,25 +522,24 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
 
 _llm_cache: Dict[str, ChatOllama] = {}
 
-
 def _get_llm(
     model_name: str,
     temperature: float = 0.7,
     repeat_penalty: float = 1.1,
     num_predict: int = 2048,
     timeout: int = 300,
-    num_ctx: int = 4096,
+    num_ctx: int = 4096
 ) -> ChatOllama:
     """
     Get or create a cached ChatOllama instance.
-
+    
     Args:
         model_name: Name of the Ollama model to use
         temperature: Sampling temperature (0.0-1.0)
         repeat_penalty: Penalty for repeated tokens
         num_predict: Maximum tokens to generate
         timeout: Request timeout in seconds (default 300 for large models on CPU)
-
+    
     Returns:
         ChatOllama instance (cached for reuse)
     """
@@ -577,10 +556,8 @@ def _get_llm(
             num_predict,
         )
 
-    cache_key = (
-        f"{model_name}_{temperature}_{repeat_penalty}_{num_predict}_{timeout}_{num_ctx}"
-    )
-
+    cache_key = f"{model_name}_{temperature}_{repeat_penalty}_{num_predict}_{timeout}_{num_ctx}"
+    
     if cache_key not in _llm_cache:
         _llm_cache[cache_key] = ChatOllama(
             model=model_name,
@@ -591,14 +568,13 @@ def _get_llm(
             num_ctx=num_ctx,
         )
         logger.debug("Created new ChatOllama instance for: %s", model_name)
-
+    
     return _llm_cache[cache_key]
-
 
 def clear_model_cache(model_name: Optional[str] = None) -> None:
     """
     Clear cached LLM instances to free memory.
-
+    
     Args:
         model_name: If provided, clear only instances for this model.
                    If None, clear all cached instances.
@@ -607,19 +583,15 @@ def clear_model_cache(model_name: Optional[str] = None) -> None:
         keys_to_remove = [k for k in list(_llm_cache) if k.startswith(f"{model_name}_")]
         for key in keys_to_remove:
             _llm_cache.pop(key, None)
-        logger.info(
-            "Cleared %d cached instances for model: %s", len(keys_to_remove), model_name
-        )
+        logger.info("Cleared %d cached instances for model: %s", len(keys_to_remove), model_name)
     else:
         count = len(_llm_cache)
         _llm_cache.clear()
         logger.info("Cleared all %d cached LLM instances", count)
 
-
 # =============================================================================
 # Dynamic Default Model Management
 # =============================================================================
-
 
 def get_default_model() -> Optional[str]:
     """Intelligently detect and select the best available model."""
@@ -628,9 +600,7 @@ def get_default_model() -> Optional[str]:
         try:
             with sqlite3.connect(str(db_path)) as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT value FROM short_term_memory WHERE key = 'default_model'"
-                )
+                cursor.execute("SELECT value FROM short_term_memory WHERE key = 'default_model'")
                 row = cursor.fetchone()
                 if row and row[0]:
                     logger.info("Using user-preferred model: %s", row[0].strip())
@@ -680,7 +650,7 @@ def get_default_model() -> Optional[str]:
                 details = model.get("details", {}) or {}
 
                 score = 0
-                size_gb = size_bytes / (1024**3) if size_bytes > 0 else 0.0
+                size_gb = size_bytes / (1024 ** 3) if size_bytes > 0 else 0.0
 
                 if 4 <= size_gb <= 20:
                     score += 100
@@ -694,10 +664,7 @@ def get_default_model() -> Optional[str]:
                     score += 20
 
                 param_size = str(details.get("parameter_size", ""))
-                if any(
-                    x in param_size.lower()
-                    for x in ["a3b", "a1b", "a22b", "a14b", "moe"]
-                ):
+                if any(x in param_size.lower() for x in ["a3b", "a1b", "a22b", "a14b", "moe"]):
                     score += 30
 
                 capabilities = details.get("capabilities", []) or []
@@ -738,11 +705,9 @@ def get_default_model() -> Optional[str]:
         logger.error("Failed to detect available models: %s", e, exc_info=True)
         return None
 
-
 # =============================================================================
 # System Prompt Management
 # =============================================================================
-
 
 def _build_stm_context_for_prompt() -> str:
     """Build a concise STM context block for LLM system prompt injection."""
@@ -758,19 +723,14 @@ def _build_stm_context_for_prompt() -> str:
             if isinstance(value, str):
                 try:
                     fact_data = json.loads(value)
-                    if (
-                        isinstance(fact_data, dict)
-                        and fact_data.get("type") == "user_fact"
-                    ):
+                    if isinstance(fact_data, dict) and fact_data.get("type") == "user_fact":
                         fact_lines.append(f"- {fact_data['raw']}")
                         continue
                 except (json.JSONDecodeError, TypeError):
                     pass
             fact_lines.append(f"- {value}")
         if fact_lines:
-            sections.append(
-                "### Personal Facts & Preferences\n" + "\n".join(fact_lines[:10])
-            )
+            sections.append("### Personal Facts & Preferences\n" + "\n".join(fact_lines[:10]))
     except Exception as e:
         logger.debug("Failed to load user profile for STM context: %s", e)
 
@@ -784,17 +744,14 @@ def _build_stm_context_for_prompt() -> str:
     )
     return header + "\n\n" + "\n".join(sections)
 
-
-def get_system_prompt(
-    model_name: Optional[str] = None, needs_tools: bool = False
-) -> str:
+def get_system_prompt(model_name: Optional[str] = None, needs_tools: bool = False) -> str:
     """
     Fetch the current system prompt and inject STM context.
-
+    
     Args:
         model_name: Optional model name to determine if self-healing should be enabled
         needs_tools: Whether to inject tool-calling instructions
-
+    
     Returns:
         Complete system prompt with appropriate sections
     """
@@ -806,9 +763,7 @@ def get_system_prompt(
         try:
             with sqlite3.connect(str(db_path)) as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT value FROM short_term_memory WHERE key = 'system_prompt'"
-                )
+                cursor.execute("SELECT value FROM short_term_memory WHERE key = 'system_prompt'")
                 row = cursor.fetchone()
                 if row and row[0] and row[0].strip():
                     base_prompt = row[0].strip()
@@ -834,11 +789,9 @@ def get_system_prompt(
 
     return base_prompt
 
-
 # =============================================================================
 # Helper: Strip Markdown Fences
 # =============================================================================
-
 
 def _strip_markdown_fences(content: str) -> str:
     """Remove markdown code fences from LLM output."""
@@ -846,26 +799,22 @@ def _strip_markdown_fences(content: str) -> str:
     content = re.sub(r"\n?```$", "", content, flags=re.MULTILINE)
     return content.strip()
 
-
 # =============================================================================
 # Security Helpers for Tool-Calling
 # =============================================================================
 
-
-def validate_path(
-    path_str: str, allow_write: bool = True, sandbox_mode: bool = False
-) -> Path:
+def validate_path(path_str: str, allow_write: bool = True, sandbox_mode: bool = False) -> Path:
     """
     Validate and resolve path within safe boundaries.
-
+    
     Args:
         path_str: Path to validate
         allow_write: Whether write operations are allowed
         sandbox_mode: If True, restrict to MAi-RAG-DEV sandbox
-
+    
     Returns:
         Validated Path object
-
+    
     Raises:
         ValueError: If path is outside allowed boundaries
     """
@@ -882,9 +831,7 @@ def validate_path(
     # Check forbidden directories
     for forbidden in FORBIDDEN_DIRS:
         if forbidden in path.parts:
-            raise ValueError(
-                f"Access to '{forbidden}' directory is forbidden for safety"
-            )
+            raise ValueError(f"Access to '{forbidden}' directory is forbidden for safety")
 
     # Sandbox-specific validation
     if sandbox_mode:
@@ -892,13 +839,11 @@ def validate_path(
             path.relative_to(SANDBOX_ROOT)
         except ValueError:
             raise ValueError(f"Sandbox mode: Path must be within {SANDBOX_ROOT}")
-
+        
         # Check for infinite loop patterns
         path_str = str(path)
         if "workspace/workspace" in path_str:
-            raise ValueError(
-                "Infinite loop detected: path contains 'workspace/workspace'"
-            )
+            raise ValueError("Infinite loop detected: path contains 'workspace/workspace'")
     else:
         if allow_write:
             try:
@@ -913,11 +858,9 @@ def validate_path(
 
     return path
 
-
 # =============================================================================
 # Tool Definitions
 # =============================================================================
-
 
 @tool
 def read_file(path: str) -> str:
@@ -939,7 +882,6 @@ def read_file(path: str) -> str:
     except Exception as e:
         return f"Error reading file: {str(e)}"
 
-
 @tool
 def write_file(path: str, content: str) -> str:
     """Write content to a file."""
@@ -950,7 +892,6 @@ def write_file(path: str, content: str) -> str:
         return f"Successfully wrote {len(content)} characters to {safe_path}"
     except Exception as e:
         return f"Error writing file: {str(e)}"
-
 
 @tool
 def list_directory(path: str = ".", recursive: bool = False) -> str:
@@ -964,9 +905,7 @@ def list_directory(path: str = ".", recursive: bool = False) -> str:
             return f"Error: Not a directory: {safe_path}"
 
         result: List[str] = []
-        items = (
-            sorted(safe_path.rglob("*")) if recursive else sorted(safe_path.iterdir())
-        )
+        items = sorted(safe_path.rglob("*")) if recursive else sorted(safe_path.iterdir())
 
         # Limit number of items to prevent overwhelming output
         if len(items) > 100:
@@ -984,7 +923,6 @@ def list_directory(path: str = ".", recursive: bool = False) -> str:
     except Exception as e:
         return f"Error listing directory: {str(e)}"
 
-
 @tool
 def search_files(pattern: str, path: str = ".") -> str:
     """Search for files matching a pattern."""
@@ -998,14 +936,12 @@ def search_files(pattern: str, path: str = ".") -> str:
                 for forbidden in FORBIDDEN_DIRS
             )
         ]
-
+        
         # Limit results
         if len(matches) > 50:
             matches = matches[:50]
-            return f"Found {len(matches)}+ files (showing first 50):\n" + "\n".join(
-                matches
-            )
-
+            return f"Found {len(matches)}+ files (showing first 50):\n" + "\n".join(matches)
+        
         return (
             f"Found {len(matches)} files:\n" + "\n".join(matches)
             if matches
@@ -1013,7 +949,6 @@ def search_files(pattern: str, path: str = ".") -> str:
         )
     except Exception as e:
         return f"Error searching files: {str(e)}"
-
 
 @tool
 def search_knowledge_base(query: str, top_k: int = 3) -> str:
@@ -1057,7 +992,6 @@ def search_knowledge_base(query: str, top_k: int = 3) -> str:
         logger.error("Knowledge base search failed: %s", e, exc_info=True)
         return f"Error searching knowledge base: {str(e)}"
 
-
 @tool
 def get_user_profile(key: str) -> str:
     """Get a specific user preference from short-term memory."""
@@ -1067,12 +1001,9 @@ def get_user_profile(key: str) -> str:
             cursor = conn.cursor()
             cursor.execute("SELECT value FROM user_profile WHERE key = ?", (key,))
             row = cursor.fetchone()
-            return (
-                row[0] if row and row[0] else f"No information found for key: '{key}'"
-            )
+            return row[0] if row and row[0] else f"No information found for key: '{key}'"
     except Exception as e:
         return f"Error retrieving user profile: {str(e)}"
-
 
 @tool
 def save_user_profile(key: str, value: str) -> str:
@@ -1090,7 +1021,6 @@ def save_user_profile(key: str, value: str) -> str:
     except Exception as e:
         return f"Error saving user profile: {str(e)}"
 
-
 TOOLS = [
     read_file,
     write_file,
@@ -1104,7 +1034,6 @@ TOOLS = [
 # =============================================================================
 # Helper Functions
 # =============================================================================
-
 
 def create_file_with_verification(
     filename: str,
@@ -1146,7 +1075,6 @@ def create_file_with_verification(
 
     return {"status": "success", "filename": filename, "path": str(file_path)}
 
-
 def execute_tool_call(tool_name: str, tool_args: Dict[str, Any]) -> str:
     """Execute a tool call and return the result."""
     tool_map = {t.name: t for t in TOOLS}
@@ -1156,7 +1084,6 @@ def execute_tool_call(tool_name: str, tool_args: Dict[str, Any]) -> str:
         return str(tool_map[tool_name].invoke(tool_args))
     except Exception as e:
         return f"Error executing {tool_name}: {str(e)}"
-
 
 def extract_user_facts(chat_history: List[Dict[str, Any]]) -> List[str]:
     """Extract user facts from recent chat using lightweight LLM."""
@@ -1179,7 +1106,6 @@ def extract_user_facts(chat_history: List[Dict[str, Any]]) -> List[str]:
         logger.error("Failed to extract user facts: %s", e, exc_info=True)
         return []
 
-
 def save_extracted_facts(facts: List[str]) -> None:
     """Save new facts to SQLite, avoiding duplicates."""
     mgr = get_sqlite_manager()
@@ -1192,7 +1118,6 @@ def save_extracted_facts(facts: List[str]) -> None:
                     (fact,),
                 )
                 logger.info("Learned new user fact: %s", fact)
-
 
 def get_user_profile_context() -> str:
     """Fetch user profile and recent facts for system prompt injection."""
@@ -1222,11 +1147,9 @@ def get_user_profile_context() -> str:
     context += "Guideline: Use this context to build rapport naturally."
     return context
 
-
 # =============================================================================
 # Chat-Only Fallback
 # =============================================================================
-
 
 def _simple_chat_fallback(
     llm: ChatOllama,
@@ -1236,14 +1159,14 @@ def _simple_chat_fallback(
 ) -> Dict[str, Any]:
     """Simple chat mode with reduced generation budget."""
     logger.info("Using simple chat mode for %s", model_name)
-
+    
     # Create a separate instance with limited tokens to avoid mutating the cached instance
     limited_llm = _get_llm(
         model_name=model_name,
         temperature=0.7,
         repeat_penalty=1.1,
         num_predict=1024,
-        timeout=300,
+        timeout=300
     )
 
     # Pass model_name to get_system_prompt for capability-based prompt injection
@@ -1295,11 +1218,9 @@ def _simple_chat_fallback(
             "tools_available": False,
         }
 
-
 # =============================================================================
 # ReAct Loop
 # =============================================================================
-
 
 def agent_loop(
     query: str,
@@ -1343,7 +1264,9 @@ def agent_loop(
     # Pass model_name to get_system_prompt for capability-based prompt injection
     system_prompt = get_system_prompt(model_name)
     user_profile_context = get_user_profile_context()
-    messages: List[Any] = [SystemMessage(content=system_prompt + user_profile_context)]
+    messages: List[Any] = [
+        SystemMessage(content=system_prompt + user_profile_context)
+    ]
 
     if rag_context:
         messages.append(
@@ -1378,9 +1301,7 @@ def agent_loop(
 
         if hasattr(response, "tool_calls") and response.tool_calls:
             messages.append(
-                AIMessage(
-                    content=response.content or "", tool_calls=response.tool_calls
-                )
+                AIMessage(content=response.content or "", tool_calls=response.tool_calls)
             )
             for tc in response.tool_calls:
                 result = execute_tool_call(tc["name"], tc["args"])
@@ -1392,17 +1313,19 @@ def agent_loop(
                         "iteration": iteration,
                     }
                 )
-                messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
+                messages.append(
+                    ToolMessage(content=result, tool_call_id=tc["id"])
+                )
         else:
             _model_tool_support[model_name] = True
             final_response = response.content.strip() if response.content else ""
 
             if not final_response:
-                reasoning = getattr(response, "additional_kwargs", {}).get(
-                    "reasoning_content"
-                ) or getattr(response, "response_metadata", {}).get(
-                    "reasoning_content", ""
-                )
+                reasoning = getattr(
+                    response, "additional_kwargs", {}
+                ).get("reasoning_content") or getattr(
+                    response, "response_metadata", {}
+                ).get("reasoning_content", "")
                 if reasoning:
                     final_response = reasoning.strip()
 
@@ -1437,11 +1360,9 @@ def agent_loop(
         "model": model_name,
     }
 
-
 # =============================================================================
 # Agentic File Creation
 # =============================================================================
-
 
 def agentic_create_file(
     filename: str,
@@ -1467,9 +1388,9 @@ def agentic_create_file(
         logger.info("File exists, using new name: %s", filename)
 
     # Use lower num_predict for creative writing, higher for code
-    is_code = filename.endswith((".py", ".ts", ".tsx", ".js", ".jsx"))
+    is_code = filename.endswith(('.py', '.ts', '.tsx', '.js', '.jsx'))
     predict_tokens = 2048 if is_code else 4096
-
+    
     llm = _get_llm(model, num_predict=predict_tokens)
     last_error = ""
 
@@ -1498,16 +1419,14 @@ def agentic_create_file(
             result = verifier.verify_file(filename, current_content)
             if not result["valid"]:
                 last_error = result["message"]
-                description += (
-                    f"\n\n[VERIFICATION FEEDBACK] {last_error}. Regenerate with fix."
-                )
+                description += f"\n\n[VERIFICATION FEEDBACK] {last_error}. Regenerate with fix."
                 continue
 
         # Success - write file
         output_path = WORKSPACE / filename
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(current_content, encoding="utf-8")
-
+        
         # Return WITH content and message
         return {
             "status": "success",
@@ -1524,11 +1443,9 @@ def agentic_create_file(
         "model": llm.model,
     }
 
-
 # =============================================================================
 # RAG Context Fetching
 # =============================================================================
-
 
 def fetch_rag_context(query: str, top_k: int = 3) -> Tuple[str, bool]:
     """Fetch RAG context with descriptive source attribution."""
@@ -1577,11 +1494,9 @@ def fetch_rag_context(query: str, top_k: int = 3) -> Tuple[str, bool]:
         logger.warning("RAG retrieval failed: %s", e)
         return "", False
 
-
 # =============================================================================
 # General Agent Request Handler
 # =============================================================================
-
 
 def process_request(
     user_query: str,
@@ -1636,11 +1551,9 @@ def process_request(
             "rag_used": rag_used,
         }
 
-
 # =============================================================================
 # RAG Status Endpoint Helper
 # =============================================================================
-
 
 def get_rag_status() -> Dict[str, Any]:
     """Get the current status of the RAG system for API endpoints."""
