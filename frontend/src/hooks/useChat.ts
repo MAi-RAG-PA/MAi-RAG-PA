@@ -1,51 +1,68 @@
-// src/hooks/useChat.ts
+// frontend/src/hooks/useChat.ts
 import { useState } from 'react';
-import { sendChatMessage } from '../api/chat'; // Your existing chat API
-import { sendAgentRequest, AgentResponse } from '../api/agent';
+import apiClient from '../api/client';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   isCode?: boolean;
   filename?: string;
+  model?: string;
+}
+
+interface ChatResponse {
+  content: string;
+  model: string;
+  warning?: string;
 }
 
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const sendMessage = async (text: string, filename?: string) => {
+  const sendMessage = async (text: string, filename?: string, model?: string) => {
     setIsLoading(true);
-    const userMsg: Message = { role: 'user', content: text };
+    const userMsg: Message = { role: 'user', content: text, filename };
     setMessages((prev) => [...prev, userMsg]);
 
     try {
-      let responseContent = "";
-      
-      // Simple heuristic: If a filename is provided or "code" is mentioned, use Agent
-      if (filename || text.toLowerCase().includes("create") && text.toLowerCase().includes(".py")) {
-        const agentRes: AgentResponse = await sendAgentRequest({ query: text, filename });
-        responseContent = agentRes.message + "\n\n" + agentRes.content;
-      } else {
-        // Use existing standard chat
-        const res = await sendChatMessage(text);
-        responseContent = res.content; // Adjust based on your existing chat API response
+      // Single endpoint handles both chat and file creation
+      const response = await apiClient.post<ChatResponse>('/api/chat', {
+        query: text,
+        filename: filename || undefined,
+        model: model || undefined,
+      });
+
+      const assistantMsg: Message = {
+        role: 'assistant',
+        content: response.data.content,
+        model: response.data.model,
+      };
+
+      // Add warning if present (e.g., repetition loop detected)
+      if (response.data.warning) {
+        assistantMsg.content += `\n\n**Warning:** ${response.data.warning}`;
       }
 
-      const assistantMsg: Message = { 
-        role: 'assistant', 
-        content: responseContent,
-        filename: filename
-      };
       setMessages((prev) => [...prev, assistantMsg]);
-
-    } catch (error) {
-      console.error("Chat error:", error);
-      setMessages((prev) => [...prev, { role: 'assistant', content: "Error processing request." }]);
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      const errorMsg = error.response?.data?.detail || error.message || 'Unknown error';
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `**Error:** ${errorMsg}`,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  return { messages, sendMessage, isLoading };
+  const clearMessages = () => {
+    setMessages([]);
+  };
+
+  return { messages, sendMessage, clearMessages, isLoading };
 };

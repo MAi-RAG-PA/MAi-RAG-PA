@@ -1,46 +1,173 @@
-# Python
+# ============================================================================
+# MAi-RAG-PA .gitignore - Security-First Configuration
+# ============================================================================
+
+# ============================================================================
+# SECURITY & SECRETS (HIGHEST PRIORITY)
+# ============================================================================
+.encryption_key
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*-secret.json
+*-credentials.json
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.staging
+
+# ============================================================================
+# RUNTIME DATA & DATABASES
+# ============================================================================
+/memory/
+storage/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+raft_state.json
+.qdrant-initialized
+
+# ============================================================================
+# ML MODELS (Downloaded by install.sh)
+# ============================================================================
+models/*.bin
+models/*.gguf
+models/*.safetensors
+models/*.onnx
+models/*.h5
+models/*.ot
+models/all-MiniLM-L6-v2/
+models/vosk-model-*/
+!models/.gitkeep
+
+# ============================================================================
+# USER-GENERATED CONTENT
+# ============================================================================
+workspace/
+chunks_output/
+dev-sandbox/MAi-RAG-DEV/
+
+# ============================================================================
+# PYTHON
+# ============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
 venv/
 env/
 ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.egg-info/
 
-# Node
+# ============================================================================
+# NODE.JS & FRONTEND
+# ============================================================================
 node_modules/
-frontend/dist/
-frontend/public/assets/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Runtime
+# ============================================================================
+# BUILD OUTPUTS
+# ============================================================================
+dist/
+build/
+*.egg-info/
+
+# ============================================================================
+# LOGS & TEMPORARY FILES
+# ============================================================================
 *.log
-*.flag
-*.pid
-*.seed
+logs/
+watchdog.log
+qdrant.log
+*.tmp
+*.temp
+.cache/
+.metadata_cache/
 
-# IDE
+# ============================================================================
+# IDE & EDITOR FILES
+# ============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+*.sublime-project
+*.sublime-workspace
 
-# OS
+# ============================================================================
+# OS FILES
+# ============================================================================
 .DS_Store
+.AppleDouble
+.Icon?
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Qdrant
-storage/collections/
-storage/chunks/
+# ============================================================================
+# QDRANT BINARY (Users download their own)
+# ============================================================================
+qdrant
+qdrant.exe
 
-# SQLite
-memory/*.db
-memory/*.db-shm
-memory/*.db-wal
+# ============================================================================
+# BACKUP FILES
+# ============================================================================
+*.bak
+*.backup
+*.old
+*.orig
 
-# Models (too large for GitHub)
-models/*/
-!models/README.md
+# ============================================================================
+# LOCAL UTILITIES & SCRIPTS (Not part of release)
+# ============================================================================
+sync-to-release.sh
+MAi-RAG-PA-ONLY-clean-for-release.sh
+MAi-RAG-to-MAi-RAG-PA.txt
+recovery.sh
 
-# Temporary
-snapshots/
-tmp/
+# ============================================================================
+# TESTING & DEVELOPMENT
+# ============================================================================
+tests/
+scripts/
+*.test.js
+*.spec.js
+
+# ============================================================================
+# FILES TO EXPLICITLY INCLUDE (Override ignores if needed)
+# ============================================================================
+!requirements.txt
+!requirements-dev.txt
+!install.sh
+!start.sh
+!stop.sh
+!first_launch.py
+!watchdog.py
+!launch.sh
+!launch.bat
+!launch.vbs
+!update.sh
+!update-mac.command

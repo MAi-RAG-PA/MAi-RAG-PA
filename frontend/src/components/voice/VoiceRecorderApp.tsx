@@ -1,5 +1,5 @@
 // src/components/voice/VoiceRecorder.tsx
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from "react";
 
 interface VoiceRecorderProps {
   onTranscribe: (transcript: string) => void;
@@ -9,66 +9,83 @@ interface VoiceRecorderProps {
 const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscribe, autoInsert = false }) => {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     };
   }, []);
 
+  const stopStreamTracks = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  };
+
   const startRecording = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      alert('Voice capture is not supported in this browser.');
+      alert("Voice capture is not supported in this browser.");
       return;
     }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       audioChunksRef.current = [];
+
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
       mediaRecorder.onstop = async () => {
         setIsRecording(false);
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const formData = new FormData();
-        formData.append('file', blob, 'voice.webm');
+        formData.append("file", blob, "voice.webm");
 
         try {
-          const res = await fetch('/voice/transcribe', {
-            method: 'POST',
+          const res = await fetch("/voice/transcribe", {
+            method: "POST",
             body: formData,
           });
-          if (!res.ok) throw new Error('Transcription failed');
+
+          if (!res.ok) throw new Error("Transcription failed");
+
           const data = await res.json();
           if (data.transcript) {
             if (autoInsert) {
               onTranscribe(data.transcript);
             }
           } else {
-            alert('No speech detected.');
+            alert("No speech detected.");
           }
         } catch {
-          alert('Voice endpoint expects WAV in your backend. Add browser-side conversion or accept webm.');
+          alert("Voice endpoint expects WAV in your backend. Add browser-side conversion or accept webm.");
+        } finally {
+          stopStreamTracks();
         }
-        stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorder.start();
       setIsRecording(true);
     } catch {
-      alert('Microphone access denied.');
+      alert("Microphone access denied.");
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
   };
@@ -83,24 +100,24 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscribe, autoInsert 
 
   return (
     <button
-      aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-      title={isRecording ? 'Stop recording' : 'Start recording'}
+      aria-label={isRecording ? "Stop recording" : "Start recording"}
+      title={isRecording ? "Stop recording" : "Start recording"}
       onClick={toggleRecording}
       style={{
         width: 56,
         height: 56,
         borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.12)',
-        background: 'rgba(255,255,255,0.04)',
-        color: 'var(--text, #e0e0e0)',
-        cursor: 'pointer',
-        fontWeight: 'normal',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'relative',
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.04)",
+        color: "var(--text, #e0e0e0)",
+        cursor: "pointer",
+        fontWeight: "normal",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        position: "relative",
       }}
-      className={isRecording ? 'recording' : ''}
+      className={isRecording ? "recording" : ""}
     >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <rect x="9" y="3" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" />

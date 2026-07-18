@@ -1,5 +1,5 @@
 // frontend/src/components/planner/CalendarPlannerApp.tsx
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../../api/client';
 
 // =============================================================================
@@ -7,12 +7,12 @@ import apiClient from '../../api/client';
 // =============================================================================
 
 const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
 ];
 
-const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const WEEKDAY_LONG = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 // =============================================================================
@@ -40,7 +40,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 const startOfWeek = (date: Date) => {
   const d = new Date(date);
-  d.setHours(0,0,0,0);
+  d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - d.getDay());
   return d;
 };
@@ -70,11 +70,11 @@ const addYears = (date: Date, years: number) => {
 };
 
 const formatDateKey = (date: Date) => {
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
 const formatDateTimeLocal = (date: Date) => {
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 const getMonthMatrix = (year: number, month: number) => {
@@ -85,7 +85,7 @@ const getMonthMatrix = (year: number, month: number) => {
 
   const days: Date[] = [];
   let cursor = new Date(start);
-  while(cursor <= end){
+  while (cursor <= end) {
     days.push(new Date(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -94,11 +94,11 @@ const getMonthMatrix = (year: number, month: number) => {
 
 const getWeekDays = (date: Date) => {
   const start = startOfWeek(date);
-  return Array.from({length:7}, (_, i) => addDays(start, i));
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 };
 
 const getHoursOfDay = (date: Date) => {
-  return Array.from({length:24}, (_, i) => {
+  return Array.from({ length: 24 }, (_, i) => {
     const d = new Date(date);
     d.setHours(i, 0, 0, 0);
     return d;
@@ -106,7 +106,7 @@ const getHoursOfDay = (date: Date) => {
 };
 
 // =============================================================================
-// Sub-Component: EventModal
+// Sub-Component: EventModal (with Accessibility)
 // =============================================================================
 
 interface EventModalProps {
@@ -125,22 +125,21 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
   const [details, setDetails] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState('weekly');
   const [recurrenceDays, setRecurrenceDays] = useState<string[]>([]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       if (entry && mode === "edit") {
-        console.log('📝 Populating edit form with entry:', entry);
         setTitle(entry.title);
         setType(entry.type);
         setDetails(entry.details);
         setStart(entry.start);
         setEnd(entry.end);
-        
         setIsRecurring(entry.is_recurring || false);
         setRecurrenceType(entry.recurrence_type || 'weekly');
         setRecurrenceDays(entry.recurrence_days || []);
@@ -152,7 +151,6 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
         setStart(formatDateTimeLocal(baseDate));
         const oneHourLater = new Date(baseDate.getTime() + 60 * 60 * 1000);
         setEnd(formatDateTimeLocal(oneHourLater));
-        
         setIsRecurring(false);
         setRecurrenceType('weekly');
         setRecurrenceDays([]);
@@ -161,11 +159,50 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
     }
   }, [open, entry, baseDate, mode]);
 
+  useEffect(() => {
+    if (open && titleInputRef.current) {
+      setTimeout(() => titleInputRef.current?.focus(), 100);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if(!title.trim() || !start) return;
+    if (!title.trim() || !start) return;
 
     const newEntry: CalendarEntry = {
       id: entry?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
@@ -180,7 +217,7 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
       recurrence_end_date: isRecurring && recurrenceEndDate ? recurrenceEndDate : undefined,
     };
 
-    if(mode === "edit"){
+    if (mode === "edit") {
       onUpdate(newEntry);
     } else {
       onSave(newEntry);
@@ -197,16 +234,44 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
     }
   };
 
+  const modalTitleId = 'event-modal-title';
+  const modalDescId = 'event-modal-description';
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3>{mode === "edit" ? "Edit" : "Create"} Entry</h3>
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
+      <div
+        ref={modalRef}
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={modalTitleId}
+        aria-describedby={modalDescId}
+        style={{
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative'
+        }}
+      >
+        <h3 id={modalTitleId}>{mode === "edit" ? "Edit" : "Create"} Entry</h3>
+        <p id={modalDescId} style={{ fontSize: '0.85rem', opacity: 0.7, margin: '0 0 16px 0' }}>
+          Fill in the details for your calendar entry
+        </p>
         <form className="form-grid" onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="entryTitle">Title</label>
-            <input id="entryTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project sync, dentist, reminder..." required />
+            <input
+              ref={titleInputRef}
+              id="entryTitle"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Project sync, dentist, reminder..."
+              required
+              aria-required="true"
+            />
           </div>
-
           <div className="field">
             <label htmlFor="entryType">Type</label>
             <select id="entryType" value={type} onChange={(e) => setType(e.target.value)}>
@@ -219,7 +284,14 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
 
           <div className="field">
             <label htmlFor="entryStart">Start</label>
-            <input id="entryStart" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required />
+            <input
+              id="entryStart"
+              type="datetime-local"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              required
+              aria-required="true"
+            />
           </div>
 
           <div className="field">
@@ -229,13 +301,19 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
 
           <div className="field">
             <label htmlFor="entryDetails">Notes</label>
-            <textarea id="entryDetails" value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Notes..."></textarea>
+            <textarea
+              id="entryDetails"
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              placeholder="Notes..."
+              aria-label="Additional notes for this entry"
+            ></textarea>
           </div>
 
-          <div className="field" style={{ 
-            marginTop: '16px', 
-            padding: '12px', 
-            background: 'rgba(255,255,255,0.04)', 
+          <div className="field" style={{
+            marginTop: '16px',
+            padding: '12px',
+            background: 'rgba(255,255,255,0.04)',
             borderRadius: '8px',
             border: '1px solid var(--line)'
           }}>
@@ -245,6 +323,7 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
                 checked={isRecurring}
                 onChange={(e) => setIsRecurring(e.target.checked)}
                 style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                aria-label="Make this a recurring event"
               />
               <span style={{ fontWeight: 600 }}>Recurring Event</span>
             </label>
@@ -252,8 +331,9 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
             {isRecurring && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem', opacity: 0.8 }}>Repeat:</label>
+                  <label htmlFor="recurrenceType" style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem', opacity: 0.8 }}>Repeat:</label>
                   <select
+                    id="recurrenceType"
                     value={recurrenceType}
                     onChange={(e) => setRecurrenceType(e.target.value)}
                     style={{
@@ -274,18 +354,20 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
                 </div>
 
                 {recurrenceType === 'weekly' && (
-                  <div>
+                  <div role="group" aria-label="Select days of the week">
                     <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', opacity: 0.8 }}>Days:</label>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((dayLetter, idx) => {
                         const dayName = WEEKDAY_NAMES[idx];
                         const isSelected = recurrenceDays.includes(dayName);
-                        
+
                         return (
                           <button
                             key={idx}
                             type="button"
                             onClick={() => toggleDay(dayName)}
+                            aria-pressed={isSelected}
+                            aria-label={`${WEEKDAY_LONG[idx]}${isSelected ? ' (selected)' : ''}`}
                             style={{
                               width: '36px',
                               height: '36px',
@@ -308,8 +390,9 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
                 )}
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem', opacity: 0.8 }}>Repeat Until:</label>
+                  <label htmlFor="recurrenceEndDate" style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem', opacity: 0.8 }}>Repeat Until:</label>
                   <input
+                    id="recurrenceEndDate"
                     type="date"
                     value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
@@ -340,7 +423,7 @@ const EventModal: React.FC<EventModalProps> = ({ open, onClose, onSave, onUpdate
 };
 
 // =============================================================================
-// Main Component: CalendarPlannerApp
+// Main Component: CalendarPlannerApp (with Accessibility)
 // =============================================================================
 
 const CalendarPlannerApp: React.FC = () => {
@@ -352,15 +435,20 @@ const CalendarPlannerApp: React.FC = () => {
   const [modalMode, setModalMode] = useState("entry");
   const [currentEntry, setCurrentEntry] = useState<CalendarEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
 
   useEffect(() => {
     const loadEventsFromSQLite = async () => {
       try {
         setIsLoading(true);
-        const res = await apiClient.get('/api/memory/sqlite/events/all?limit=1000');
-        const sqliteEvents: CalendarEntry[] = (res.data.events || []).map((e: any) => ({
+
+        // Fetch from the correct, existing endpoints
+        const [eventsRes, remindersRes] = await Promise.all([
+          apiClient.get('/api/memory/sqlite/events/upcoming?limit=1000'),
+          apiClient.get('/api/memory/sqlite/reminders/upcoming?limit=50')
+        ]);
+
+        const sqliteEvents: CalendarEntry[] = (eventsRes.data.events || []).map((e: any) => ({
           id: e.id,
           title: e.title,
           type: e.category === 'appointment' ? 'appointment' : 'event',
@@ -372,8 +460,7 @@ const CalendarPlannerApp: React.FC = () => {
           recurrence_days: e.recurrence_days,
           recurrence_end_date: e.recurrence_end_date,
         }));
-        
-        const remindersRes = await apiClient.get('/api/memory/sqlite/reminders/upcoming?limit=50');
+
         const reminderEntries: CalendarEntry[] = (remindersRes.data.reminders || []).map((r: any) => ({
           id: r.id,
           title: r.text,
@@ -382,7 +469,7 @@ const CalendarPlannerApp: React.FC = () => {
           start: r.due_time,
           end: r.due_time,
         }));
-        
+
         setEntries([...sqliteEvents, ...reminderEntries]);
       } catch (err) {
         console.warn('Failed to load events from SQLite:', err);
@@ -391,7 +478,7 @@ const CalendarPlannerApp: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     loadEventsFromSQLite();
   }, [today]);
 
@@ -400,7 +487,7 @@ const CalendarPlannerApp: React.FC = () => {
     entries.forEach(entry => {
       const d = new Date(entry.start);
       const key = formatDateKey(d);
-      if(!map[key]) map[key] = [];
+      if (!map[key]) map[key] = [];
       map[key].push(entry);
     });
     return map;
@@ -410,24 +497,18 @@ const CalendarPlannerApp: React.FC = () => {
   const currentMonth = anchorDate.getMonth();
 
   const goPrev = useCallback(() => {
-    if(view === "year") setAnchorDate(addYears(anchorDate, -1));
-    if(view === "month") setAnchorDate(addMonths(anchorDate, -1));
-    if(view === "week") setAnchorDate(addDays(anchorDate, -7));
-    if(view === "day") setAnchorDate(addDays(anchorDate, -1));
+    if (view === "year") setAnchorDate(addYears(anchorDate, -1));
+    if (view === "month") setAnchorDate(addMonths(anchorDate, -1));
+    if (view === "week") setAnchorDate(addDays(anchorDate, -7));
+    if (view === "day") setAnchorDate(addDays(anchorDate, -1));
   }, [view, anchorDate]);
 
   const goNext = useCallback(() => {
-    if(view === "year") setAnchorDate(addYears(anchorDate, 1));
-    if(view === "month") setAnchorDate(addMonths(anchorDate, 1));
-    if(view === "week") setAnchorDate(addDays(anchorDate, 7));
-    if(view === "day") setAnchorDate(addDays(anchorDate, 1));
+    if (view === "year") setAnchorDate(addYears(anchorDate, 1));
+    if (view === "month") setAnchorDate(addMonths(anchorDate, 1));
+    if (view === "week") setAnchorDate(addDays(anchorDate, 7));
+    if (view === "day") setAnchorDate(addDays(anchorDate, 1));
   }, [view, anchorDate]);
-
-  const resetToToday = () => {
-    setAnchorDate(today);
-    setSelectedDate(today);
-    setView("year");
-  };
 
   const openCreate = (date: Date, modeLabel = "entry") => {
     setCurrentEntry(null);
@@ -437,7 +518,6 @@ const CalendarPlannerApp: React.FC = () => {
   };
 
   const handleEditEntry = useCallback((entry: CalendarEntry) => {
-    console.log('✏️ Editing entry:', entry);
     setCurrentEntry(entry);
     setSelectedDate(new Date(entry.start));
     setModalMode("edit");
@@ -447,7 +527,6 @@ const CalendarPlannerApp: React.FC = () => {
   const entryToPayload = (entry: CalendarEntry) => {
     let tableName = 'events';
 
-    // CRITICAL: If recurring, ALWAYS use events table (only it supports recurrence)
     if (entry.is_recurring) {
       tableName = 'events';
     } else if (entry.type === 'reminder') {
@@ -466,7 +545,6 @@ const CalendarPlannerApp: React.FC = () => {
       end_time: entry.end,
     };
 
-    // Add recurrence fields for events
     if (tableName === 'events') {
       payload.is_recurring = entry.is_recurring || false;
       payload.recurrence_type = entry.recurrence_type;
@@ -476,13 +554,12 @@ const CalendarPlannerApp: React.FC = () => {
       if (entry.type === 'appointment') {
         payload.category = 'appointment';
       } else if (entry.type === 'reminder') {
-        payload.category = 'reminder'; // Mark it as a reminder-type event
+        payload.category = 'reminder';
       } else {
         payload.category = 'general';
       }
     }
 
-    // Add reminder-specific fields (only for non-recurring)
     if (tableName === 'reminders') {
       payload.text = entry.title;
       payload.due_time = entry.start;
@@ -490,21 +567,11 @@ const CalendarPlannerApp: React.FC = () => {
       payload.completed = false;
     }
 
-    // Add todo-specific fields
     if (tableName === 'todos') {
       payload.priority = 'medium';
       payload.completed = false;
       payload.due_date = entry.start.split('T')[0];
     }
-
-    console.log('Payload prepared:', {
-      tableName,
-      type: entry.type,
-      is_recurring: payload.is_recurring,
-      recurrence_type: payload.recurrence_type,
-      recurrence_days: payload.recurrence_days,
-      recurrence_end_date: payload.recurrence_end_date
-    });
 
     return { tableName, payload };
   };
@@ -514,26 +581,25 @@ const CalendarPlannerApp: React.FC = () => {
   };
 
   const handleSaveEntry = async (entry: CalendarEntry) => {
-    console.log('handleSaveEntry called with:', entry);
-
-    setEntries(prev => [...prev, entry]);
-
     try {
       const { tableName, payload } = entryToPayload(entry);
 
-      console.log(`Sending to /api/memory/sqlite/${tableName}:`, payload);
-
+      // 1. Save to the correct table
       await apiClient.post(`/api/memory/sqlite/${tableName}`, payload);
 
       if (entry.is_recurring) {
         showToast(`${entry.title} saved as recurring`);
       } else {
-        showToast(`${entry.title} saved`);
+        showToast(`${entry.title} saved to database`);
       }
 
-      // Reload all events
-      const res = await apiClient.get('/api/memory/sqlite/events/all?limit=10000');
-      const sqliteEvents: CalendarEntry[] = (res.data.events || []).map((e: any) => ({
+      // 2. Fetch fresh data from the CORRECT existing endpoints
+      const [eventsRes, remindersRes] = await Promise.all([
+        apiClient.get('/api/memory/sqlite/events/upcoming?limit=1000'),
+        apiClient.get('/api/memory/sqlite/reminders/upcoming?limit=1000')
+      ]);
+
+      const sqliteEvents: CalendarEntry[] = (eventsRes.data.events || []).map((e: any) => ({
         id: e.id,
         title: e.title,
         type: e.category === 'appointment' ? 'appointment' : 'event',
@@ -545,40 +611,59 @@ const CalendarPlannerApp: React.FC = () => {
         recurrence_days: e.recurrence_days,
         recurrence_end_date: e.recurrence_end_date,
       }));
-      setEntries(prev => [...prev.filter(e => e.type !== 'event' && e.type !== 'appointment'), ...sqliteEvents]);
 
-    } catch (err) {
+      const reminderEntries: CalendarEntry[] = (remindersRes.data.reminders || []).map((r: any) => ({
+        id: r.id,
+        title: r.text,
+        type: 'reminder',
+        details: '',
+        start: r.due_time,
+        end: r.due_time,
+      }));
+
+      // 3. Update state with verified database data
+      setEntries([...sqliteEvents, ...reminderEntries]);
+
+    } catch (err: any) {
       console.error('Failed to save entry:', err);
-      showToast('Failed to save to database');
+      showToast(`Failed to save: ${err.response?.data?.detail || err.message}`);
     }
   };
 
   const handleDeleteRecurring = async (entryId: string) => {
     const baseId = entryId.split('_')[0];
     const instances = entries.filter(e => e.id.startsWith(baseId));
-    
-    if (!window.confirm(`Delete this recurring event and all ${instances.length} instances?`)) {
+
+    if (!window.confirm(`Delete this recurring ${instances[0]?.type || 'entry'} and all ${instances.length} instances?`)) {
       return;
     }
-    
+
     try {
-      await apiClient.delete(`/api/memory/sqlite/events/recurring/${baseId}`);
+      const entry = instances[0];
+      const isReminder = entry?.type === 'reminder';
+
+      if (isReminder) {
+        await apiClient.delete(`/api/memory/sqlite/reminders/${baseId}`);
+      } else {
+        await apiClient.delete(`/api/memory/sqlite/events/recurring/${baseId}`);
+      }
+
       setEntries(prev => prev.filter(e => !e.id.startsWith(baseId)));
-      showToast(`Deleted ${instances.length} recurring event instances`);
-    } catch (err) {
-      console.error('Failed to delete recurring event:', err);
-      showToast('Failed to delete recurring event');
+      showToast(`Deleted ${instances.length} recurring ${isReminder ? 'reminder' : 'event'} instances`);
+    } catch (err: any) {
+      console.error('Failed to delete recurring entry:', err);
+      showToast(`Failed to delete: ${err.response?.data?.detail || err.message}`);
     }
   };
 
   const handleDeleteEntry = async (entryId: string) => {
-    if(!window.confirm("Are you sure you want to delete this entry?")) return;
-    
+    if (!window.confirm("Are you sure you want to delete this entry?")) return;
+
     const entry = entries.find(e => e.id === entryId);
     if (!entry) return;
-    
+
     setEntries(prev => prev.filter(e => e.id !== entryId));
-    
+
     try {
       const { tableName } = entryToPayload(entry);
       await apiClient.delete(`/api/memory/sqlite/${tableName}/${entryId}`);
@@ -591,10 +676,9 @@ const CalendarPlannerApp: React.FC = () => {
   };
 
   const handleUpdateEntry = async (updatedEntry: CalendarEntry) => {
-    console.log('💾 Updating entry:', updatedEntry);
     setEntries(prev => prev.map(e => e.id === updatedEntry.id ? updatedEntry : e));
     setCurrentEntry(null);
-    
+
     try {
       const { tableName, payload } = entryToPayload(updatedEntry);
       await apiClient.post(`/api/memory/sqlite/${tableName}`, payload);
@@ -606,119 +690,153 @@ const CalendarPlannerApp: React.FC = () => {
   };
 
   const yearView = (
-    <>
-      <div className="calendar-grid year-grid" style={{ 
+    <div
+      className="calendar-grid year-grid"
+      role="grid"
+      aria-label="Year view calendar"
+      style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
         gap: '16px',
         padding: '8px 8px 8px 0'
-      }}>
-        {MONTHS.map((monthName, idx) => {
-          const totalDays = new Date(currentYear, idx + 1, 0).getDate();
-          return (
-            <div 
-              key={monthName} 
-              className="month-card" 
-              onClick={() => { 
-                setAnchorDate(new Date(currentYear, idx, 1)); 
-                setSelectedDate(new Date(currentYear, idx, 1)); 
-                setView("month"); 
-              }} 
-              role="button" 
-              tabIndex={0} 
-              aria-label={`Open ${monthName} ${currentYear}`}
+      }}
+    >
+      {MONTHS.map((monthName, idx) => {
+        const totalDays = new Date(currentYear, idx + 1, 0).getDate();
+        return (
+          <div
+            key={monthName}
+            className="month-card"
+            onClick={() => {
+              setAnchorDate(new Date(currentYear, idx, 1));
+              setSelectedDate(new Date(currentYear, idx, 1));
+              setView("month");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setAnchorDate(new Date(currentYear, idx, 1));
+                setSelectedDate(new Date(currentYear, idx, 1));
+                setView("month");
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${monthName} ${currentYear}`}
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid var(--line)',
+              borderRadius: '12px',
+              padding: '12px',
+              cursor: 'pointer',
+              transition: 'transform 0.2s, border-color 0.2s',
+            }}
+            onMouseOver={(e) => {
+              (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)';
+            }}
+            onMouseOut={(e) => {
+              (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)';
+            }}
+          >
+            <div className="month-name" style={{
+              fontWeight: 600,
+              color: 'var(--accent)',
+              marginBottom: '8px',
+              textAlign: 'center'
+            }}>{monthName}</div>
+            <div className="month-mini"
+              aria-hidden="true"
               style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid var(--line)',
-                borderRadius: '12px',
-                padding: '12px',
-                cursor: 'pointer',
-                transition: 'transform 0.2s, border-color 0.2s',
-              }}
-              onMouseOver={(e) => {
-                (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-                (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)';
-              }}
-              onMouseOut={(e) => {
-                (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)';
+                display: "grid",
+                gridTemplateColumns: "repeat(7, 1fr)",
+                gap: "2px",
+                userSelect: "none",
+                fontSize: "0.6rem",
+                color: "var(--accent)",
               }}
             >
-              <div className="month-name" style={{ 
-                fontWeight: 600, 
-                color: 'var(--accent)',
-                marginBottom: '8px',
-                textAlign: 'center'
-              }}>{monthName}</div>
-              
-              <div className="month-mini"
-                aria-hidden="true"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(7, 1fr)",
-                  gap: "2px",
-                  userSelect: "none",
-                  fontSize: "0.6rem",
-                  color: "var(--accent)",
-                }}
-              >
-                {WEEKDAYS.map(day => (
-                  <div key={`header-${day}`} style={{ 
-                    textAlign: "center", 
-                    fontWeight: "bold", 
-                    color: "var(--text)", 
-                    opacity: 0.7, 
-                    fontSize: "0.5rem" 
+              {WEEKDAYS.map(day => (
+                <div key={`header-${day}`} style={{
+                  textAlign: "center",
+                  fontWeight: "bold",
+                  color: "var(--text)",
+                  opacity: 0.7,
+                  fontSize: "0.5rem"
+                }}>
+                  {day.charAt(0)}
+                </div>
+              ))}
+
+              {Array.from({ length: new Date(currentYear, idx, 1).getDay() }).map((_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+
+              {Array.from({ length: totalDays }).map((_, i) => {
+                const dayNum = i + 1;
+                return (
+                  <div key={dayNum} style={{
+                    textAlign: "center",
+                    lineHeight: "1.2",
+                    padding: "2px 0",
+                    color: "var(--accent)",
+                    fontSize: "0.75rem",
+                    fontWeight: 500,
                   }}>
-                    {day.charAt(0)}
+                    {dayNum}
                   </div>
-                ))}
-                
-                {Array.from({ length: new Date(currentYear, idx, 1).getDay() }).map((_, i) => (
-                  <div key={`empty-${i}`} />
-                ))}
-                
-                {Array.from({ length: totalDays }).map((_, i) => {
-                  const dayNum = i + 1;
-                  return (
-                    <div key={dayNum} style={{
-                      textAlign: "center",
-                      lineHeight: "1.2",
-                      padding: "2px 0",
-                      color: "var(--accent)",
-                      fontSize: "0.75rem",
-                      fontWeight: 500,
-                    }}>
-                      {dayNum}
-                    </div>
-                  );
-                })}
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
-    </>
+          </div>
+        );
+      })}
+    </div>
   );
 
   const monthDays = getMonthMatrix(currentYear, currentMonth);
+
   const monthView = (
     <>
       <div className="calendar-caption">
         <h3 style={{ textAlign: 'center', margin: '0 0 12px 0' }}>{MONTHS[currentMonth]} {currentYear}</h3>
       </div>
-      <div className="weekday-header">{WEEKDAYS.map(day => <span key={day}>{day}</span>)}</div>
-      <div className="calendar-grid month-grid" style={{ padding: '0 8px' }}>
+      <div className="weekday-header" role="row" aria-label="Weekday headers">
+        {WEEKDAYS.map(day => <span key={day} role="columnheader">{day}</span>)}
+      </div>
+      <div
+        className="calendar-grid month-grid"
+        role="grid"
+        aria-label="Month view calendar"
+        style={{ padding: '0 8px' }}
+      >
         {monthDays.map((day, i) => {
           const key = formatDateKey(day);
           const dayEntries = entriesByDate[key] || [];
           const isCurrentMonth = day.getMonth() === currentMonth;
           const isToday = formatDateKey(day) === formatDateKey(today);
           return (
-            <div key={i} className={`day-cell ${!isCurrentMonth ? "other-month" : ""} ${isToday ? "today" : ""}`} onClick={() => { setAnchorDate(day); setSelectedDate(day); setView("week"); }} role="button" tabIndex={0} aria-label={`Open week of ${day.toDateString()}`}>
+            <div
+              key={i}
+              className={`day-cell ${!isCurrentMonth ? "other-month" : ""} ${isToday ? "today" : ""}`}
+              onClick={() => { setAnchorDate(day); setSelectedDate(day); setView("week"); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setAnchorDate(day);
+                  setSelectedDate(day);
+                  setView("week");
+                }
+              }}
+              role="gridcell"
+              tabIndex={0}
+              aria-label={`${day.toDateString()}. ${dayEntries.length} events.${isToday ? ' Today.' : ''}`}
+              aria-current={isToday ? 'date' : undefined}
+            >
               <div className="day-number">{day.getDate()}</div>
               <div className="day-meta">{WEEKDAY_LONG[day.getDay()]}</div>
-              {dayEntries.slice(0,2).map(item => <span key={item.id} className="event-pill">{item.title}</span>)}
+              {dayEntries.slice(0, 2).map(item => <span key={item.id} className="event-pill">{item.title}</span>)}
               {dayEntries.length > 2 && <span className="day-meta">+{dayEntries.length - 2} more</span>}
             </div>
           );
@@ -728,25 +846,46 @@ const CalendarPlannerApp: React.FC = () => {
   );
 
   const weekDays = getWeekDays(anchorDate);
+
   const weekView = (
     <>
       <div className="calendar-caption">
         <h3 style={{ textAlign: 'center', margin: '0 0 12px 0' }}>
-          Week of {weekDays[0].toLocaleDateString(undefined, { month:"short", day:"numeric" })} – {weekDays[6].toLocaleDateString(undefined, { month:"short", day:"numeric", year:"numeric" })}
+          Week of {weekDays[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} – {weekDays[6].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
         </h3>
       </div>
-      <div className="calendar-grid week-grid">
+      <div
+        className="calendar-grid week-grid"
+        role="grid"
+        aria-label="Week view calendar"
+      >
         {weekDays.map((day) => {
           const key = formatDateKey(day);
           const dayEntries = entriesByDate[key] || [];
           const isToday = formatDateKey(day) === formatDateKey(today);
           return (
-            <div key={key} className={`week-day-card ${isToday ? "today" : ""}`} onClick={() => { setAnchorDate(day); setSelectedDate(day); setView("day"); }} role="button" tabIndex={0} aria-label={`Open day view for ${day.toDateString()}`}>
+            <div
+              key={key}
+              className={`week-day-card ${isToday ? "today" : ""}`}
+              onClick={() => { setAnchorDate(day); setSelectedDate(day); setView("day"); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setAnchorDate(day);
+                  setSelectedDate(day);
+                  setView("day");
+                }
+              }}
+              role="gridcell"
+              tabIndex={0}
+              aria-label={`${day.toDateString()}. ${dayEntries.length} events.${isToday ? ' Today.' : ''}`}
+              aria-current={isToday ? 'date' : undefined}
+            >
               <div className="week-day-head">
                 <div><div className="week-day-name">{WEEKDAY_LONG[day.getDay()]}</div><div className="week-day-date">{day.getDate()}</div></div>
-                <div className="day-meta">{MONTHS[day.getMonth()].slice(0,3)}</div>
+                <div className="day-meta">{MONTHS[day.getMonth()].slice(0, 3)}</div>
               </div>
-              {dayEntries.length ? dayEntries.slice(0,4).map(item => <span key={item.id} className="event-pill">{item.title}</span>) : <div className="day-meta">No entries yet</div>}
+              {dayEntries.length ? dayEntries.slice(0, 4).map(item => <span key={item.id} className="event-pill">{item.title}</span>) : <div className="day-meta">No entries yet</div>}
             </div>
           );
         })}
@@ -756,39 +895,60 @@ const CalendarPlannerApp: React.FC = () => {
 
   const dayHours = getHoursOfDay(anchorDate);
   const dayKey = formatDateKey(anchorDate);
-  const dayEntries = (entriesByDate[dayKey] || []).sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  const dayEntries = (entriesByDate[dayKey] || []).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
   const dayView = (
     <>
       <div className="calendar-caption">
         <h3 style={{ textAlign: 'center', margin: '0 0 12px 0' }}>
-          {anchorDate.toLocaleDateString(undefined, { weekday:"long", year:"numeric", month:"long", day:"numeric" })}
+          {anchorDate.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
         </h3>
       </div>
-      <div className="calendar-grid day-grid">
+      <div
+        className="calendar-grid day-grid"
+        role="grid"
+        aria-label="Day view calendar"
+      >
         {dayHours.map((hourDate) => {
           const hour = hourDate.getHours();
           const matching = dayEntries.filter(entry => new Date(entry.start).getHours() === hour);
           return (
-            <div className="hour-row" key={hour}>
-              <div className="hour-time">{pad(hour)}:00</div>
-              <div className="hour-content" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div className="hour-row" key={hour} role="row">
+              <div className="hour-time" role="cell">{pad(hour)}:00</div>
+              <div className="hour-content" role="cell" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {matching.length ? matching.map(item => (
                   <div key={item.id} className="event-pill" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{item.title} {item.id.includes('_') && <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>(recurring)</span>}</span>
                     <div style={{ display: 'flex', gap: '4px' }}>
-                      <button className="chip" onClick={(e) => { e.stopPropagation(); handleEditEntry(item); }}>Edit</button>
+                      <button
+                        className="chip"
+                        onClick={(e) => { e.stopPropagation(); handleEditEntry(item); }}
+                        aria-label={`Edit ${item.title}`}
+                      >Edit</button>
                       {item.id.includes('_') ? (
-                        <button className="chip delete-chip" onClick={(e) => { e.stopPropagation(); handleDeleteRecurring(item.id); }}>Delete All</button>
+                        <button
+                          className="chip delete-chip"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteRecurring(item.id); }}
+                          aria-label={`Delete all instances of ${item.title}`}
+                        >Delete All</button>
                       ) : (
-                        <button className="chip delete-chip" onClick={(e) => { e.stopPropagation(); handleDeleteEntry(item.id); }}>Delete</button>
+                        <button
+                          className="chip delete-chip"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteEntry(item.id); }}
+                          aria-label={`Delete ${item.title}`}
+                        >Delete</button>
                       )}
                     </div>
                   </div>
                 )) : <span className="day-meta">No scheduled item</span>}
               </div>
-              <div className="hour-actions">
-                <button className="chip" type="button" onClick={() => openCreate(hourDate, "entry")}>Add</button>
+              <div className="hour-actions" role="cell">
+                <button
+                  className="chip"
+                  type="button"
+                  onClick={() => openCreate(hourDate, "entry")}
+                  aria-label={`Add event at ${pad(hour)}:00`}
+                >Add</button>
               </div>
             </div>
           );
@@ -798,33 +958,37 @@ const CalendarPlannerApp: React.FC = () => {
   );
 
   return (
-    <div className="calendar-shell" style={{ padding: '0 24px' }}>
-      <div className="calendar-topbar" style={{ 
+    <div
+      className="calendar-shell"
+      role="region"
+      aria-label="Calendar Planner"
+      style={{ padding: '0 24px' }}
+    >
+      <div className="calendar-topbar" style={{
         paddingTop: '16px',
         paddingBottom: '8px',
         marginBottom: '16px',
         position: 'relative'
       }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
           position: 'relative',
           minHeight: '60px'
         }}>
-          <div className="console-title" style={{ 
-            fontSize: '1.1rem', 
+          <div className="console-title" style={{
+            fontSize: '1.1rem',
             fontWeight: 600,
             color: 'var(--accent)',
             zIndex: 1,
             paddingLeft: '8px'
           }}>
-            MAi-RAG Calendar/Planner
+            MAi-RAG-PA Calendar/Planner
           </div>
-    
-          <h1 style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: 700, 
+          <h1 style={{
+            fontSize: '2.5rem',
+            fontWeight: 700,
             color: 'var(--accent)',
             margin: 0,
             lineHeight: '1.2',
@@ -837,67 +1001,93 @@ const CalendarPlannerApp: React.FC = () => {
           }}>
             {currentYear}
           </h1>
-    
-          <div style={{ width: '100px' }} /> 
+
+          <div style={{ width: '100px' }} />
         </div>
       </div>
 
-      <div className="calendar-footer" style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div className="calendar-footer" style={{
+        display: 'flex',
+        alignItems: 'center',
         gap: '12px',
         padding: '12px 0',
         marginBottom: '16px'
       }}>
-        <button className="nav-btn" type="button" onClick={goPrev} aria-label="Previous view range" style={{ 
-          background: 'rgba(255,255,255,0.08)', 
-          border: '1px solid var(--line)',
-          width: '36px', 
-          height: '36px',
-          borderRadius: '8px',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          fontSize: '1.2rem',
-          cursor: 'pointer'
-        }}>←</button>
-        
-        <div className="center-tools" style={{ 
-          display: 'flex', 
+        <button
+          className="nav-btn"
+          type="button"
+          onClick={goPrev}
+          aria-label={`Go to previous ${view}`}
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid var(--line)',
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            cursor: 'pointer'
+          }}
+        >←</button>
+
+        <div className="center-tools" style={{
+          display: 'flex',
           gap: '8px',
           flexWrap: 'wrap',
           justifyContent: 'center',
           flex: 1
         }}>
-          <button className="chip" type="button" onClick={() => openCreate(selectedDate, "event")} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>+ Create Entry</button>
+          <button
+            className="chip"
+            type="button"
+            onClick={() => openCreate(selectedDate, "event")}
+            aria-label="Create new calendar entry"
+            style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+          >+ Create Entry</button>
         </div>
-        
-        <button className="nav-btn" type="button" onClick={goNext} aria-label="Next view range" style={{ 
-          background: 'rgba(255,255,255,0.08)', 
-          border: '1px solid var(--line)',
-          width: '36px', 
-          height: '36px',
-          borderRadius: '8px',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          fontSize: '1.2rem',
-          cursor: 'pointer'
-        }}>→</button>
+
+        <button
+          className="nav-btn"
+          type="button"
+          onClick={goNext}
+          aria-label={`Go to next ${view}`}
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid var(--line)',
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            cursor: 'pointer'
+          }}
+        >→</button>
       </div>
 
-      <div className="calendar-actions" style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        gap: '6px',
-        padding: '8px 0',
-        marginBottom: '24px'
-      }}>
+      <div
+        className="calendar-actions"
+        role="tablist"
+        aria-label="Calendar view selection"
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '6px',
+          padding: '8px 0',
+          marginBottom: '24px'
+        }}
+      >
         {(['year', 'month', 'week', 'day'] as const).map((v) => (
-          <button 
+          <button
             key={v}
-            className={`chip ${view === v ? 'active' : ''}`} 
-            type="button" 
+            className={`chip ${view === v ? 'active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
+            aria-label={`${v} view`}
             onClick={() => setView(v)}
             style={{
               padding: '6px 14px',
@@ -916,9 +1106,18 @@ const CalendarPlannerApp: React.FC = () => {
         ))}
       </div>
 
-      <div className="calendar-stage" style={{ flex: 1, padding: '0 12px' }}>
+      <div
+        className="calendar-stage"
+        role="tabpanel"
+        aria-label={`${view} view calendar`}
+        style={{ flex: 1, padding: '0 12px' }}
+      >
         {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.6 }}>
+          <div
+            role="status"
+            aria-live="polite"
+            style={{ textAlign: 'center', padding: '40px 0', opacity: 0.6 }}
+          >
             Loading calendar events...
           </div>
         ) : (
@@ -931,49 +1130,67 @@ const CalendarPlannerApp: React.FC = () => {
         )}
       </div>
 
-      <div className="calendar-footer" style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div className="calendar-footer" style={{
+        display: 'flex',
+        alignItems: 'center',
         gap: '12px',
         padding: '16px 0',
         marginTop: '24px',
         borderTop: '1px solid var(--line)'
       }}>
-        <button className="nav-btn" type="button" onClick={goPrev} aria-label="Previous view range" style={{ 
-          background: 'rgba(255,255,255,0.08)', 
-          border: '1px solid var(--line)',
-          width: '36px', 
-          height: '36px',
-          borderRadius: '8px',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          fontSize: '1.2rem',
-          cursor: 'pointer'
-        }}>←</button>
-        
-        <div className="center-tools" style={{ 
-          display: 'flex', 
+        <button
+          className="nav-btn"
+          type="button"
+          onClick={goPrev}
+          aria-label={`Go to previous ${view}`}
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid var(--line)',
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            cursor: 'pointer'
+          }}
+        >←</button>
+
+        <div className="center-tools" style={{
+          display: 'flex',
           gap: '8px',
           flexWrap: 'wrap',
           justifyContent: 'center',
           flex: 1
         }}>
-          <button className="chip" type="button" onClick={() => openCreate(selectedDate, "event")} style={{ fontSize: '0.85rem', padding: '6px 12px' }}>+ Create Entry</button>
+          <button
+            className="chip"
+            type="button"
+            onClick={() => openCreate(selectedDate, "event")}
+            aria-label="Create new calendar entry"
+            style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+          >+ Create Entry</button>
         </div>
-        
-        <button className="nav-btn" type="button" onClick={goNext} aria-label="Next view range" style={{ 
-          background: 'rgba(255,255,255,0.08)', 
-          border: '1px solid var(--line)',
-          width: '36px', 
-          height: '36px',
-          borderRadius: '8px',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          fontSize: '1.2rem',
-          cursor: 'pointer'
-        }}>→</button>
+
+        <button
+          className="nav-btn"
+          type="button"
+          onClick={goNext}
+          aria-label={`Go to next ${view}`}
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid var(--line)',
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            cursor: 'pointer'
+          }}
+        >→</button>
       </div>
 
       <EventModal
