@@ -1238,6 +1238,13 @@ def agent_loop(
         "event",
         "reminder",
         "todo",
+        "read",
+        "fix",
+        "diagnose",
+        "sandbox",
+        "error",
+        "search",
+        "backup",
     ]
     is_simple_chat = not any(kw in query.lower() for kw in tool_keywords)
 
