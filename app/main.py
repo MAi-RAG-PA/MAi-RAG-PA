@@ -6,64 +6,72 @@ Production-ready FastAPI backend with comprehensive endpoint coverage.
 
 # CRITICAL: Set offline mode for HuggingFace BEFORE any other imports
 import os
-
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
-os.environ["SENTENCE_TRANSFORMERS_HOME"] = str(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/models"
-)
+os.environ["SENTENCE_TRANSFORMERS_HOME"] = str(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/models")
 
-import asyncio
-import hashlib
-import json
-import logging
-import re
-import shutil
-import subprocess
-import urllib.request
-import uuid
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
-from pathlib import Path
 # Now import everything else
-from typing import Any, List, Optional
-
-import ollama
-import psutil
-from fastapi import (Depends, FastAPI, File, Form, HTTPException, Query,
-                     Request, UploadFile, WebSocket, WebSocketDisconnect)
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from typing import Any, Optional, List
 from pydantic import BaseModel, field_validator
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, WebSocket, WebSocketDisconnect, Depends, Form, Query
+from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from qdrant_client import models
-from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
-
-# Agent logic
-from app.agents.agent_core import (_get_llm, agentic_create_file,
-                                   clear_model_cache, fetch_rag_context,
-                                   get_default_model, get_rag_status,
-                                   get_system_prompt, process_request)
-from app.api.v1.router import router as v1_router
+from app.rag.model_manager import ModelManager
+from app.websocket_manager import ws_manager
+from app.security.auth import verify_api_key, optional_auth, generate_api_key, api_key_header
+from app.security.input_validation import sanitize_filename
+from app.metrics import MODEL_REQUEST_COUNT, MODEL_DURATION
 from app.documents.chunker import chunk_text_semantic as chunk_text
 from app.documents.parser import parse_file as parser_parse_file
-from app.documents.processor import process_directory
+
+import re
+import ollama
+import logging
+import json
+import uuid
+import urllib.request
+import asyncio
+import subprocess
+import hashlib
+import shutil
+import psutil
+from app.api.v1.router import router as v1_router
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
+
 # Memory managers
 from app.memory.qdrant_manager import QdrantMemoryManager
 from app.memory.sqlite_memory import SQLiteMemoryManager
-from app.metrics import (ACTIVE_CONNECTIONS, CONTENT_TYPE_LATEST,
-                         DATABASE_SIZE_BYTES, MODEL_DURATION,
-                         MODEL_REQUEST_COUNT, MetricsMiddleware,
-                         generate_latest)
-from app.rag.model_manager import ModelManager
+from app.documents.processor import process_directory
+from app.security.rate_limiter import limiter, rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 # Import the router here, but don't attach it yet
 from app.rag.rag_server import router as rag_router
-from app.security.auth import (api_key_header, generate_api_key, optional_auth,
-                               verify_api_key)
-from app.security.input_validation import sanitize_filename
-from app.security.rate_limiter import limiter, rate_limit_exceeded_handler
-from app.websocket_manager import ws_manager
+
+# Agent logic
+from app.agents.agent_core import (
+    agentic_create_file,
+    process_request,
+    _get_llm,
+    get_system_prompt,
+    get_default_model,
+    clear_model_cache,
+    get_rag_status,
+    fetch_rag_context,
+)
+
+from app.metrics import (
+    MetricsMiddleware,
+    ACTIVE_CONNECTIONS,
+    DATABASE_SIZE_BYTES,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+)
 
 # =============================================================================
 # Configuration
@@ -90,40 +98,27 @@ If you continue experiencing issues, please try a more capable model for this ty
 # Logging Setup (Structured Logging via structlog)
 # =============================================================================
 from app.utils.structured_logging import setup_logging
-
 logger = setup_logging(log_level="INFO")
 
 # ---------------------------------------------------------------------------
 # Chunk-and-Ingest Helpers (private — place above chunk_and_ingest endpoint)
 # ---------------------------------------------------------------------------
 
-
 def route_to_specialist(user_query: str) -> dict:
     """Simple keyword-based routing - no LLM overhead."""
     query_lower = user_query.lower()
-
+    
     # SQL query detection
-    sql_keywords = [
-        "select",
-        "show",
-        "list",
-        "find",
-        "count",
-        "what are my",
-        "show my",
-        "how many",
-    ]
+    sql_keywords = ['select', 'show', 'list', 'find', 'count', 'what are my', 'show my', 'how many']
     if any(kw in query_lower for kw in sql_keywords):
-        return {"specialist": "sql", "confidence": 0.9}
-
+        return {'specialist': 'sql', 'confidence': 0.9}
+    
     # Default to chat
-    return {"specialist": "chat", "confidence": 0.5}
-
+    return {'specialist': 'chat', 'confidence': 0.5}
 
 def _content_hash(text: str) -> str:
     """Generate a deterministic hash of chunk content for deduplication."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
-
 
 async def _phase1_chunk_text_to_disk(
     text: str,
@@ -213,9 +208,7 @@ async def _phase1_chunk_file_to_disk(
 
     if structured_records:
         for idx, record in enumerate(structured_records):
-            text_for_embedding = " ".join(
-                [str(v) for v in record.values() if isinstance(v, (str, int, float))]
-            )
+            text_for_embedding = " ".join([str(v) for v in record.values() if isinstance(v, (str, int, float))])
 
             h = _content_hash(text_for_embedding)
             if h in seen_hashes:
@@ -230,7 +223,7 @@ async def _phase1_chunk_file_to_disk(
                 "total": len(structured_records),
                 "content_hash": h,
                 "payload": record,
-                "embedding_text": text_for_embedding,
+                "embedding_text": text_for_embedding
             }
 
             json_path = file_cache_dir / f"{base_name}.json"
@@ -239,9 +232,7 @@ async def _phase1_chunk_file_to_disk(
             written_hashes.append(h)
             written_count += 1
 
-        logger.info(
-            f"Phase 1 complete: {written_count} structured records written for '{source_label}'"
-        )
+        logger.info(f"Phase 1 complete: {written_count} structured records written for '{source_label}'")
         return written_count, written_hashes, True
 
     if not text_chunks:
@@ -268,7 +259,7 @@ async def _phase1_chunk_file_to_disk(
                 "total_chunks": None,
                 "content_hash": h,
                 "char_count": len(sub_chunk),
-                "type": "text",
+                "type": "text"
             }
             json_path = file_cache_dir / f"{base_name}.json"
             json_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
@@ -288,11 +279,9 @@ async def _phase1_chunk_file_to_disk(
     logger.info(f"Phase 1 complete: {total} text chunks written for '{source_label}'")
     return total, written_hashes, False
 
-
 def _get_existing_hashes_batch(qm, collection: str, hashes: list[str]) -> set[str]:
     """Batch query Qdrant for existing content hashes."""
     import sys
-
     if not hashes:
         return set()
     try:
@@ -308,19 +297,13 @@ def _get_existing_hashes_batch(qm, collection: str, hashes: list[str]) -> set[st
             with_vectors=False,
         )
         found = {p.payload.get("content_hash") for p in results[0] if p.payload}
-        print(
-            f"    DEDUP: checked {len(hashes)} hashes, found {len(found)} existing",
-            file=sys.stderr,
-            flush=True,
-        )
+        logger.info(f"    DEDUP: checked {len(hashes)} hashes, found {len(found)} existing")
         return found
     except Exception as e:
-        print(f"    DEDUP FAILED: {e}", file=sys.stderr, flush=True)
+        logger.info(f"    DEDUP FAILED: {e}")
         import traceback
-
         traceback.print_exc(file=sys.stderr)
         return set()
-
 
 async def _phase2_ingest_from_disk(
     cache_dir: Path,
@@ -331,7 +314,7 @@ async def _phase2_ingest_from_disk(
     total_chunks_ref: list,
     skipped_duplicates_ref: list,
     files_processed_ref: list,
-    is_structured: bool,
+    is_structured: bool
 ) -> int:
     """Phase 2: Ingest from disk. Handles both text chunks and structured records."""
     BATCH_SIZE = 64
@@ -349,7 +332,7 @@ async def _phase2_ingest_from_disk(
 
         try:
             for batch_start in range(0, total_file_chunks, BATCH_SIZE):
-                batch_json = json_files[batch_start : batch_start + BATCH_SIZE]
+                batch_json = json_files[batch_start:batch_start + BATCH_SIZE]
 
                 batch_hashes = []
                 batch_data = []
@@ -364,16 +347,14 @@ async def _phase2_ingest_from_disk(
                 for meta in batch_data:
                     if meta["content_hash"] in existing:
                         continue
-                    documents.append(
-                        {
-                            "content": meta["embedding_text"],
-                            "source": meta["source"],
-                            "chunk_index": meta["index"],
-                            "total_chunks": meta["total"],
-                            "content_hash": meta["content_hash"],
-                            "payload": meta["payload"],
-                        }
-                    )
+                    documents.append({
+                        "content": meta["embedding_text"],
+                        "source": meta["source"],
+                        "chunk_index": meta["index"],
+                        "total_chunks": meta["total"],
+                        "content_hash": meta["content_hash"],
+                        "payload": meta["payload"],
+                    })
 
                 skipped = len(batch_hashes) - len(documents)
                 if skipped > 0:
@@ -387,16 +368,14 @@ async def _phase2_ingest_from_disk(
                     ingested += result.get("ingested", len(documents))
 
                 try:
-                    await ws_manager.broadcast(
-                        {
-                            "type": "ingest_progress",
-                            "source": source,
-                            "chunks_ingested": total_chunks_ref[0] + ingested,
-                            "current_file_chunks": ingested,
-                            "total_file_chunks": total_file_chunks,
-                            "files_processed": files_processed_ref[0],
-                        }
-                    )
+                    await ws_manager.broadcast({
+                        "type": "ingest_progress",
+                        "source": source,
+                        "chunks_ingested": total_chunks_ref[0] + ingested,
+                        "current_file_chunks": ingested,
+                        "total_file_chunks": total_file_chunks,
+                        "files_processed": files_processed_ref[0],
+                    })
                 except Exception:
                     pass
 
@@ -415,7 +394,7 @@ async def _phase2_ingest_from_disk(
 
         try:
             for batch_start in range(0, total_file_chunks, BATCH_SIZE):
-                batch_json = json_files[batch_start : batch_start + BATCH_SIZE]
+                batch_json = json_files[batch_start:batch_start + BATCH_SIZE]
 
                 batch_hashes = []
                 batch_data = []
@@ -432,15 +411,13 @@ async def _phase2_ingest_from_disk(
                 for content, meta in batch_data:
                     if meta["content_hash"] in existing:
                         continue
-                    documents.append(
-                        {
-                            "content": content,
-                            "source": meta["source"],
-                            "chunk_index": meta["chunk_index"],
-                            "total_chunks": meta["total_chunks"],
-                            "content_hash": meta["content_hash"],
-                        }
-                    )
+                    documents.append({
+                        "content": content,
+                        "source": meta["source"],
+                        "chunk_index": meta["chunk_index"],
+                        "total_chunks": meta["total_chunks"],
+                        "content_hash": meta["content_hash"],
+                    })
 
                 skipped = len(batch_hashes) - len(documents)
                 if skipped > 0:
@@ -454,16 +431,14 @@ async def _phase2_ingest_from_disk(
                     ingested += result.get("ingested", len(documents))
 
                 try:
-                    await ws_manager.broadcast(
-                        {
-                            "type": "ingest_progress",
-                            "source": source,
-                            "chunks_ingested": total_chunks_ref[0] + ingested,
-                            "current_file_chunks": ingested,
-                            "total_file_chunks": total_file_chunks,
-                            "files_processed": files_processed_ref[0],
-                        }
-                    )
+                    await ws_manager.broadcast({
+                        "type": "ingest_progress",
+                        "source": source,
+                        "chunks_ingested": total_chunks_ref[0] + ingested,
+                        "current_file_chunks": ingested,
+                        "total_file_chunks": total_file_chunks,
+                        "files_processed": files_processed_ref[0],
+                    })
                 except Exception:
                     pass
 
@@ -478,11 +453,9 @@ async def _phase2_ingest_from_disk(
 
     return ingested
 
-
 # =============================================================================
 # Environment Checker
 # =============================================================================
-
 
 class EnvironmentChecker:
     """Check if required services are available."""
@@ -532,16 +505,15 @@ class EnvironmentChecker:
             "ollama": {
                 "available": self.ollama_available,
                 "url": self.ollama_url,
-                "download_url": "https://ollama.com/download",
+                "download_url": "https://ollama.com/download"
             },
             "qdrant": {
                 "available": self.qdrant_available,
                 "url": self.qdrant_url,
-                "download_url": "https://github.com/qdrant/qdrant/releases/",
+                "download_url": "https://github.com/qdrant/qdrant/releases/"
             },
-            "all_services_available": self.ollama_available and self.qdrant_available,
+            "all_services_available": self.ollama_available and self.qdrant_available
         }
-
 
 env_checker = EnvironmentChecker()
 
@@ -553,14 +525,10 @@ executor = ThreadPoolExecutor(max_workers=4)
 app = FastAPI(
     title="MAi-RAG-PA API",
     version="2.0.0",
-    description="Personal AI Assistant with RAG, Tool-Calling, and Agentic Workflows",
+    description="Personal AI Assistant with RAG, Tool-Calling, and Agentic Workflows"
 )
 
-_cors_origins = (
-    os.environ.get("CORS_ORIGINS", "").split(",")
-    if os.environ.get("CORS_ORIGINS")
-    else None
-)
+_cors_origins = os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else None
 
 app.add_middleware(
     CORSMiddleware,
@@ -583,7 +551,6 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 heartbeat_task: Optional[asyncio.Task] = None
 shutdown_flag = False
 
-
 def get_sqlite_manager() -> SQLiteMemoryManager:
     """Lazy initialization of SQLite manager."""
     global sqlite_manager
@@ -592,7 +559,6 @@ def get_sqlite_manager() -> SQLiteMemoryManager:
         logger.info(f"SQLite manager initialized at: {sqlite_manager.db_path}")
     return sqlite_manager
 
-
 def get_qdrant_manager() -> QdrantMemoryManager:
     """Lazy initialization of Qdrant manager."""
     global qdrant_manager
@@ -600,47 +566,34 @@ def get_qdrant_manager() -> QdrantMemoryManager:
         qdrant_manager = QdrantMemoryManager()
     return qdrant_manager
 
-
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: StarletteRequest, call_next):
-        content_length = request.headers.get("content-length")
+        content_length = request.headers.get('content-length')
         if content_length and int(content_length) > 10 * 1024 * 1024:
             return JSONResponse(
                 status_code=413,
-                content={
-                    "error": "Request too large",
-                    "detail": "Maximum request size is 10MB",
-                },
+                content={"error": "Request too large", "detail": "Maximum request size is 10MB"}
             )
         return await call_next(request)
-
 
 app.add_middleware(RequestSizeLimitMiddleware)
 
 model_manager = ModelManager()
 
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all handler to expose errors that bypass endpoint-level try/except."""
-    import sys
-    import traceback
-
-    print(
-        f"!!! GLOBAL EXCEPTION on {request.method} {request.url.path}: {exc}",
-        file=sys.stderr,
-        flush=True,
-    )
+    import sys, traceback
+    logger.info(f"!!! GLOBAL EXCEPTION on {request.method} {request.url.path}: {exc}")
     traceback.print_exc(file=sys.stderr)
     return JSONResponse(
-        status_code=500, content={"detail": f"Internal error: {str(exc)}"}
+        status_code=500,
+        content={"detail": f"Internal error: {str(exc)}"}
     )
-
 
 # =============================================================================
 # Pydantic Models
 # =============================================================================
-
 
 class AgentRequest(BaseModel):
     query: str
@@ -648,95 +601,81 @@ class AgentRequest(BaseModel):
     model: Optional[str] = None
     hardware_tier: Optional[str] = None
 
-    @field_validator("query")
+    @field_validator('query')
     @classmethod
     def validate_query(cls, v):
-        from app.security.input_validation import (MAX_QUERY_LENGTH,
-                                                   sanitize_string)
-
+        from app.security.input_validation import sanitize_string, MAX_QUERY_LENGTH
         if not v or not v.strip():
-            raise ValueError("Query cannot be empty")
+            raise ValueError('Query cannot be empty')
         return sanitize_string(v.strip(), MAX_QUERY_LENGTH)
 
-    @field_validator("filename")
+    @field_validator('filename')
     @classmethod
     def validate_filename(cls, v):
         if v is None:
             return v
         from app.security.input_validation import sanitize_filename
-
         return sanitize_filename(v)
 
-    @field_validator("model")
+    @field_validator('model')
     @classmethod
     def validate_model(cls, v):
         if v is None:
             return v
-        if not re.match(r"^[a-zA-Z0-9._:-]+$", v):
-            raise ValueError("Invalid model name format")
+        if not re.match(r'^[a-zA-Z0-9._:-]+$', v):
+            raise ValueError('Invalid model name format')
         return v[:100]
-
 
 class FileCreationRequest(BaseModel):
     filename: str
     description: str
     model: Optional[str] = None
 
-
 class DirectoryCreationRequest(BaseModel):
     path: str
-
 
 class NoteSaveRequest(BaseModel):
     filename: str
     content: str
 
-    @field_validator("filename")
+    @field_validator('filename')
     @classmethod
     def validate_filename(cls, v):
         from app.security.input_validation import sanitize_filename
-
         return sanitize_filename(v)
 
-    @field_validator("content")
+    @field_validator('content')
     @classmethod
     def validate_content(cls, v):
-        from app.security.input_validation import (MAX_CONTENT_LENGTH,
-                                                   sanitize_string)
-
+        from app.security.input_validation import sanitize_string, MAX_CONTENT_LENGTH
         return sanitize_string(v, MAX_CONTENT_LENGTH)
-
 
 class CollectionRequest(BaseModel):
     name: str
     action: str
 
-    @field_validator("name")
+    @field_validator('name')
     @classmethod
     def validate_name(cls, v):
         from app.security.input_validation import validate_collection_name
-
         return validate_collection_name(v)
 
-    @field_validator("action")
+    @field_validator('action')
     @classmethod
     def validate_action(cls, v):
-        allowed = ["create", "delete"]
+        allowed = ['create', 'delete']
         if v not in allowed:
-            raise ValueError(f"Action must be one of {allowed}")
+            raise ValueError(f'Action must be one of {allowed}')
         return v
-
 
 class IngestRequest(BaseModel):
     collection: str
     documents: List[dict]
 
-
 class SearchRequest(BaseModel):
     collection: str
     query: str
     top_k: int = 5
-
 
 class EventRequest(BaseModel):
     id: Optional[str] = None
@@ -751,33 +690,29 @@ class EventRequest(BaseModel):
     recurrence_days: Optional[List[str]] = None
     recurrence_end_date: Optional[str] = None
 
-    @field_validator("title")
+    @field_validator('title')
     @classmethod
     def validate_title(cls, v):
-        from app.security.input_validation import (MAX_TITLE_LENGTH,
-                                                   sanitize_string)
-
+        from app.security.input_validation import sanitize_string, MAX_TITLE_LENGTH
         if not v or not v.strip():
-            raise ValueError("Title cannot be empty")
+            raise ValueError('Title cannot be empty')
         return sanitize_string(v.strip(), MAX_TITLE_LENGTH)
 
-    @field_validator("description")
+    @field_validator('description')
     @classmethod
     def validate_description(cls, v):
         if v is None:
             return v
         from app.security.input_validation import sanitize_string
-
         return sanitize_string(v)
 
-    @field_validator("category")
+    @field_validator('category')
     @classmethod
     def validate_category(cls, v):
-        allowed = ["general", "appointment", "reminder", "work", "personal"]
+        allowed = ['general', 'appointment', 'reminder', 'work', 'personal']
         if v not in allowed:
-            return "general"
+            return 'general'
         return v
-
 
 class ReminderRequest(BaseModel):
     id: Optional[str] = None
@@ -786,22 +721,19 @@ class ReminderRequest(BaseModel):
     priority: str = "medium"
     completed: bool = False
 
-    @field_validator("text")
+    @field_validator('text')
     @classmethod
     def validate_text(cls, v):
-        from app.security.input_validation import (MAX_TITLE_LENGTH,
-                                                   sanitize_string)
-
+        from app.security.input_validation import sanitize_string, MAX_TITLE_LENGTH
         if not v or not v.strip():
-            raise ValueError("Reminder text cannot be empty")
+            raise ValueError('Reminder text cannot be empty')
         return sanitize_string(v.strip(), MAX_TITLE_LENGTH)
 
-    @field_validator("priority")
+    @field_validator('priority')
     @classmethod
     def validate_priority(cls, v):
-        allowed = ["low", "medium", "high"]
-        return v if v in allowed else "medium"
-
+        allowed = ['low', 'medium', 'high']
+        return v if v in allowed else 'medium'
 
 class TodoRequest(BaseModel):
     id: Optional[str] = None
@@ -811,36 +743,31 @@ class TodoRequest(BaseModel):
     completed: bool = False
     due_date: Optional[str] = None
 
-    @field_validator("title")
+    @field_validator('title')
     @classmethod
     def validate_title(cls, v):
-        from app.security.input_validation import (MAX_TITLE_LENGTH,
-                                                   sanitize_string)
-
+        from app.security.input_validation import sanitize_string, MAX_TITLE_LENGTH
         if not v or not v.strip():
-            raise ValueError("Todo title cannot be empty")
+            raise ValueError('Todo title cannot be empty')
         return sanitize_string(v.strip(), MAX_TITLE_LENGTH)
 
-    @field_validator("description")
+    @field_validator('description')
     @classmethod
     def validate_description(cls, v):
         if v is None:
             return v
         from app.security.input_validation import sanitize_string
-
         return sanitize_string(v)
 
-    @field_validator("priority")
+    @field_validator('priority')
     @classmethod
     def validate_priority(cls, v):
-        allowed = ["low", "medium", "high"]
-        return v if v in allowed else "medium"
-
+        allowed = ['low', 'medium', 'high']
+        return v if v in allowed else 'medium'
 
 class UserProfileRequest(BaseModel):
     key: str
     value: Any
-
 
 class ChatMessageRequest(BaseModel):
     thread_id: str
@@ -851,34 +778,29 @@ class ChatMessageRequest(BaseModel):
     model: Optional[str] = None
     filename: Optional[str] = None
 
-    @field_validator("content")
+    @field_validator('content')
     @classmethod
     def validate_content(cls, v):
-        from app.security.input_validation import (MAX_CONTENT_LENGTH,
-                                                   sanitize_string)
-
+        from app.security.input_validation import sanitize_string, MAX_CONTENT_LENGTH
         if not v:
-            raise ValueError("Message content cannot be empty")
+            raise ValueError('Message content cannot be empty')
         return sanitize_string(v, MAX_CONTENT_LENGTH)
 
-    @field_validator("role")
+    @field_validator('role')
     @classmethod
     def validate_role(cls, v):
-        allowed = ["user", "assistant", "system"]
+        allowed = ['user', 'assistant', 'system']
         if v not in allowed:
-            raise ValueError(f"Role must be one of {allowed}")
+            raise ValueError(f'Role must be one of {allowed}')
         return v
-
 
 class ChatThreadRequest(BaseModel):
     id: str
     title: str
 
-
 class SettingsRequest(BaseModel):
     key: str
     value: Any
-
 
 class DirectoryIngestRequest(BaseModel):
     directory: str
@@ -887,7 +809,6 @@ class DirectoryIngestRequest(BaseModel):
     chunk_overlap: int = 200
     file_extensions: Optional[List[str]] = None
 
-
 class SyntheticDataRequest(BaseModel):
     collection: str
     topic: str
@@ -895,23 +816,20 @@ class SyntheticDataRequest(BaseModel):
     purpose: str = "constraint_validation"
     compliance_threshold: int = 95
 
-
 class DeleteDocumentRequest(BaseModel):
     collection: str
     document_ids: List[str]
 
-
 # =============================================================================
 # Security Helpers
 # =============================================================================
-
 
 def resolve_project_path(user_path: str) -> Path:
     """Securely resolve a path within the project root."""
     expanded = Path(user_path).expanduser().resolve()
     project_abs = PROJECT_ROOT.resolve()
 
-    forbidden = ["venv", "node_modules", ".git", "__pycache__", ".env"]
+    forbidden = ['venv', 'node_modules', '.git', '__pycache__', '.env']
     for forbidden_dir in forbidden:
         if forbidden_dir in expanded.parts:
             raise ValueError(f"Access to '{forbidden_dir}' is strictly forbidden.")
@@ -920,10 +838,7 @@ def resolve_project_path(user_path: str) -> Path:
         expanded.relative_to(project_abs)
         return expanded
     except ValueError:
-        raise ValueError(
-            f"Path traversal detected: '{user_path}' resolves outside project root"
-        )
-
+        raise ValueError(f"Path traversal detected: '{user_path}' resolves outside project root")
 
 def resolve_workspace_path(user_path: str) -> Path:
     """Securely resolve a path, anchoring relative paths to the workspace."""
@@ -939,108 +854,98 @@ def resolve_workspace_path(user_path: str) -> Path:
         expanded.relative_to(workspace_abs)
         return expanded
     except ValueError:
-        raise ValueError(
-            f"Path traversal detected: '{user_path}' resolves outside workspace"
-        )
-
+        raise ValueError(f"Path traversal detected: '{user_path}' resolves outside workspace")
 
 # =============================================================================
 # Health & System Endpoints
 # =============================================================================
 
-
 @app.get("/api/system/protected-models")
 async def get_protected_models_status_endpoint(api_key: str = Depends(verify_api_key)):
     """Get status of protected system models."""
     from app.agents.agent_core import get_protected_models_status
-
+    
     protected = get_protected_models_status()
-
+    
     return {
         "protected_models": protected,
-        "message": "These models are recommended for optimal system performance. Removing them may affect functionality.",
+        "message": "These models are recommended for optimal system performance. Removing them may affect functionality."
     }
-
 
 @app.post("/api/system/dev-sandbox/init")
 async def init_dev_sandbox(api_key: str = Depends(verify_api_key)):
     """Initialize the MAi-RAG-DEV sandbox for self-healing operations."""
     from app.agents.agent_core import initialize_dev_sandbox
-
+    
     result = initialize_dev_sandbox()
-
+    
     if result["status"] == "error":
         raise HTTPException(status_code=500, detail=result["message"])
-
+    
     return result
-
 
 @app.get("/api/system/dev-sandbox/status")
 async def get_dev_sandbox_status(api_key: str = Depends(verify_api_key)):
     """Get the status of the MAi-RAG-DEV sandbox."""
     from app.agents.agent_core import SANDBOX_ROOT
-
+    
     if not SANDBOX_ROOT.exists():
         return {
             "status": "not_initialized",
             "path": str(SANDBOX_ROOT),
-            "message": "Sandbox not initialized. Use POST /api/system/dev-sandbox/init",
+            "message": "Sandbox not initialized. Use POST /api/system/dev-sandbox/init"
         }
-
+    
     # Count files
     file_count = sum(1 for _ in SANDBOX_ROOT.rglob("*") if _.is_file())
     dir_count = sum(1 for _ in SANDBOX_ROOT.rglob("*") if _.is_dir())
-
+    
     return {
         "status": "initialized",
         "path": str(SANDBOX_ROOT),
         "file_count": file_count,
         "directory_count": dir_count,
-        "message": "Sandbox is ready for self-healing operations",
+        "message": "Sandbox is ready for self-healing operations"
     }
-
 
 @app.delete("/api/system/dev-sandbox/reset")
 async def reset_dev_sandbox(api_key: str = Depends(verify_api_key)):
     """Reset the MAi-RAG-DEV sandbox (delete and recreate)."""
-    import shutil
-
     from app.agents.agent_core import SANDBOX_ROOT, initialize_dev_sandbox
-
+    import shutil
+    
     if SANDBOX_ROOT.exists():
         try:
             shutil.rmtree(SANDBOX_ROOT)
             logger.info("Deleted existing sandbox")
         except Exception as e:
             logger.error(f"Failed to delete sandbox: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=500, detail=f"Failed to delete sandbox: {str(e)}"
-            )
-
+            raise HTTPException(status_code=500, detail=f"Failed to delete sandbox: {str(e)}")
+    
     result = initialize_dev_sandbox()
-
+    
     if result["status"] == "error":
         raise HTTPException(status_code=500, detail=result["message"])
-
-    return {**result, "message": "Sandbox reset successfully"}
-
+    
+    return {
+        **result,
+        "message": "Sandbox reset successfully"
+    }
 
 @app.get("/api/system/hardware")
 async def get_hardware_info(api_key: str = Depends(verify_api_key)):
     """Get system hardware information and recommendations."""
-    import psutil
-
     from app.agents.agent_core import detect_hardware_capabilities
-
+    import psutil
+    
     hw_caps = detect_hardware_capabilities()
-
+    
     return {
-        "ram_gb": round(psutil.virtual_memory().total / (1024**3), 2),
+        "ram_gb": round(psutil.virtual_memory().total / (1024 ** 3), 2),
         "cpu_cores": psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True),
         "recommendations": hw_caps,
-        "message": f"System tier: {hw_caps['tier'].upper()}",
+        "message": f"System tier: {hw_caps['tier'].upper()}"
     }
-
 
 @app.get("/api/system/cpu")
 async def get_system_cpu():
@@ -1052,34 +957,28 @@ async def get_system_cpu():
         logger.error(f"Failed to get CPU usage: {e}", exc_info=True)
         return {"percent": 0, "error": str(e)}
 
-
 @app.get("/api/system/ram")
 async def get_system_ram():
     """Get system RAM and swap usage."""
     try:
         mem = psutil.virtual_memory()
         swap = psutil.swap_memory()
-
+        
         return {
             "used": mem.used // (1024 * 1024),
             "total": mem.total // (1024 * 1024),
             "percent": mem.percent,
             "swap_used": swap.used // (1024 * 1024),
             "swap_total": swap.total // (1024 * 1024),
-            "swap_percent": swap.percent,
+            "swap_percent": swap.percent
         }
     except Exception as e:
         logger.error(f"Failed to get system stats: {e}", exc_info=True)
         return {
-            "used": 0,
-            "total": 0,
-            "percent": 0,
-            "swap_used": 0,
-            "swap_total": 0,
-            "swap_percent": 0,
-            "error": str(e),
+            "used": 0, "total": 0, "percent": 0,
+            "swap_used": 0, "swap_total": 0, "swap_percent": 0,
+            "error": str(e)
         }
-
 
 @app.get("/api/version")
 async def get_api_version():
@@ -1088,15 +987,13 @@ async def get_api_version():
         "current": "v1",
         "available": ["v1"],
         "deprecated": [],
-        "base_url": "/api/v1",
+        "base_url": "/api/v1"
     }
-
 
 @app.get("/api/metrics")
 async def prometheus_metrics():
     """Prometheus-compatible metrics endpoint."""
-    from app.metrics import (ACTIVE_CONNECTIONS, CONTENT_TYPE_LATEST,
-                             DATABASE_SIZE_BYTES, generate_latest)
+    from app.metrics import generate_latest, CONTENT_TYPE_LATEST, DATABASE_SIZE_BYTES, ACTIVE_CONNECTIONS
 
     try:
         if DB_PATH.exists():
@@ -1109,14 +1006,15 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
-
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 @app.get("/api/system/workspace-path")
 async def get_workspace_path():
     """Return the absolute workspace path for frontend path construction."""
     return {"workspace_path": str(WORKSPACE_PATH)}
-
 
 @app.get("/api/system/environment")
 async def check_environment():
@@ -1129,16 +1027,14 @@ async def check_environment():
         return {
             "ollama": {"available": False, "error": str(e)},
             "qdrant": {"available": False, "error": str(e)},
-            "all_services_available": False,
+            "all_services_available": False
         }
-
 
 @app.get("/api/health")
 @limiter.limit("120/minute")
 async def health_check(request: Request):
     """Comprehensive health check for monitoring tools."""
     import time
-
     start = time.time()
 
     checks = {}
@@ -1177,15 +1073,11 @@ async def health_check(request: Request):
 
     checks["workspace"] = {
         "status": "healthy" if os.access(WORKSPACE_PATH, os.W_OK) else "unhealthy",
-        "writable": os.access(WORKSPACE_PATH, os.W_OK),
+        "writable": os.access(WORKSPACE_PATH, os.W_OK)
     }
 
     response_time_ms = round((time.time() - start) * 1000, 2)
-    status_code = (
-        200
-        if overall_status == "healthy"
-        else (503 if overall_status == "unhealthy" else 200)
-    )
+    status_code = 200 if overall_status == "healthy" else (503 if overall_status == "unhealthy" else 200)
 
     return JSONResponse(
         status_code=status_code,
@@ -1194,16 +1086,14 @@ async def health_check(request: Request):
             "response_time_ms": response_time_ms,
             "checks": checks,
             "version": "2.0.0",
-            "timestamp": datetime.now().isoformat(),
-        },
+            "timestamp": datetime.now().isoformat()
+        }
     )
-
 
 @app.get("/api/health/live")
 async def liveness_probe():
     """Fast liveness probe - no external dependencies."""
     return {"status": "alive"}
-
 
 @app.get("/api/health/ready")
 async def readiness_probe(request: Request):
@@ -1215,27 +1105,28 @@ async def readiness_probe(request: Request):
         return {"status": "ready"}
     except Exception as e:
         return JSONResponse(
-            status_code=503, content={"status": "not_ready", "error": str(e)}
+            status_code=503,
+            content={"status": "not_ready", "error": str(e)}
         )
-
 
 @app.get("/api/system/status")
 async def get_system_status():
     """Check if MAi-RAG-PA services are running."""
     try:
         result = subprocess.run(
-            ["pgrep", "-f", "uvicorn app.main:app"], capture_output=True, text=True
+            ['pgrep', '-f', 'uvicorn app.main:app'],
+            capture_output=True,
+            text=True
         )
         is_running = result.returncode == 0
 
         return {
             "status": "running" if is_running else "stopped",
-            "pid": result.stdout.strip().split("\n")[0] if is_running else None,
+            "pid": result.stdout.strip().split('\n')[0] if is_running else None
         }
     except Exception as e:
         logger.error(f"Failed to check system status: {e}")
         return {"status": "unknown", "error": str(e)}
-
 
 @app.post("/api/system/stop")
 async def stop_system():
@@ -1243,14 +1134,13 @@ async def stop_system():
     try:
         stop_script = PROJECT_ROOT / "stop.sh"
         if stop_script.exists():
-            subprocess.Popen(["bash", str(stop_script)], start_new_session=True)
+            subprocess.Popen(['bash', str(stop_script)], start_new_session=True)
             return {"status": "stopping", "message": "MAi-RAG-PA is shutting down..."}
         else:
             return {"status": "error", "message": "stop.sh not found"}
     except Exception as e:
         logger.error(f"Failed to stop system: {e}")
         return {"status": "error", "message": str(e)}
-
 
 @app.post("/api/system/start")
 async def start_system():
@@ -1263,11 +1153,9 @@ async def start_system():
         logger.error(f"Failed to create restart flag: {e}")
         return {"status": "error", "message": str(e)}
 
-
 # =============================================================================
 # Ollama Model Management
 # =============================================================================
-
 
 @app.get("/api/ollama/models")
 async def get_ollama_models():
@@ -1282,7 +1170,6 @@ async def get_ollama_models():
         logger.error(f"Failed to fetch Ollama models: {e}")
         return {"models": [], "error": str(e)}
 
-
 @app.get("/api/models/status")
 async def get_model_status(request: Request):
     """Get model availability, fallback chain, and context limits."""
@@ -1293,23 +1180,19 @@ async def get_model_status(request: Request):
 
     chain_status = []
     for model in model_manager._fallback_chain:
-        chain_status.append(
-            {
-                "model": model,
-                "available": model in available,
-                "context_limit": get_context_limit(model),
-            }
-        )
+        chain_status.append({
+            "model": model,
+            "available": model in available,
+            "context_limit": get_context_limit(model),
+        })
 
     model_details = []
     for m in available:
-        model_details.append(
-            {
-                "name": m,
-                "context_limit": get_context_limit(m),
-                "is_chat": m in chat_models,
-            }
-        )
+        model_details.append({
+            "name": m,
+            "context_limit": get_context_limit(m),
+            "is_chat": m in chat_models,
+        })
 
     return {
         "available_models": model_details,
@@ -1319,21 +1202,14 @@ async def get_model_status(request: Request):
         "default_context_limit": get_context_limit(get_default_model()),
     }
 
-
 # =============================================================================
 # Settings Endpoints
 # =============================================================================
 
-
 @app.post("/api/system/backup")
 async def create_full_backup(api_key: str = Depends(verify_api_key)):
     """Create a full backup of SQLite database and all Qdrant collections."""
-    results = {
-        "sqlite": None,
-        "qdrant": {},
-        "timestamp": datetime.now().isoformat(),
-        "errors": [],
-    }
+    results = {"sqlite": None, "qdrant": {}, "timestamp": datetime.now().isoformat(), "errors": []}
 
     try:
         try:
@@ -1355,52 +1231,29 @@ async def create_full_backup(api_key: str = Depends(verify_api_key)):
                             snapshot_path = qm.create_snapshot(collection)
                             if snapshot_path:
                                 qm.rotate_snapshots(collection, keep=7)
-                                results["qdrant"][collection] = {
-                                    "snapshot": snapshot_path,
-                                    "status": "success",
-                                }
+                                results["qdrant"][collection] = {"snapshot": snapshot_path, "status": "success"}
                             else:
-                                results["qdrant"][collection] = {
-                                    "snapshot": None,
-                                    "status": "failed",
-                                }
+                                results["qdrant"][collection] = {"snapshot": None, "status": "failed"}
                         except Exception as e:
-                            results["qdrant"][collection] = {
-                                "snapshot": None,
-                                "status": "error",
-                                "detail": str(e),
-                            }
-                            logger.error(
-                                f"Qdrant snapshot failed for '{collection}': {e}",
-                                exc_info=True,
-                            )
+                            results["qdrant"][collection] = {"snapshot": None, "status": "error", "detail": str(e)}
+                            logger.error(f"Qdrant snapshot failed for '{collection}': {e}", exc_info=True)
                 else:
-                    results["qdrant"] = {
-                        "status": "skipped",
-                        "reason": "No collections found",
-                    }
+                    results["qdrant"] = {"status": "skipped", "reason": "No collections found"}
             else:
-                results["qdrant"] = {
-                    "status": "skipped",
-                    "reason": "Qdrant not available",
-                }
+                results["qdrant"] = {"status": "skipped", "reason": "Qdrant not available"}
         except Exception as e:
             results["qdrant"] = {"status": "error", "detail": str(e)}
             results["errors"].append(f"Qdrant backup failed: {str(e)}")
             logger.error(f"Qdrant backup failed: {e}", exc_info=True)
 
-        return {
-            "status": "success" if not results["errors"] else "partial",
-            "backup": results,
-        }
+        return {"status": "success" if not results["errors"] else "partial", "backup": results}
 
     except Exception as e:
         logger.error(f"Backup endpoint crashed: {e}", exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"status": "error", "backup": results, "errors": [str(e)]},
+            content={"status": "error", "backup": results, "errors": [str(e)]}
         )
-
 
 @app.get("/api/system/backups")
 async def list_backups():
@@ -1409,20 +1262,15 @@ async def list_backups():
     if not backup_dir.exists():
         backup_dir.mkdir(parents=True, exist_ok=True)
         return {"backups": []}
-
+    
     backups = []
     for backup_file in sorted(backup_dir.glob("*.db"), reverse=True):
-        backups.append(
-            {
-                "filename": backup_file.name,
-                "size": backup_file.stat().st_size,
-                "created": datetime.fromtimestamp(
-                    backup_file.stat().st_mtime
-                ).isoformat(),
-            }
-        )
+        backups.append({
+            "filename": backup_file.name,
+            "size": backup_file.stat().st_size,
+            "created": datetime.fromtimestamp(backup_file.stat().st_mtime).isoformat()
+        })
     return {"backups": backups}
-
 
 @app.post("/api/system/restore/{backup_filename}")
 async def restore_backup(backup_filename: str, request: Request):
@@ -1430,30 +1278,25 @@ async def restore_backup(backup_filename: str, request: Request):
     api_key = request.headers.get("X-API-Key")
     if not api_key:
         raise HTTPException(status_code=401, detail="API key required")
-
+    
     mgr = get_sqlite_manager()
     stored_key = mgr.get("api_key")
     if stored_key != api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
-
+    
     backup_path = PROJECT_ROOT / "backups" / backup_filename
     if not backup_path.exists():
         raise HTTPException(status_code=404, detail="Backup not found")
-
+    
     try:
         import shutil
-
         shutil.copy2(backup_path, DB_PATH)
         global sqlite_manager
         sqlite_manager = None
-        return {
-            "status": "success",
-            "message": "Database restored. Restarting required.",
-        }
+        return {"status": "success", "message": "Database restored. Restarting required."}
     except Exception as e:
         logger.error(f"Restore failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/settings/system-prompt")
 async def get_system_prompt_setting():
@@ -1463,13 +1306,11 @@ async def get_system_prompt_setting():
         prompt = mgr.get("system_prompt")
         if not prompt:
             from app.agents.agent_core import DEFAULT_SYSTEM_PROMPT
-
             prompt = DEFAULT_SYSTEM_PROMPT
         return {"prompt": prompt}
     except Exception as e:
         logger.error(f"Failed to get system prompt: {e}")
         return {"prompt": ""}
-
 
 @app.post("/api/settings/system-prompt")
 async def save_system_prompt(request: dict, api_key: str = Depends(verify_api_key)):
@@ -1491,7 +1332,6 @@ async def save_system_prompt(request: dict, api_key: str = Depends(verify_api_ke
         logger.error(f"Failed to save system prompt: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/settings/heartbeat")
 async def get_heartbeat_settings():
     """Get heartbeat interval settings (returns minutes)."""
@@ -1500,15 +1340,11 @@ async def get_heartbeat_settings():
         interval_seconds = mgr.get("heartbeat_interval")
         if interval_seconds:
             interval_minutes = int(interval_seconds) / 60
-            return {
-                "interval": interval_minutes,
-                "interval_seconds": int(interval_seconds),
-            }
+            return {"interval": interval_minutes, "interval_seconds": int(interval_seconds)}
         return {"interval": 5, "interval_seconds": 300}
     except Exception as e:
         logger.error(f"Failed to get heartbeat settings: {e}")
         return {"interval": 5, "interval_seconds": 300}
-
 
 @app.post("/api/settings/heartbeat")
 async def save_heartbeat_settings(request: dict):
@@ -1516,30 +1352,21 @@ async def save_heartbeat_settings(request: dict):
     try:
         interval = request.get("interval", 5)
         if not isinstance(interval, (int, float)) or interval < 1:
-            raise HTTPException(
-                status_code=400, detail="Interval must be a number >= 1 minute"
-            )
+            raise HTTPException(status_code=400, detail="Interval must be a number >= 1 minute")
 
         interval_seconds = int(interval * 60)
 
         mgr = get_sqlite_manager()
         success = mgr.set("heartbeat_interval", str(interval_seconds))
         if success:
-            logger.info(
-                f"Heartbeat interval saved: {interval} minutes ({interval_seconds}s)"
-            )
-            return {
-                "status": "saved",
-                "interval": interval,
-                "interval_seconds": interval_seconds,
-            }
+            logger.info(f"Heartbeat interval saved: {interval} minutes ({interval_seconds}s)")
+            return {"status": "saved", "interval": interval, "interval_seconds": interval_seconds}
         raise RuntimeError("sqlite_manager.set() returned False")
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to save heartbeat settings: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/settings/heartbeat-prompt")
 async def get_heartbeat_prompt():
@@ -1557,7 +1384,6 @@ Keep response under 20 words."""
     except Exception as e:
         logger.error(f"Failed to get heartbeat prompt: {e}")
         return {"prompt": ""}
-
 
 @app.post("/api/settings/heartbeat-prompt")
 async def save_heartbeat_prompt(request: dict):
@@ -1579,14 +1405,11 @@ async def save_heartbeat_prompt(request: dict):
         logger.error(f"Failed to save heartbeat prompt: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/settings/system-prompt/default")
 async def get_default_system_prompt():
     """Return the hardcoded default system prompt from agent_core.py."""
     from app.agents.agent_core import DEFAULT_SYSTEM_PROMPT
-
     return {"prompt": DEFAULT_SYSTEM_PROMPT}
-
 
 @app.get("/api/settings/notifications")
 async def get_notification_settings():
@@ -1611,7 +1434,6 @@ async def get_notification_settings():
         logger.error(f"Failed to get notification settings: {e}")
         return {"intervals": []}
 
-
 @app.post("/api/settings/notifications")
 async def save_notification_settings(request: dict):
     """Save notification preferences."""
@@ -1624,7 +1446,6 @@ async def save_notification_settings(request: dict):
         logger.error(f"Failed to save notification settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/settings/default-model")
 async def get_default_model_setting():
     """Get the current default model."""
@@ -1636,20 +1457,16 @@ async def get_default_model_setting():
         logger.error(f"Failed to get default model: {e}")
         return {"model": get_default_model()}
 
-
 @app.post("/api/settings/default-model")
-async def save_default_model_setting(
-    request: dict, api_key: str = Depends(verify_api_key)
-):
+async def save_default_model_setting(request: dict, api_key: str = Depends(verify_api_key)):
     """Save the default model preference."""
     try:
         model = request.get("model", "").strip()
         if not model:
             raise HTTPException(status_code=400, detail="Model name is required")
-
+        
         # Direct SQLite write to guarantee it saves, bypassing any mgr.set() quirks
         import sqlite3
-
         db_path = PROJECT_ROOT / "memory" / "memory_store.db"
         try:
             with sqlite3.connect(str(db_path)) as conn:
@@ -1657,7 +1474,7 @@ async def save_default_model_setting(
                 cursor.execute(
                     "INSERT OR REPLACE INTO short_term_memory (key, value, updated_at) "
                     "VALUES (?, ?, CURRENT_TIMESTAMP)",
-                    ("default_model", model),
+                    ("default_model", model)
                 )
                 conn.commit()
         except Exception as db_err:
@@ -1667,13 +1484,12 @@ async def save_default_model_setting(
         clear_model_cache()
         logger.info(f"Default model saved: {model}")
         return {"status": "saved", "model": model}
-
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to save default model: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/prompts/{name}/versions")
 async def list_prompt_versions(name: str):
@@ -1682,40 +1498,32 @@ async def list_prompt_versions(name: str):
     versions = mgr.list_prompt_versions(name)
     return {"versions": versions}
 
-
 @app.post("/api/prompts/{name}/save")
-async def save_prompt_version(
-    name: str, request: dict, api_key: str = Depends(verify_api_key)
-):
+async def save_prompt_version(name: str, request: dict, api_key: str = Depends(verify_api_key)):
     """Save a new version of a prompt."""
     content = request.get("content", "")
     if not content.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
-
+    
     mgr = get_sqlite_manager()
     version_id = mgr.save_prompt_version(name, content)
     return {"status": "saved", "version_id": version_id}
 
-
 @app.post("/api/prompts/{name}/rollback/{version}")
-async def rollback_prompt_version(
-    name: str, version: int, api_key: str = Depends(verify_api_key)
-):
+async def rollback_prompt_version(name: str, version: int, api_key: str = Depends(verify_api_key)):
     """Rollback to a specific prompt version."""
     mgr = get_sqlite_manager()
     success = mgr.rollback_prompt(name, version)
-
+    
     if success:
         clear_model_cache()  # Force reload
         return {"status": "success", "message": f"Rolled back to version {version}"}
-
+    
     raise HTTPException(status_code=404, detail="Version not found")
-
 
 # =============================================================================
 # Authentication Endpoints
 # =============================================================================
-
 
 @app.get("/api/auth/status")
 async def auth_status(request: Request):
@@ -1724,11 +1532,8 @@ async def auth_status(request: Request):
     has_key = bool(mgr.get("api_key"))
     return {
         "enabled": has_key,
-        "message": "API key authentication is active"
-        if has_key
-        else "No API key configured - system is open",
+        "message": "API key authentication is active" if has_key else "No API key configured - system is open",
     }
-
 
 @app.post("/api/auth/generate-key")
 async def generate_new_api_key(request: Request):
@@ -1748,23 +1553,20 @@ async def generate_new_api_key(request: Request):
         "message": "Save this key securely. It cannot be retrieved again.",
     }
 
-
 @app.get("/api/auth/auto-key")
 async def get_auto_generated_key():
     """Return the API key, generating one if missing."""
     mgr = get_sqlite_manager()
     key = mgr.get("api_key")
-
+    
     # If no key exists, generate one
     if not key:
         from app.security.auth import generate_api_key
-
         key = generate_api_key()
         mgr.set("api_key", key)
         logger.info("Auto-generated new API key on first launch")
 
     return {"api_key": key}
-
 
 @app.delete("/api/auth/key")
 async def revoke_api_key(request: Request):
@@ -1775,11 +1577,9 @@ async def revoke_api_key(request: Request):
     logger.info("API key revoked")
     return {"status": "revoked", "message": "API key deleted. System is now open."}
 
-
 # =============================================================================
 # Heartbeat System
 # =============================================================================
-
 
 @app.post("/api/heartbeat/trigger")
 async def trigger_heartbeat():
@@ -1792,26 +1592,23 @@ async def trigger_heartbeat():
             "last_status": heartbeat_state["last_status"],
             "last_message": heartbeat_state["last_message"],
             "last_check": heartbeat_state["last_check"],
-            "next_check": heartbeat_state.get("next_check"),
+            "next_check": heartbeat_state.get("next_check")
         }
     except Exception as e:
         logger.error(f"Manual heartbeat trigger error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 heartbeat_state = {
     "last_check": None,
     "last_status": "UNKNOWN",
     "last_message": "Not yet run",
     "next_check": None,
-    "is_running": False,
+    "is_running": False
 }
-
 
 async def check_and_dispatch_notifications():
     """Check due reminders/events and dispatch audio + toast notifications."""
     import sys
-
     mgr = get_sqlite_manager()
 
     intervals_json = mgr.get("notification_intervals")
@@ -1827,7 +1624,7 @@ async def check_and_dispatch_notifications():
     now = datetime.now()
 
     pending_reminders = mgr.get_pending_reminders(limit=50)
-    for reminder in pending_reminders or []:
+    for reminder in (pending_reminders or []):
         try:
             due = datetime.fromisoformat(reminder.get("due_time", ""))
             delta = (due - now).total_seconds()
@@ -1839,27 +1636,21 @@ async def check_and_dispatch_notifications():
 
                 mgr.set(f"notified_reminder_{reminder['id']}", now.isoformat())
 
-                await ws_manager.broadcast(
-                    {
-                        "type": "notification",
-                        "notification_type": "reminder",
-                        "title": "Reminder Due",
-                        "message": reminder.get("text", ""),
-                        "priority": reminder.get("priority", "medium"),
-                        "audio": True,
-                        "timestamp": now.isoformat(),
-                    }
-                )
-                print(
-                    f"    NOTIFICATION: Reminder dispatched: {reminder.get('text')}",
-                    file=sys.stderr,
-                    flush=True,
-                )
+                await ws_manager.broadcast({
+                    "type": "notification",
+                    "notification_type": "reminder",
+                    "title": "Reminder Due",
+                    "message": reminder.get("text", ""),
+                    "priority": reminder.get("priority", "medium"),
+                    "audio": True,
+                    "timestamp": now.isoformat(),
+                })
+                logger.info(f"    NOTIFICATION: Reminder dispatched: {reminder.get('text')}")
         except Exception as e:
             logger.debug(f"Notification check failed for reminder: {e}")
 
     upcoming_events = mgr.get_upcoming_events(limit=20)
-    for event in upcoming_events or []:
+    for event in (upcoming_events or []):
         try:
             start = datetime.fromisoformat(event.get("start_time", ""))
             delta = (start - now).total_seconds()
@@ -1877,26 +1668,19 @@ async def check_and_dispatch_notifications():
 
                     mgr.set(notif_key, now.isoformat())
 
-                    await ws_manager.broadcast(
-                        {
-                            "type": "notification",
-                            "notification_type": "event",
-                            "title": f"Upcoming: {interval['label']}",
-                            "message": event.get("title", ""),
-                            "priority": "medium",
-                            "audio": minutes <= 15,
-                            "timestamp": now.isoformat(),
-                        }
-                    )
-                    print(
-                        f"    NOTIFICATION: Event alert ({interval['label']}): {event.get('title')}",
-                        file=sys.stderr,
-                        flush=True,
-                    )
+                    await ws_manager.broadcast({
+                        "type": "notification",
+                        "notification_type": "event",
+                        "title": f"Upcoming: {interval['label']}",
+                        "message": event.get("title", ""),
+                        "priority": "medium",
+                        "audio": minutes <= 15,
+                        "timestamp": now.isoformat(),
+                    })
+                    logger.info(f"    NOTIFICATION: Event alert ({interval['label']}): {event.get('title')}")
                     break
         except Exception as e:
             logger.debug(f"Notification check failed for event: {e}")
-
 
 async def run_heartbeat_check():
     """Execute a quick heartbeat check - SQLite connectivity + Notification Dispatch."""
@@ -1924,12 +1708,8 @@ async def run_heartbeat_check():
 
         heartbeat_state["last_check"] = datetime.now().isoformat()
         heartbeat_state["last_status"] = "OK"
-        heartbeat_state[
-            "last_message"
-        ] = f"Database healthy (checked at {datetime.now().strftime('%H:%M:%S')})"
-        logger.info(
-            f"Heartbeat check completed (SQLite OK) at {datetime.now().strftime('%H:%M:%S')}"
-        )
+        heartbeat_state["last_message"] = f"Database healthy (checked at {datetime.now().strftime('%H:%M:%S')})"
+        logger.info(f"Heartbeat check completed (SQLite OK) at {datetime.now().strftime('%H:%M:%S')}")
 
         mgr.set("last_heartbeat", heartbeat_state["last_check"])
         mgr.set("last_heartbeat_status", heartbeat_state["last_status"])
@@ -1952,9 +1732,7 @@ async def run_heartbeat_check():
     finally:
         heartbeat_state["is_running"] = False
         await update_next_check_time()
-        logger.debug(
-            f"Next check scheduled for: {heartbeat_state.get('next_check', 'unknown')}"
-        )
+        logger.debug(f"Next check scheduled for: {heartbeat_state.get('next_check', 'unknown')}")
 
         try:
             await check_and_dispatch_notifications()
@@ -1962,15 +1740,13 @@ async def run_heartbeat_check():
             logger.debug(f"Notification dispatch error: {e}")
 
         try:
-            await ws_manager.broadcast(
-                {
-                    "type": "heartbeat",
-                    "status": heartbeat_state["last_status"],
-                    "message": heartbeat_state["last_message"],
-                    "last_check": heartbeat_state["last_check"],
-                    "next_check": heartbeat_state.get("next_check"),
-                }
-            )
+            await ws_manager.broadcast({
+                "type": "heartbeat",
+                "status": heartbeat_state["last_status"],
+                "message": heartbeat_state["last_message"],
+                "last_check": heartbeat_state["last_check"],
+                "next_check": heartbeat_state.get("next_check"),
+            })
         except Exception as e:
             logger.debug(f"Failed to broadcast heartbeat: {e}")
 
@@ -1995,7 +1771,6 @@ async def run_heartbeat_check():
                     logger.info("Weekly Qdrant backup completed")
         except Exception as e:
             logger.debug(f"Weekly Qdrant backup check skipped: {e}")
-
 
 async def update_next_check_time():
     """Calculate and store the next check time."""
@@ -2023,7 +1798,6 @@ async def update_next_check_time():
             heartbeat_state["next_check"] = next_check.isoformat()
     except Exception as e:
         logger.warning(f"Failed to update next check time: {e}")
-
 
 async def heartbeat_scheduler():
     """Background task that runs heartbeat checks at configured intervals."""
@@ -2058,23 +1832,19 @@ async def heartbeat_scheduler():
             logger.error(f"Heartbeat scheduler error: {e}", exc_info=True)
             await asyncio.sleep(60)
 
-
 @app.get("/api/heartbeat/status")
 async def get_heartbeat_status():
     """Get current heartbeat state."""
     global heartbeat_state
     return heartbeat_state
 
-
 # =============================================================================
 # Agent Endpoints
 # =============================================================================
 
-
 def _build_stm_context(query: str) -> str:
     """Build a concise STM context block for LLM injection based on query relevance."""
     import time
-
     start = time.time()
     mgr = get_sqlite_manager()
     sections = []
@@ -2086,76 +1856,59 @@ def _build_stm_context(query: str) -> str:
             fact_lines = []
             note_lines = []
             pattern_lines = []
-
+            
             for key, value in profile.items():
                 if key.startswith("stm_note_"):
                     # These are direct notes from STM
                     if isinstance(value, str):
                         note_lines.append(f"- {value}")
                     continue
-
+                
                 if key.startswith("pattern_") or key.startswith("learned_pattern_"):
                     # These are learned patterns
                     if isinstance(value, str):
                         try:
                             pattern_data = json.loads(value)
                             if isinstance(pattern_data, dict):
-                                desc = pattern_data.get(
-                                    "description", pattern_data.get("preference", "")
-                                )
+                                desc = pattern_data.get('description', pattern_data.get('preference', ''))
                                 if desc:
                                     pattern_lines.append(f"- {desc}")
                         except:
                             pass
                     continue
-
+                
                 if key == "api_key_retrieved":
                     continue
-
+                
                 # Regular user facts
                 if isinstance(value, str):
                     try:
                         fact_data = json.loads(value)
                         if isinstance(fact_data, dict):
                             if fact_data.get("type") == "user_fact":
-                                fact_lines.append(
-                                    f"- {fact_data.get('raw', fact_data.get('description', value))}"
-                                )
-                            elif "description" in fact_data:
+                                fact_lines.append(f"- {fact_data.get('raw', fact_data.get('description', value))}")
+                            elif 'description' in fact_data:
                                 fact_lines.append(f"- {fact_data['description']}")
-                            elif "preference" in fact_data:
+                            elif 'preference' in fact_data:
                                 fact_lines.append(f"- {fact_data['preference']}")
                             continue
                     except (json.JSONDecodeError, TypeError):
                         pass
                     fact_lines.append(f"- {value}")
-
+            
             if fact_lines:
                 sections.append("### Personal Facts\n" + "\n".join(fact_lines[:10]))
             if note_lines:
                 sections.append("### User Notes\n" + "\n".join(note_lines[:5]))
             if pattern_lines:
-                sections.append(
-                    "### Learned Preferences\n" + "\n".join(pattern_lines[:5])
-                )
+                sections.append("### Learned Preferences\n" + "\n".join(pattern_lines[:5]))
     except Exception as e:
         logger.debug(f"Failed to load user profile for context: {e}")
 
     # Time-based context (existing logic)
     lower_q = query.lower()
-    time_keywords = [
-        "appointment",
-        "schedule",
-        "meeting",
-        "birthday",
-        "deadline",
-        "when",
-        "next",
-        "upcoming",
-        "last",
-        "dentist",
-        "doctor",
-    ]
+    time_keywords = ["appointment", "schedule", "meeting", "birthday", "deadline",
+                     "when", "next", "upcoming", "last", "dentist", "doctor"]
 
     if any(kw in lower_q for kw in time_keywords):
         try:
@@ -2201,137 +1954,122 @@ def _build_stm_context(query: str) -> str:
     logger.info(f"STM context built in {elapsed:.3f}s, length: {len(result)} chars")
     return result
 
-
 def detect_repetition(text: str, threshold: int = 5) -> bool:
     """Detect if text contains repetitive loops."""
-    lines = text.split("\n")
+    lines = text.split('\n')
     if len(lines) < 10:
         return False
-
+    
     paragraph_counts = {}
     for i in range(0, len(lines) - 2):
-        paragraph = "\n".join(lines[i : i + 3])
+        paragraph = '\n'.join(lines[i:i+3])
         paragraph_counts[paragraph] = paragraph_counts.get(paragraph, 0) + 1
-
+    
     return any(count >= threshold for count in paragraph_counts.values())
-
 
 @app.post("/api/chat")
 async def chat_endpoint(request: Request, chat_request: AgentRequest):
     """Chat endpoint with file creation support and STM context injection."""
     try:
         import time as _time
-
         _model_start = _time.time()
         loop = asyncio.get_event_loop()
 
         def run_chat():
             t0 = _time.time()
-
+            
             # Direct model usage - NO ROUTING OVERHEAD
             requested_model = chat_request.model or get_default_model()
-
+            
             # =================================================================
             # FILE CREATION DETECTION - Check for [FILE] prefix
             # =================================================================
             query_text = chat_request.query
             extracted_filename = None
-
+            
             if query_text.strip().startswith("[FILE]"):
                 import re
-
-                match = re.search(r"\[FILE\].*?(\w+\.\w+)", query_text)
+                match = re.search(r'\[FILE\].*?(\w+\.\w+)', query_text)
                 if match:
                     extracted_filename = match.group(1)
                     query_text = query_text.replace("[FILE]", "").strip()
                     logger.info(f"[CHAT] File creation requested: {extracted_filename}")
-
+                    
                     try:
                         result = process_request(
                             user_query=query_text,
                             filename=extracted_filename,
-                            model=requested_model,
+                            model=requested_model
                         )
                         if "content" not in result or not result["content"]:
-                            result["content"] = result.get(
-                                "message", "File creation completed."
-                            )
+                            result["content"] = result.get("message", "File creation completed.")
                         return result
                     except Exception as file_err:
-                        logger.error(
-                            f"[CHAT] File creation failed: {file_err}", exc_info=True
-                        )
+                        logger.error(f"[CHAT] File creation failed: {file_err}", exc_info=True)
                         return {
                             "content": f"File creation failed: {str(file_err)}",
                             "model": requested_model,
-                            "warning": "File creation error",
+                            "warning": "File creation error"
                         }
-
+            
             # =================================================================
             # DYNAMIC CONTEXT & MODEL RESOLUTION
             # =================================================================
             # 1. Determine hardware tier (default to "medium" if frontend doesn't send it)
             hardware_tier = chat_request.hardware_tier or "medium"
-
+            
             # 2. Get safe context limits for this tier
             context_config = model_manager.get_context_config(hardware_tier)
-
+            
             # 3. Resolve the model
             try:
                 resolved_model = model_manager.resolve_model(requested_model)
             except RuntimeError:
                 resolved_model = get_default_model()
-
+            
             t1 = _time.time()
             logger.info(f"[CHAT] Model resolved in {t1-t0:.3f}s: {resolved_model}")
-
+            
             # 4. Instantiate LLM with dynamic num_ctx
-            llm = _get_llm(resolved_model, num_ctx=context_config["num_ctx"])
-
-            t2 = _time.time()
-            logger.info(
-                f"[CHAT] LLM instance ready in {t2-t1:.3f}s (num_ctx={context_config['num_ctx']})"
+            llm = _get_llm(
+                resolved_model, 
+                num_ctx=context_config["num_ctx"]
             )
+            
+            t2 = _time.time()
+            logger.info(f"[CHAT] LLM instance ready in {t2-t1:.3f}s (num_ctx={context_config['num_ctx']})")
 
             # =================================================================
             # DYNAMIC RAG & PROMPT ASSEMBLY
             # =================================================================
             # Fetch RAG context using the hardware-safe rag_limit
-            rag_context, rag_used = fetch_rag_context(
-                query_text, top_k=context_config["rag_limit"]
-            )
-
+            rag_context, rag_used = fetch_rag_context(query_text, top_k=context_config["rag_limit"])
+            
             stm_context = _build_stm_context(query_text)
             t3 = _time.time()
-            logger.info(
-                f"[CHAT] Contexts built in {t3-t2:.3f}s (RAG chunks: {context_config['rag_limit']})"
-            )
+            logger.info(f"[CHAT] Contexts built in {t3-t2:.3f}s (RAG chunks: {context_config['rag_limit']})")
 
             base_prompt = get_system_prompt()
-
+            
             # Conditionally inject RAG context if found
             if rag_used:
                 full_prompt = (
                     f"{base_prompt}\n\n"
                     f"## Knowledge Base Context\n{rag_context}\n\n"
                     f"## User's Personal Context (from Short-Term Memory)\n{stm_context}\n\n"
-                    f"User: {query_text}\nAssistant:"
-                    if stm_context
-                    else f"{base_prompt}\n\n## Knowledge Base Context\n{rag_context}\n\nUser: {query_text}\nAssistant:"
+                    f"User: {query_text}\nAssistant:" if stm_context else 
+                    f"{base_prompt}\n\n## Knowledge Base Context\n{rag_context}\n\nUser: {query_text}\nAssistant:"
                 )
             else:
                 full_prompt = (
                     f"{base_prompt}\n\n"
                     f"## User's Personal Context (from Short-Term Memory)\n{stm_context}\n\n"
-                    f"User: {query_text}\nAssistant:"
-                    if stm_context
-                    else f"{base_prompt}\n\nUser: {query_text}\nAssistant:"
+                    f"User: {query_text}\nAssistant:" if stm_context else 
+                    f"{base_prompt}\n\nUser: {query_text}\nAssistant:"
                 )
-
+            
             t4 = _time.time()
-            logger.info(
-                f"[CHAT] Prompt assembled in {t4-t3:.3f}s ({len(full_prompt)//4} tokens est.)"
-            )
+            logger.info(f"[CHAT] Prompt assembled in {t4-t3:.3f}s ({len(full_prompt)//4} tokens est.)")
 
             response = llm.invoke(full_prompt)
 
@@ -2339,39 +2077,31 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                 prompt_tokens = len(full_prompt) // 4
                 completion_tokens = len(response.content) // 4
                 mgr = get_sqlite_manager()
-                mgr.track_token_usage(
-                    resolved_model, prompt_tokens, completion_tokens, "chat"
-                )
+                mgr.track_token_usage(resolved_model, prompt_tokens, completion_tokens, "chat")
             except Exception as e:
                 logger.debug(f"Token tracking failed: {e}")
-
+            
             # =================================================================
             # REPETITION DETECTION & RETRY
             # =================================================================
             if detect_repetition(response.content):
                 logger.warning(f"[CHAT] Repetition loop detected from {resolved_model}")
                 try:
-                    logger.info(
-                        f"[CHAT] Retrying with higher temperature (0.9, repeat_penalty=1.5)"
-                    )
+                    logger.info(f"[CHAT] Retrying with higher temperature (0.9, repeat_penalty=1.5)")
                     llm_retry = _get_llm(
-                        resolved_model,
-                        temperature=0.9,
+                        resolved_model, 
+                        temperature=0.9, 
                         repeat_penalty=1.5,
-                        num_ctx=context_config[
-                            "num_ctx"
-                        ],  # Keep the same context limit on retry
+                        num_ctx=context_config["num_ctx"] # Keep the same context limit on retry
                     )
                     response = llm_retry.invoke(full_prompt)
-
+                    
                     if detect_repetition(response.content):
-                        logger.error(
-                            f"[CHAT] Retry also failed - model {resolved_model} inadequate"
-                        )
+                        logger.error(f"[CHAT] Retry also failed - model {resolved_model} inadequate")
                         return {
                             "content": INADEQUATE_MODEL_RESPONSE,
                             "model": resolved_model,
-                            "warning": "Model entered repetition loop even after retry",
+                            "warning": "Model entered repetition loop even after retry"
                         }
                     else:
                         logger.info(f"[CHAT] Retry succeeded")
@@ -2380,12 +2110,12 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                     return {
                         "content": INADEQUATE_MODEL_RESPONSE,
                         "model": resolved_model,
-                        "warning": f"Retry failed: {str(retry_err)}",
+                        "warning": f"Retry failed: {str(retry_err)}"
                     }
 
             t5 = _time.time()
             logger.info(f"[CHAT] LLM generation completed in {t5-t4:.3f}s")
-
+            
             return {"content": response.content, "model": resolved_model}
 
         result = await loop.run_in_executor(executor, run_chat)
@@ -2400,11 +2130,35 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # =============================================================================
 # SQLite Memory Endpoints
 # =============================================================================
 
+@app.get("/api/memory/analytics/stm-size")
+async def get_stm_size():
+    """Calculate and return the approximate size and entry count of Short-Term Memory."""
+    try:
+        db_path = PROJECT_ROOT / "memory" / "memory_store.db"
+        with sqlite3.connect(str(db_path)) as conn:
+            cursor = conn.cursor()
+            
+            # Use COALESCE to prevent NULL sums if any keys/values are NULL
+            cursor.execute("""
+                SELECT COALESCE(SUM(LENGTH(COALESCE(key, '')) + LENGTH(COALESCE(value, ''))), 0) 
+                FROM short_term_memory
+            """)
+            result = cursor.fetchone()
+            size_bytes = result[0] if result else 0
+            
+            cursor.execute("SELECT COUNT(*) FROM short_term_memory")
+            count_result = cursor.fetchone()
+            total_entries = count_result[0] if count_result else 0
+            
+        return {"size": size_bytes, "entries": total_entries}
+        
+    except Exception as e:
+        logger.error(f"Failed to get STM size: {e}")
+        return {"size": 0, "entries": 0}
 
 @app.delete("/api/memory/sqlite/chat/thread/{thread_id}")
 async def delete_chat_thread(thread_id: str, api_key: str = Depends(verify_api_key)):
@@ -2420,22 +2174,19 @@ async def delete_chat_thread(thread_id: str, api_key: str = Depends(verify_api_k
         logger.error(f"Failed to delete chat thread: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/memory/sqlite/chat/threads")
 @limiter.limit("60/minute")
 async def get_chat_threads(request: Request):
     try:
         mgr = get_sqlite_manager()
         with mgr.get_cursor() as cur:
-            cur.execute(
-                "SELECT id, title, created_at, last_message_at FROM chat_threads ORDER BY created_at DESC"
-            )
+            cur.execute("SELECT id, title, created_at, last_message_at FROM chat_threads ORDER BY created_at DESC")
             threads = [
                 {
                     "id": row[0],
                     "title": row[1],
                     "created_at": row[2],
-                    "last_message_at": row[3],
+                    "last_message_at": row[3]
                 }
                 for row in cur.fetchall()
             ]
@@ -2444,47 +2195,40 @@ async def get_chat_threads(request: Request):
         logger.error(f"Failed to get chat threads: {e}", exc_info=True)
         return {"threads": []}
 
-
 @app.get("/api/memory/sqlite/chat/messages/{thread_id}")
 async def get_chat_messages(thread_id: str):
     try:
         mgr = get_sqlite_manager()
         with mgr.get_cursor() as cur:
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT id, role, content, timestamp, model, filename
-                FROM chat_messages
-                WHERE thread_id = ?
+                FROM chat_messages 
+                WHERE thread_id = ? 
                 ORDER BY timestamp ASC
-            """,
-                (thread_id,),
-            )
+            """, (thread_id,))
             messages = []
             for row in cur.fetchall():
                 timestamp = 0
                 if row[3]:
                     try:
-                        dt_str = str(row[3]).replace(" ", "T")
+                        dt_str = str(row[3]).replace(' ', 'T')
                         dt = datetime.fromisoformat(dt_str)
                         timestamp = int(dt.timestamp() * 1000)
                     except Exception:
                         pass
 
-                messages.append(
-                    {
-                        "id": row[0],
-                        "from": "ai" if row[1] == "assistant" else row[1],
-                        "text": row[2],
-                        "timestamp": timestamp,
-                        "model": row[4],
-                        "filename": row[5],
-                    }
-                )
+                messages.append({
+                    "id": row[0],
+                    "from": "ai" if row[1] == "assistant" else row[1],
+                    "text": row[2],
+                    "timestamp": timestamp,
+                    "model": row[4],
+                    "filename": row[5]
+                })
         return {"messages": messages}
     except Exception as e:
         logger.error(f"Failed to get chat messages: {e}", exc_info=True)
         return {"messages": []}
-
 
 @app.get("/api/memory/sqlite/notifications/due-soon")
 async def get_due_soon_notifications():
@@ -2494,14 +2238,12 @@ async def get_due_soon_notifications():
         events = mgr.get_upcoming_events(limit=15)
         reminders = mgr.get_pending_reminders(limit=15)
 
-        logger.info(
-            f"Notification check: {len(events)} events, {len(reminders)} reminders"
-        )
+        logger.info(f"Notification check: {len(events)} events, {len(reminders)} reminders")
 
         return {
             "events": events or [],
             "reminders": reminders or [],
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
         logger.error(f"Critical error in notifications endpoint: {e}", exc_info=True)
@@ -2509,9 +2251,8 @@ async def get_due_soon_notifications():
             "events": [],
             "reminders": [],
             "error": str(e),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
-
 
 @app.get("/api/memory/sqlite/events/upcoming")
 @limiter.limit("60/minute")
@@ -2524,7 +2265,6 @@ async def get_upcoming_events(request: Request, limit: int = 20):
     except Exception as e:
         logger.error(f"Failed to get upcoming events: {e}")
         return {"events": []}
-
 
 @app.post("/api/memory/sqlite/events")
 @limiter.limit("30/minute")
@@ -2539,7 +2279,6 @@ async def create_or_update_event(request: Request, event_request: EventRequest):
         logger.error(f"Failed to save event: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.delete("/api/memory/sqlite/events/{event_id}")
 async def delete_event(event_id: str, api_key: str = Depends(verify_api_key)):
     """Delete an event."""
@@ -2550,7 +2289,6 @@ async def delete_event(event_id: str, api_key: str = Depends(verify_api_key)):
     except Exception as e:
         logger.error(f"Failed to delete event: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/memory/sqlite/reminders/upcoming")
 async def get_upcoming_reminders(limit: int = 20):
@@ -2563,12 +2301,9 @@ async def get_upcoming_reminders(limit: int = 20):
         logger.error(f"Failed to get reminders: {e}")
         return {"reminders": []}
 
-
 @app.post("/api/memory/sqlite/reminders")
 @limiter.limit("30/minute")
-async def create_or_update_reminder(
-    request: Request, reminder_request: ReminderRequest
-):
+async def create_or_update_reminder(request: Request, reminder_request: ReminderRequest):
     """Create or update a reminder."""
     try:
         mgr = get_sqlite_manager()
@@ -2579,13 +2314,12 @@ async def create_or_update_reminder(
         logger.error(f"Failed to save reminder: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.delete("/api/memory/sqlite/reminders/{reminder_id}")
 async def delete_reminder(reminder_id: str):
     """Delete a reminder and all its recurring instances."""
     try:
         mgr = get_sqlite_manager()
-
+        
         with mgr.get_cursor() as cur:
             if "_" in reminder_id:
                 base_id = reminder_id.rsplit("_", 1)[0]
@@ -2593,18 +2327,15 @@ async def delete_reminder(reminder_id: str):
                 cur.execute("DELETE FROM reminders WHERE id = ?", (base_id,))
                 deleted_count = cur.rowcount
             else:
-                cur.execute(
-                    "DELETE FROM reminders WHERE id = ? OR id LIKE ?",
-                    (reminder_id, f"{reminder_id}_%"),
-                )
+                cur.execute("DELETE FROM reminders WHERE id = ? OR id LIKE ?", 
+                           (reminder_id, f"{reminder_id}_%"))
                 deleted_count = cur.rowcount
-
+        
         logger.info(f"Deleted {deleted_count} reminder(s) with ID: {reminder_id}")
         return {"status": "deleted", "deleted_count": deleted_count}
     except Exception as e:
         logger.error(f"Failed to delete reminder: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/memory/sqlite/todos")
 async def get_todos(limit: int = 50):
@@ -2616,7 +2347,6 @@ async def get_todos(limit: int = 50):
     except Exception as e:
         logger.error(f"Failed to get todos: {e}")
         return {"todos": []}
-
 
 @app.post("/api/memory/sqlite/todos")
 @limiter.limit("30/minute")
@@ -2631,7 +2361,6 @@ async def create_or_update_todo(request: Request, todo_request: TodoRequest):
         logger.error(f"Failed to save todo: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.delete("/api/memory/sqlite/todos/{todo_id}")
 async def delete_todo(todo_id: str, api_key: str = Depends(verify_api_key)):
     """Delete a todo."""
@@ -2643,7 +2372,6 @@ async def delete_todo(todo_id: str, api_key: str = Depends(verify_api_key)):
         logger.error(f"Failed to delete todo: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/api/memory/sqlite/chat/thread")
 async def save_chat_thread(request: Request, api_key: str = Depends(verify_api_key)):
     """Save or update a chat thread."""
@@ -2651,25 +2379,21 @@ async def save_chat_thread(request: Request, api_key: str = Depends(verify_api_k
         data = await request.json()
         thread_id = data.get("id")
         title = data.get("title", "New Chat")
-
+        
         if not thread_id:
             raise HTTPException(status_code=400, detail="Thread ID required")
-
+        
         mgr = get_sqlite_manager()
         with mgr.get_cursor() as cur:
-            cur.execute(
-                """
+            cur.execute("""
                 INSERT OR REPLACE INTO chat_threads (id, title, created_at, last_message_at)
                 VALUES (?, ?, COALESCE((SELECT created_at FROM chat_threads WHERE id = ?), CURRENT_TIMESTAMP), CURRENT_TIMESTAMP)
-            """,
-                (thread_id, title, thread_id),
-            )
-
+            """, (thread_id, title, thread_id))
+        
         return {"status": "saved", "thread_id": thread_id}
     except Exception as e:
         logger.error(f"Failed to save chat thread: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/api/memory/sqlite/chat/message")
 async def save_chat_message(request: Request, api_key: str = Depends(verify_api_key)):
@@ -2681,68 +2405,48 @@ async def save_chat_message(request: Request, api_key: str = Depends(verify_api_
         content = data.get("content")
         model = data.get("model", "unknown")
         timestamp = data.get("timestamp")
-
+        
         if not all([thread_id, role, content]):
-            raise HTTPException(
-                status_code=400, detail="thread_id, role, and content required"
-            )
-
+            raise HTTPException(status_code=400, detail="thread_id, role, and content required")
+        
         mgr = get_sqlite_manager()
         with mgr.get_cursor() as cur:
             # Generate message ID
             import uuid
-
             msg_id = str(uuid.uuid4())
-
-            cur.execute(
-                """
+            
+            cur.execute("""
                 INSERT INTO chat_messages (id, thread_id, role, content, model, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    msg_id,
-                    thread_id,
-                    role,
-                    content,
-                    model,
-                    timestamp or datetime.now().isoformat(),
-                ),
-            )
-
+            """, (msg_id, thread_id, role, content, model, timestamp or datetime.now().isoformat()))
+            
             # Update thread's last_message_at
-            cur.execute(
-                """
+            cur.execute("""
                 UPDATE chat_threads SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?
-            """,
-                (thread_id,),
-            )
-
+            """, (thread_id,))
+        
         return {"status": "saved", "message_id": msg_id}
     except Exception as e:
         logger.error(f"Failed to save chat message: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/usage/tokens")
 async def get_token_usage(days: int = 7):
     """Get token usage statistics."""
     mgr = get_sqlite_manager()
     summary = mgr.get_token_usage_summary(days)
-
+    
     total_tokens = sum(item["total_tokens"] for item in summary)
     total_requests = sum(item["requests"] for item in summary)
-
+    
     return {
         "summary": summary,
         "totals": {
             "tokens": total_tokens,
             "requests": total_requests,
-            "avg_tokens_per_request": total_tokens / total_requests
-            if total_requests > 0
-            else 0,
-        },
+            "avg_tokens_per_request": total_tokens / total_requests if total_requests > 0 else 0
+        }
     }
-
 
 @app.get("/api/memory/sqlite/stats")
 async def get_sqlite_stats():
@@ -2752,19 +2456,19 @@ async def get_sqlite_stats():
         with mgr.get_cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM events")
             events_count = cur.fetchone()[0]
-
+            
             cur.execute("SELECT COUNT(*) FROM reminders")
             reminders_count = cur.fetchone()[0]
-
+            
             cur.execute("SELECT COUNT(*) FROM todos")
             todos_count = cur.fetchone()[0]
-
+            
             cur.execute("SELECT COUNT(*) FROM chat_threads")
             threads_count = cur.fetchone()[0]
-
+            
             cur.execute("SELECT COUNT(*) FROM chat_messages")
             messages_count = cur.fetchone()[0]
-
+            
             cur.execute("SELECT COUNT(*) FROM user_profile")
             profile_count = cur.fetchone()[0]
 
@@ -2775,22 +2479,15 @@ async def get_sqlite_stats():
             "chat_threads": threads_count,
             "chat_messages": messages_count,
             "user_profile": profile_count,
-            "total_entries": events_count
-            + reminders_count
-            + todos_count
-            + threads_count
-            + messages_count
-            + profile_count,
+            "total_entries": events_count + reminders_count + todos_count + threads_count + messages_count + profile_count
         }
     except Exception as e:
         logger.error(f"Failed to get SQLite stats: {e}")
         return {"error": str(e), "total_entries": 0}
 
-
 # =============================================================================
 # STM Quick-Entry with LLM Parsing (codeqwen:7b)
 # =============================================================================
-
 
 def get_stm_schema_context() -> str:
     """Get the complete STM database schema for SQL generation."""
@@ -2813,18 +2510,17 @@ Relationships:
 - Category values: 'general', 'appointment', 'reminder', 'work', 'personal'
 """
 
-
 def parse_stm_with_regex(text: str) -> Optional[dict]:
     """Fast regex-based parsing for simple patterns. Returns None if no match."""
     text_lower = text.lower()
-
+    
     # Pattern: "My favorite X is Y" / "I like X" / "I prefer X"
     favorite_patterns = [
-        r"my\s+favorite\s+(\w+)\s+is\s+(.+)",
-        r"i\s+(?:like|love|prefer)\s+(.+)",
-        r"(\w+)\s+is\s+my\s+favorite",
+        r'my\s+favorite\s+(\w+)\s+is\s+(.+)',
+        r'i\s+(?:like|love|prefer)\s+(.+)',
+        r'(\w+)\s+is\s+my\s+favorite',
     ]
-
+    
     for pattern in favorite_patterns:
         match = re.search(pattern, text_lower)
         if match:
@@ -2833,7 +2529,7 @@ def parse_stm_with_regex(text: str) -> Optional[dict]:
             else:
                 value = match.group(1)
                 category = "preference"
-
+            
             return {
                 "intent": "note",
                 "text": text,
@@ -2841,55 +2537,51 @@ def parse_stm_with_regex(text: str) -> Optional[dict]:
                 "pattern_description": f"User {category}: {value.strip()}",
                 "due_time": None,
                 "recurrence": None,
-                "priority": "medium",
+                "priority": "medium"
             }
-
+    
     # Pattern: Simple reminders "remind me to X"
-    reminder_match = re.search(
-        r"remind\s+me\s+(?:to\s+)?(.+?)(?:\s+in\s+(\d+)\s+(minute|hour|day)s?)?$",
-        text_lower,
-    )
+    reminder_match = re.search(r'remind\s+me\s+(?:to\s+)?(.+?)(?:\s+in\s+(\d+)\s+(minute|hour|day)s?)?$', text_lower)
     if reminder_match:
         reminder_text = reminder_match.group(1).strip()
         time_value = reminder_match.group(2)
         time_unit = reminder_match.group(3)
-
+        
         due_time = datetime.now()
         if time_value and time_unit:
-            if time_unit == "minute":
+            if time_unit == 'minute':
                 due_time += timedelta(minutes=int(time_value))
-            elif time_unit == "hour":
+            elif time_unit == 'hour':
                 due_time += timedelta(hours=int(time_value))
-            elif time_unit == "day":
+            elif time_unit == 'day':
                 due_time += timedelta(days=int(time_value))
-
+        
         return {
             "intent": "reminder",
             "text": reminder_text,
             "due_time": due_time.isoformat(),
             "recurrence": None,
             "priority": "medium",
-            "pattern_learned": False,
+            "pattern_learned": False
         }
-
+    
     return None  # No regex match, fall back to LLM
-
 
 def parse_stm_with_llm(text: str) -> dict:
     """Parse STM with regex fast-path, then codeqwen:7b fallback."""
-
+    
     # Try regex first (instant)
     regex_result = parse_stm_with_regex(text)
     if regex_result:
         logger.info(f"Parsed with regex (instant): {regex_result}")
         return regex_result
-
+    
     # Fall back to codeqwen:7b with JSON parsing (~10 seconds)
     logger.info(f"Regex failed, using codeqwen:7b for JSON parsing...")
-
+    
     try:
         llm = _get_llm("codeqwen:7b", temperature=0.3, num_predict=1024)
-
+        
         prompt = f"""You are a personal assistant that parses natural language into structured actions.
 
 Current time: {datetime.now().isoformat()}
@@ -2920,33 +2612,30 @@ Rules:
 Request: "{text}"
 
 JSON:"""
-
+        
         response = llm.invoke(prompt)
         content = response.content.strip()
-
+        
         logger.info(f"=== CODEQWEN RAW RESPONSE ===\n{content}\n=== END ===")
-
+        
         # Extract JSON from response (handle markdown code blocks)
-        json_match = re.search(r"\{[\s\S]*\}", content)
+        json_match = re.search(r'\{[\s\S]*\}', content)
         if json_match:
             parsed = json.loads(json_match.group(0))
-            logger.info(
-                f"=== PARSED JSON ===\n{json.dumps(parsed, indent=2)}\n=== END ==="
-            )
+            logger.info(f"=== PARSED JSON ===\n{json.dumps(parsed, indent=2)}\n=== END ===")
             return parsed
-
+        
         logger.warning(f"codeqwen:7b returned invalid JSON: {content}")
         return None
     except Exception as e:
         logger.error(f"codeqwen:7b parsing failed: {e}", exc_info=True)
         return None
 
-
 def generate_sql_from_natural_language(user_query: str) -> str:
     """Convert natural language to SQL using codeqwen:7b ONLY (no validation overhead)."""
-
+    
     schema_context = get_stm_schema_context()
-
+    
     few_shot_examples = """
 Examples:
 User: "Show my upcoming reminders"
@@ -2964,7 +2653,7 @@ SQL: SELECT * FROM todos WHERE completed = 0 ORDER BY CASE priority WHEN 'high' 
 User: "Count how many messages I sent today"
 SQL: SELECT COUNT(*) as message_count FROM chat_messages WHERE role = 'user' AND date(timestamp) = date('now');
 """
-
+    
     prompt = f"""You are an expert SQL developer. Convert the user's natural language request into a valid SQLite SQL query.
 
 {schema_context}
@@ -2983,11 +2672,11 @@ Rules:
 User Request: "{user_query}"
 
 SQL:"""
-
+    
     try:
         llm = _get_llm("codeqwen:7b", temperature=0.1, num_predict=512)
         response = llm.invoke(prompt)
-
+        
         sql = response.content.strip()
         if sql.startswith("```sql"):
             sql = sql[6:]
@@ -2996,21 +2685,20 @@ SQL:"""
         if sql.endswith("```"):
             sql = sql[:-3]
         sql = sql.strip()
-
+        
         # Safety checks
         if not sql.upper().startswith(("SELECT", "INSERT", "UPDATE", "DELETE")):
             logger.warning(f"Generated invalid SQL: {sql}")
             return None
-
+        
         if "DROP" in sql.upper() or "TRUNCATE" in sql.upper():
             logger.warning(f"Dangerous SQL blocked: {sql}")
             return None
-
+        
         return sql
     except Exception as e:
         logger.error(f"SQL generation failed: {e}", exc_info=True)
         return None
-
 
 @app.post("/api/memory/stm/quick-entry")
 async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key)):
@@ -3019,27 +2707,27 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
         text = request.get("text", "").strip()
         if not text:
             raise HTTPException(status_code=400, detail="Text is required")
-
+        
         # Parse with regex (instant) or codeqwen:7b (~10s)
         parsed = parse_stm_with_llm(text)
-
+        
         if not parsed:
             logger.error(f"LLM returned None for: {text}")
             raise HTTPException(status_code=400, detail="Failed to parse request")
-
+        
         if "intent" not in parsed:
             logger.error(f"Missing intent in parsed result: {parsed}")
             raise HTTPException(status_code=400, detail="Could not determine intent")
-
+        
         intent = parsed["intent"]
         mgr = get_sqlite_manager()
-
+        
         # Pattern learning (already extracted by parser)
         pattern_learned = parsed.get("pattern_learned", False)
         pattern_description = parsed.get("pattern_description", "")
         alert_type = parsed.get("alert_type", "sound")
         alert_sound = parsed.get("alert_sound", "notification.mp3")
-
+        
         if pattern_learned and pattern_description:
             pattern_key = f"pattern_alert_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             pattern_data = {
@@ -3057,18 +2745,16 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
             recurrence = parsed.get("recurrence")
             duration_minutes = parsed.get("duration_minutes")
             priority = parsed.get("priority", "medium")
-
+            
             # Parse due_time
             if due_time_str:
                 try:
-                    due_time = datetime.fromisoformat(
-                        due_time_str.replace("Z", "+00:00")
-                    )
+                    due_time = datetime.fromisoformat(due_time_str.replace("Z", "+00:00"))
                 except:
                     due_time = datetime.now() + timedelta(minutes=30)
             else:
                 due_time = datetime.now() + timedelta(minutes=30)
-
+            
             # Handle recurrence - START FROM NOW
             if recurrence and duration_minutes:
                 interval_map = {
@@ -3078,20 +2764,16 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
                     "every_30min": 30,
                     "every_hour": 60,
                 }
-
+                
                 if recurrence in interval_map:
                     interval_minutes = interval_map[recurrence]
                     base_time = datetime.now()
                     num_instances = int(duration_minutes) // interval_minutes
-
+                    
                     for i in range(num_instances):
-                        instance_time = base_time + timedelta(
-                            minutes=i * interval_minutes
-                        )
-                        instance_id = (
-                            f"reminder_{datetime.now().strftime('%Y%m%d%H%M%S')}_{i}"
-                        )
-
+                        instance_time = base_time + timedelta(minutes=i * interval_minutes)
+                        instance_id = f"reminder_{datetime.now().strftime('%Y%m%d%H%M%S')}_{i}"
+                        
                         instance_data = {
                             "text": reminder_text,
                             "due_time": instance_time.isoformat(),
@@ -3099,14 +2781,14 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
                             "completed": False,
                         }
                         mgr.save_reminder({**instance_data, "id": instance_id})
-
+                    
                     return {
                         "status": "success",
                         "intent": "reminder",
                         "message": f"Created {num_instances} alerts every {interval_minutes} minute(s)",
                         "id": instance_id,
                     }
-
+            
             # Single reminder
             reminder_data = {
                 "text": reminder_text,
@@ -3114,16 +2796,16 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
                 "priority": priority,
                 "completed": False,
             }
-
+            
             reminder_id = mgr.save_reminder(reminder_data)
-
+            
             return {
                 "status": "success",
                 "intent": "reminder",
                 "message": f"Reminder created: '{reminder_text}' (due: {due_time.isoformat()[:16]})",
                 "id": reminder_id,
             }
-
+        
         elif intent == "event":
             event_data = {
                 "title": parsed.get("text", text),
@@ -3138,7 +2820,7 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
                 "message": f"Event scheduled: '{event_data['title']}'",
                 "id": event_id,
             }
-
+        
         elif intent == "todo":
             todo_data = {
                 "title": parsed.get("text", text),
@@ -3153,7 +2835,7 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
                 "message": f"Todo created: '{todo_data['title']}'",
                 "id": todo_id,
             }
-
+        
         else:  # note or unknown
             note_key = f"stm_note_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             mgr.save_user_profile(note_key, text)
@@ -3162,56 +2844,49 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
                 "intent": "note",
                 "message": f"Saved to short-term memory: '{text[:80]}{'...' if len(text) > 80 else ''}'",
             }
-
+    
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"STM quick entry failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/api/memory/sqlite/query")
-async def execute_natural_language_query(
-    request: dict, api_key: str = Depends(verify_api_key)
-):
+async def execute_natural_language_query(request: dict, api_key: str = Depends(verify_api_key)):
     """Execute a natural language query against the STM database using codeqwen:7b."""
     try:
         user_query = request.get("query", "").strip()
         if not user_query:
             raise HTTPException(status_code=400, detail="Query is required")
-
+        
         # Generate SQL from natural language
         sql = generate_sql_from_natural_language(user_query)
-
+        
         if not sql:
             return {
                 "status": "error",
                 "message": "Could not generate valid SQL from your request. Please rephrase your question.",
-                "query": user_query,
+                "query": user_query
             }
-
+        
         # Execute the SQL query
         mgr = get_sqlite_manager()
         try:
             with mgr.get_cursor() as cur:
                 cur.execute(sql)
-
+                
                 # Check if this is a SELECT query
                 if sql.strip().upper().startswith("SELECT"):
                     rows = cur.fetchall()
-                    columns = (
-                        [description[0] for description in cur.description]
-                        if cur.description
-                        else []
-                    )
+                    columns = [description[0] for description in cur.description] if cur.description else []
                     results = [dict(zip(columns, row)) for row in rows]
-
+                    
                     return {
                         "status": "success",
                         "query": user_query,
                         "sql": sql,
                         "results": results,
-                        "count": len(results),
+                        "count": len(results)
                     }
                 else:
                     # For INSERT/UPDATE/DELETE
@@ -3221,7 +2896,7 @@ async def execute_natural_language_query(
                         "query": user_query,
                         "sql": sql,
                         "rows_affected": cur.rowcount,
-                        "message": f"Query executed successfully. {cur.rowcount} row(s) affected.",
+                        "message": f"Query executed successfully. {cur.rowcount} row(s) affected."
                     }
         except sqlite3.Error as e:
             logger.error(f"SQL execution error: {e}")
@@ -3229,20 +2904,18 @@ async def execute_natural_language_query(
                 "status": "error",
                 "message": f"SQL execution failed: {str(e)}",
                 "query": user_query,
-                "sql": sql,
+                "sql": sql
             }
-
+    
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Natural language query failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # =============================================================================
 # Qdrant Endpoints
 # =============================================================================
-
 
 @app.post("/api/memory/qdrant/chunk-and-ingest")
 @limiter.limit("60/minute")
@@ -3254,7 +2927,6 @@ async def chunk_and_ingest(
 ):
     """Two-phase chunk + ingest with disk-backed safety."""
     import sys
-
     from app.documents.parser import SUPPORTED_EXTENSIONS
 
     content_type = request.headers.get("content-type", "")
@@ -3270,7 +2942,7 @@ async def chunk_and_ingest(
         chunk_size = int(request.query_params.get("chunk_size", 1000))
         chunk_overlap = int(request.query_params.get("chunk_overlap", 200))
 
-    print(
+    logger.info(
         f"!!! CHUNK_AND_INGEST: collection='{effective_collection}', dir='{directory}', files={len(files) if files else 0}",
         file=sys.stderr,
         flush=True,
@@ -3292,11 +2964,7 @@ async def chunk_and_ingest(
             field_name="content_hash",
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
-        print(
-            f"    PAYLOAD INDEX: created for '{effective_collection}'",
-            file=sys.stderr,
-            flush=True,
-        )
+        logger.info(f"    PAYLOAD INDEX: created for '{effective_collection}'")
     except Exception as e:
         logger.debug(f"Payload index creation skipped: {e}")
 
@@ -3327,9 +2995,7 @@ async def chunk_and_ingest(
     elif directory:
         dir_path = Path(directory).expanduser().resolve()
         if not dir_path.exists() or not dir_path.is_dir():
-            raise HTTPException(
-                status_code=400, detail=f"Directory not found: {directory}"
-            )
+            raise HTTPException(status_code=400, detail=f"Directory not found: {directory}")
 
         all_files: list[Path] = []
         for ext in SUPPORTED_EXTENSIONS:
@@ -3344,14 +3010,12 @@ async def chunk_and_ingest(
         for fp in all_files:
             source_files.append((str(fp.relative_to(dir_path)), fp))
     else:
-        raise HTTPException(
-            status_code=400, detail="Either files or directory must be provided"
-        )
+        raise HTTPException(status_code=400, detail="Either files or directory must be provided")
 
     if not source_files and not errors:
         return {"status": "no_files", "message": "All files were empty or unreadable"}
 
-    print(f"    Processing {len(source_files)} files", file=sys.stderr, flush=True)
+    logger.info(f"    Processing {len(source_files)} files")
 
     phase1_results: list[tuple[str, int, bool]] = []
 
@@ -3361,15 +3025,10 @@ async def chunk_and_ingest(
                 file_path, source_label, cache_dir, chunk_size, chunk_overlap
             )
             phase1_results.append((source_label, count, is_struct))
-            print(
-                f"    Phase1: {source_label} → {count} chunks, structured={is_struct}",
-                file=sys.stderr,
-                flush=True,
-            )
+            logger.info(f"    Phase1: {source_label} → {count} chunks, structured={is_struct}")
         except Exception as e:
             import traceback
-
-            print(f"    Phase1 ERROR: {source_label}: {e}", file=sys.stderr, flush=True)
+            logger.info(f"    Phase1 ERROR: {source_label}: {e}")
             traceback.print_exc(file=sys.stderr)
             errors.append(f"{source_label}: parsing/chunking failed: {str(e)}")
 
@@ -3385,15 +3044,9 @@ async def chunk_and_ingest(
             continue
         try:
             await _phase2_ingest_from_disk(
-                cache_dir,
-                source_label,
-                qm,
-                effective_collection,
-                ws_manager,
-                total_chunks_ref,
-                skipped_duplicates_ref,
-                files_processed_ref,
-                is_struct,
+                cache_dir, source_label, qm, effective_collection,
+                ws_manager, total_chunks_ref, skipped_duplicates_ref,
+                files_processed_ref, is_struct,
             )
             files_processed_ref[0] += 1
         except Exception as e:
@@ -3408,7 +3061,7 @@ async def chunk_and_ingest(
         except Exception:
             pass
 
-    print(
+    logger.info(
         f"    COMPLETE: {files_processed_ref[0]} files, {total_chunks_ref[0]} chunks, errors={len(errors)}",
         file=sys.stderr,
         flush=True,
@@ -3435,7 +3088,6 @@ async def chunk_and_ingest(
         "errors": errors if errors else None,
     }
 
-
 @app.post("/api/memory/qdrant/search")
 async def search_qdrant(request: SearchRequest):
     """Semantic search within a Qdrant collection."""
@@ -3451,7 +3103,6 @@ async def search_qdrant(request: SearchRequest):
     except Exception as e:
         logger.error(f"Search failed in '{request.collection}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/api/memory/qdrant/collection")
 async def manage_qdrant_collection(request: CollectionRequest):
@@ -3471,11 +3122,8 @@ async def manage_qdrant_collection(request: CollectionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            f"Failed to manage collection '{request.name}': {e}", exc_info=True
-        )
+        logger.error(f"Failed to manage collection '{request.name}': {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/memory/qdrant/collections")
 async def get_qdrant_collections():
@@ -3490,7 +3138,6 @@ async def get_qdrant_collections():
     except Exception as e:
         logger.error(f"Failed to list collections: {e}")
         return {"collections": [], "available": False, "error": str(e)}
-
 
 @app.post("/api/memory/qdrant/delete")
 async def delete_qdrant_documents(request: DeleteDocumentRequest):
@@ -3509,7 +3156,6 @@ async def delete_qdrant_documents(request: DeleteDocumentRequest):
     except Exception as e:
         logger.error(f"Failed to delete documents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/memory/qdrant/status")
 async def get_qdrant_status():
@@ -3544,12 +3190,9 @@ async def get_qdrant_status():
         logger.error(f"Failed to get Qdrant status: {e}")
         return {"available": False, "collections_count": 0, "size": 0, "error": str(e)}
 
-
 @app.post("/api/memory/qdrant/generate-synthetic")
 @limiter.limit("3/minute")
-async def generate_synthetic_data(
-    request: Request, synthetic_request: SyntheticDataRequest
-):
+async def generate_synthetic_data(request: Request, synthetic_request: SyntheticDataRequest):
     """Generate constraint-seeded synthetic data with compliance verification."""
     try:
         qm = get_qdrant_manager()
@@ -3607,12 +3250,8 @@ CONSTRAINT_VERIFIED: [which constraint is being tested]
 Begin:""",
         }
 
-        prompt = purpose_prompts.get(
-            synthetic_request.purpose, purpose_prompts["constraint_validation"]
-        )
-        logger.info(
-            f"Generating {synthetic_request.num_samples} {synthetic_request.purpose} synthetic documents"
-        )
+        prompt = purpose_prompts.get(synthetic_request.purpose, purpose_prompts["constraint_validation"])
+        logger.info(f"Generating {synthetic_request.num_samples} {synthetic_request.purpose} synthetic documents")
 
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(executor, lambda: llm.invoke(prompt))
@@ -3632,17 +3271,13 @@ Begin:""",
 
         if verified_docs:
             qm.ingest_documents(synthetic_request.collection, verified_docs)
-            logger.info(
-                f"Ingested {len(verified_docs)}/{len(documents)} verified documents"
-            )
+            logger.info(f"Ingested {len(verified_docs)}/{len(documents)} verified documents")
 
         return {
             "status": "success",
             "documents_generated": len(documents),
             "documents_verified": len(verified_docs),
-            "compliance_rate": round((len(verified_docs) / len(documents)) * 100, 1)
-            if documents
-            else 0,
+            "compliance_rate": round((len(verified_docs) / len(documents)) * 100, 1) if documents else 0,
             "collection": synthetic_request.collection,
             "purpose": synthetic_request.purpose,
         }
@@ -3650,88 +3285,61 @@ Begin:""",
         logger.error(f"Failed to generate synthetic data: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 async def verify_compliance(document: dict, request: SyntheticDataRequest) -> float:
     """Score generated document against compliance threshold."""
     content = document.get("content", "")
 
     checks = {
         "adversarial": lambda c: min(
-            sum(
-                10
-                for kw in ["ignore", "forget", "bypass", "DAN", "jailbreak", "override"]
-                if kw.lower() in c.lower()
-            ),
+            sum(10 for kw in ["ignore", "forget", "bypass", "DAN", "jailbreak", "override"] if kw.lower() in c.lower()),
             100,
         ),
-        "error_recovery": lambda c: sum(
-            25 for s in ["REQUEST:", "ERROR:", "RECOVERY:", "OUTCOME:"] if s in c
-        ),
+        "error_recovery": lambda c: sum(25 for s in ["REQUEST:", "ERROR:", "RECOVERY:", "OUTCOME:"] if s in c),
         "edge_cases": lambda c: min(
-            sum(
-                33 for s in ["SCENARIO:", "PARAMETERS:", "EXPECTED_BEHAVIOR:"] if s in c
-            ),
+            sum(33 for s in ["SCENARIO:", "PARAMETERS:", "EXPECTED_BEHAVIOR:"] if s in c),
             100,
         ),
         "constraint_validation": lambda c: sum(
-            25
-            for s in [
-                "TEST_CASE:",
-                "INPUT:",
-                "EXPECTED_OUTPUT:",
-                "CONSTRAINT_VERIFIED:",
-            ]
-            if s in c
+            25 for s in ["TEST_CASE:", "INPUT:", "EXPECTED_OUTPUT:", "CONSTRAINT_VERIFIED:"] if s in c
         ),
     }
 
     scorer = checks.get(request.purpose)
     return scorer(content) if scorer else 50.0
 
-
 def parse_synthetic_response(content: str, request: SyntheticDataRequest) -> list[dict]:
     """Parse LLM response into structured documents."""
     documents = []
 
     if request.purpose == "adversarial":
-        prompts = [
-            line.strip()
-            for line in content.split("\n")
-            if line.strip().startswith("PROMPT:")
-        ]
+        prompts = [line.strip() for line in content.split("\n") if line.strip().startswith("PROMPT:")]
         for i, prompt in enumerate(prompts):
-            documents.append(
-                {
-                    "content": prompt.replace("PROMPT:", "").strip(),
+            documents.append({
+                "content": prompt.replace("PROMPT:", "").strip(),
+                "source": f"synthetic_{request.purpose}_{i + 1}",
+                "type": "synthetic",
+                "purpose": request.purpose,
+                "topic": request.topic,
+                "generated_at": datetime.now().isoformat(),
+            })
+    else:
+        sections = content.split("\n\n")
+        for i, section in enumerate(sections):
+            if section.strip() and len(section.strip()) > 50:
+                documents.append({
+                    "content": section.strip(),
                     "source": f"synthetic_{request.purpose}_{i + 1}",
                     "type": "synthetic",
                     "purpose": request.purpose,
                     "topic": request.topic,
                     "generated_at": datetime.now().isoformat(),
-                }
-            )
-    else:
-        sections = content.split("\n\n")
-        for i, section in enumerate(sections):
-            if section.strip() and len(section.strip()) > 50:
-                documents.append(
-                    {
-                        "content": section.strip(),
-                        "source": f"synthetic_{request.purpose}_{i + 1}",
-                        "type": "synthetic",
-                        "purpose": request.purpose,
-                        "topic": request.topic,
-                        "generated_at": datetime.now().isoformat(),
-                    }
-                )
+                })
 
     return documents
-
 
 # =============================================================================
 # Notes Endpoints
 # =============================================================================
-
 
 @app.get("/api/notes")
 async def get_notes():
@@ -3744,22 +3352,17 @@ async def get_notes():
         notes = []
         for note_file in sorted(notes_dir.glob("*.md")):
             content = note_file.read_text(encoding="utf-8")
-            notes.append(
-                {
-                    "filename": note_file.name,
-                    "content": content,
-                    "size": len(content),
-                    "modified": datetime.fromtimestamp(
-                        note_file.stat().st_mtime
-                    ).isoformat(),
-                }
-            )
+            notes.append({
+                "filename": note_file.name,
+                "content": content,
+                "size": len(content),
+                "modified": datetime.fromtimestamp(note_file.stat().st_mtime).isoformat()
+            })
 
         return {"notes": notes}
     except Exception as e:
         logger.error(f"Failed to get notes: {e}")
         return {"notes": []}
-
 
 @app.post("/api/notes")
 async def save_note(request: NoteSaveRequest):
@@ -3768,9 +3371,7 @@ async def save_note(request: NoteSaveRequest):
         notes_dir = WORKSPACE_PATH / "notes"
         notes_dir.mkdir(parents=True, exist_ok=True)
 
-        safe_filename = "".join(
-            c for c in request.filename if c.isalnum() or c in ".-_ "
-        ).strip()
+        safe_filename = "".join(c for c in request.filename if c.isalnum() or c in ".-_ ").strip()
         if not safe_filename.endswith(".md"):
             safe_filename += ".md"
 
@@ -3780,12 +3381,11 @@ async def save_note(request: NoteSaveRequest):
         return {
             "status": "saved",
             "filename": safe_filename,
-            "path": str(note_path.relative_to(WORKSPACE_PATH)),
+            "path": str(note_path.relative_to(WORKSPACE_PATH))
         }
     except Exception as e:
         logger.error(f"Failed to save note: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.delete("/api/notes/{filename}")
 async def delete_note(filename: str):
@@ -3802,7 +3402,6 @@ async def delete_note(filename: str):
         logger.error(f"Failed to delete note: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/api/notes/save")
 async def save_to_workspace(request: dict):
     """Save file content to workspace directory."""
@@ -3811,13 +3410,9 @@ async def save_to_workspace(request: dict):
         content = request.get("content")
 
         if not filename or content is None:
-            raise HTTPException(
-                status_code=400, detail="Filename and content are required"
-            )
+            raise HTTPException(status_code=400, detail="Filename and content are required")
 
-        safe_filename = "".join(
-            c for c in filename if c.isalnum() or c in ".-_ "
-        ).strip()
+        safe_filename = "".join(c for c in filename if c.isalnum() or c in ".-_ ").strip()
         if not safe_filename:
             raise HTTPException(status_code=400, detail="Invalid filename")
 
@@ -3828,17 +3423,15 @@ async def save_to_workspace(request: dict):
         return {
             "status": "success",
             "path": str(file_path.relative_to(WORKSPACE_PATH)),
-            "filename": safe_filename,
+            "filename": safe_filename
         }
     except Exception as e:
         logger.error(f"Failed to save file: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # =============================================================================
 # Voice Recognition Endpoint
 # =============================================================================
-
 
 @app.post("/api/voice/transcribe")
 @limiter.limit("5/minute")
@@ -3858,14 +3451,11 @@ async def transcribe_audio(request: Request, file: UploadFile = File(...)):
 
         try:
             from app.voice.voice_recognition import transcribe_audio_file
-
             text = transcribe_audio_file(tmp_path)
 
             if not text:
                 logger.warning("Transcription returned empty result")
-                raise HTTPException(
-                    status_code=400, detail="No speech detected or transcription failed"
-                )
+                raise HTTPException(status_code=400, detail="No speech detected or transcription failed")
 
             logger.info(f"Transcription successful: {len(text)} characters")
             return {"text": text, "status": "success"}
@@ -3881,17 +3471,15 @@ async def transcribe_audio(request: Request, file: UploadFile = File(...)):
         logger.error(f"Transcription endpoint error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
-
 # =============================================================================
 # System Doctor Endpoint
 # =============================================================================
 
-
 @app.post("/api/system/doctor")
 async def run_system_doctor():
     """Run comprehensive system diagnostics and auto-fix common issues."""
-    import shutil
     import subprocess
+    import shutil
     from datetime import datetime
 
     report = {
@@ -3899,44 +3487,42 @@ async def run_system_doctor():
         "checks": [],
         "fixes_applied": [],
         "warnings": [],
-        "errors": [],
+        "errors": []
     }
 
     try:
         try:
-            req = urllib.request.Request(
-                "http://127.0.0.1:11434/api/tags", method="GET"
-            )
+            req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
             with urllib.request.urlopen(req, timeout=3) as response:
                 data = json.loads(response.read().decode())
                 model_count = len(data.get("models", []))
-                report["checks"].append(
-                    {
-                        "name": "Ollama Connection",
-                        "status": "pass",
-                        "details": f"Connected with {model_count} models",
-                    }
-                )
+                report["checks"].append({
+                    "name": "Ollama Connection",
+                    "status": "pass",
+                    "details": f"Connected with {model_count} models"
+                })
         except Exception as e:
-            report["checks"].append(
-                {"name": "Ollama Connection", "status": "fail", "details": str(e)}
-            )
+            report["checks"].append({
+                "name": "Ollama Connection",
+                "status": "fail",
+                "details": str(e)
+            })
             report["errors"].append("Ollama is not running. Start with: ollama serve")
 
         try:
             req = urllib.request.Request("http://127.0.0.1:6333/", method="GET")
             with urllib.request.urlopen(req, timeout=3):
-                report["checks"].append(
-                    {
-                        "name": "Qdrant Connection",
-                        "status": "pass",
-                        "details": "Connected successfully",
-                    }
-                )
+                report["checks"].append({
+                    "name": "Qdrant Connection",
+                    "status": "pass",
+                    "details": "Connected successfully"
+                })
         except Exception as e:
-            report["checks"].append(
-                {"name": "Qdrant Connection", "status": "fail", "details": str(e)}
-            )
+            report["checks"].append({
+                "name": "Qdrant Connection",
+                "status": "fail",
+                "details": str(e)
+            })
             report["errors"].append("Qdrant is not running. Start with: ./qdrant")
 
         try:
@@ -3945,131 +3531,117 @@ async def run_system_doctor():
                 cur.execute("PRAGMA integrity_check")
                 result = cur.fetchone()[0]
                 if result == "ok":
-                    report["checks"].append(
-                        {
-                            "name": "SQLite Database",
-                            "status": "pass",
-                            "details": "Integrity check passed",
-                        }
-                    )
+                    report["checks"].append({
+                        "name": "SQLite Database",
+                        "status": "pass",
+                        "details": "Integrity check passed"
+                    })
                 else:
-                    report["checks"].append(
-                        {
-                            "name": "SQLite Database",
-                            "status": "fail",
-                            "details": f"Integrity check failed: {result}",
-                        }
-                    )
+                    report["checks"].append({
+                        "name": "SQLite Database",
+                        "status": "fail",
+                        "details": f"Integrity check failed: {result}"
+                    })
                     report["errors"].append("Database integrity issue detected")
         except Exception as e:
-            report["checks"].append(
-                {"name": "SQLite Database", "status": "fail", "details": str(e)}
-            )
+            report["checks"].append({
+                "name": "SQLite Database",
+                "status": "fail",
+                "details": str(e)
+            })
             report["errors"].append(f"Database error: {str(e)}")
 
         try:
             if os.access(WORKSPACE_PATH, os.W_OK):
-                report["checks"].append(
-                    {
-                        "name": "Workspace Permissions",
-                        "status": "pass",
-                        "details": "Writable",
-                    }
-                )
+                report["checks"].append({
+                    "name": "Workspace Permissions",
+                    "status": "pass",
+                    "details": "Writable"
+                })
             else:
-                report["checks"].append(
-                    {
-                        "name": "Workspace Permissions",
-                        "status": "fail",
-                        "details": "Not writable",
-                    }
-                )
+                report["checks"].append({
+                    "name": "Workspace Permissions",
+                    "status": "fail",
+                    "details": "Not writable"
+                })
                 report["errors"].append("Workspace directory is not writable")
         except Exception as e:
-            report["checks"].append(
-                {"name": "Workspace Permissions", "status": "fail", "details": str(e)}
-            )
+            report["checks"].append({
+                "name": "Workspace Permissions",
+                "status": "fail",
+                "details": str(e)
+            })
 
         try:
             frontend_dist = PROJECT_ROOT / "frontend" / "dist" / "index.html"
             if frontend_dist.exists():
-                report["checks"].append(
-                    {
-                        "name": "Frontend Build",
-                        "status": "pass",
-                        "details": "Build exists",
-                    }
-                )
+                report["checks"].append({
+                    "name": "Frontend Build",
+                    "status": "pass",
+                    "details": "Build exists"
+                })
             else:
-                report["checks"].append(
-                    {"name": "Frontend Build", "status": "fail", "details": "Missing"}
-                )
-                report["warnings"].append(
-                    "Frontend not built. Run: cd frontend && npm run build"
-                )
+                report["checks"].append({
+                    "name": "Frontend Build",
+                    "status": "fail",
+                    "details": "Missing"
+                })
+                report["warnings"].append("Frontend not built. Run: cd frontend && npm run build")
         except Exception as e:
-            report["checks"].append(
-                {"name": "Frontend Build", "status": "fail", "details": str(e)}
-            )
+            report["checks"].append({
+                "name": "Frontend Build",
+                "status": "fail",
+                "details": str(e)
+            })
 
         try:
             total, used, free = shutil.disk_usage(str(PROJECT_ROOT))
             free_gb = free // (1024**3)
             if free_gb > 5:
-                report["checks"].append(
-                    {
-                        "name": "Disk Space",
-                        "status": "pass",
-                        "details": f"{free_gb} GB free",
-                    }
-                )
+                report["checks"].append({
+                    "name": "Disk Space",
+                    "status": "pass",
+                    "details": f"{free_gb} GB free"
+                })
             else:
-                report["checks"].append(
-                    {
-                        "name": "Disk Space",
-                        "status": "warn",
-                        "details": f"Only {free_gb} GB free",
-                    }
-                )
+                report["checks"].append({
+                    "name": "Disk Space",
+                    "status": "warn",
+                    "details": f"Only {free_gb} GB free"
+                })
                 report["warnings"].append(f"Low disk space: {free_gb} GB remaining")
         except Exception as e:
-            report["checks"].append(
-                {"name": "Disk Space", "status": "fail", "details": str(e)}
-            )
+            report["checks"].append({
+                "name": "Disk Space",
+                "status": "fail",
+                "details": str(e)
+            })
 
         try:
             result = subprocess.run(
-                [
-                    "python3",
-                    "-c",
-                    "import fastapi, uvicorn, qdrant_client, sentence_transformers",
-                ],
+                ["python3", "-c", "import fastapi, uvicorn, qdrant_client, sentence_transformers"],
                 capture_output=True,
                 timeout=10,
             )
             if result.returncode == 0:
-                report["checks"].append(
-                    {
-                        "name": "Python Dependencies",
-                        "status": "pass",
-                        "details": "All critical packages installed",
-                    }
-                )
+                report["checks"].append({
+                    "name": "Python Dependencies",
+                    "status": "pass",
+                    "details": "All critical packages installed"
+                })
             else:
-                report["checks"].append(
-                    {
-                        "name": "Python Dependencies",
-                        "status": "fail",
-                        "details": "Missing packages",
-                    }
-                )
-                report["errors"].append(
-                    "Missing Python dependencies. Run: pip install -r requirements.txt"
-                )
+                report["checks"].append({
+                    "name": "Python Dependencies",
+                    "status": "fail",
+                    "details": "Missing packages"
+                })
+                report["errors"].append("Missing Python dependencies. Run: pip install -r requirements.txt")
         except Exception as e:
-            report["checks"].append(
-                {"name": "Python Dependencies", "status": "fail", "details": str(e)}
-            )
+            report["checks"].append({
+                "name": "Python Dependencies",
+                "status": "fail",
+                "details": str(e)
+            })
 
         pass_count = sum(1 for c in report["checks"] if c["status"] == "pass")
         total_count = len(report["checks"])
@@ -4077,15 +3649,10 @@ async def run_system_doctor():
             "total_checks": total_count,
             "passed": pass_count,
             "failed": total_count - pass_count,
-            "health_score": round((pass_count / total_count) * 100)
-            if total_count > 0
-            else 0,
+            "health_score": round((pass_count / total_count) * 100) if total_count > 0 else 0
         }
 
-        report_file = (
-            PROJECT_ROOT
-            / f"doctor-report-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
-        )
+        report_file = PROJECT_ROOT / f"doctor-report-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
         with open(report_file, "w") as f:
             json.dump(report, f, indent=2)
         report["report_file"] = str(report_file)
@@ -4096,21 +3663,14 @@ async def run_system_doctor():
         logger.error(f"System doctor failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/system/gpu")
 async def get_gpu_info():
     """Get basic GPU info (cross-platform best effort)."""
     try:
         # Try NVIDIA (Linux/Windows)
         result = subprocess.run(
-            [
-                "nvidia-smi",
-                "--query-gpu=utilization.gpu,memory.used,memory.total",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=3,
+            ["nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"], 
+            capture_output=True, text=True, timeout=3
         )
         if result.returncode == 0:
             parts = result.stdout.strip().split(",")
@@ -4121,48 +3681,35 @@ async def get_gpu_info():
                 "memory_used_mb": int(parts[1].strip()),
                 "memory_total_mb": int(parts[2].strip()),
             }
-
+        
         # Try macOS (Basic detection, no real-time usage without heavy tools)
-        result = subprocess.run(
-            ["system_profiler", "SPDisplaysDataType"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
+        result = subprocess.run(["system_profiler", "SPDisplaysDataType"], capture_output=True, text=True, timeout=3)
         if result.returncode == 0 and "Chipset Model" in result.stdout:
             return {
                 "available": True,
                 "vendor": "Apple",
                 "utilization_percent": 0,
-                "message": "GPU detected (macOS). Real-time usage requires third-party tools.",
+                "message": "GPU detected (macOS). Real-time usage requires third-party tools."
             }
-
-        return {
-            "available": False,
-            "message": "No dedicated GPU detected or unsupported.",
-        }
+            
+        return {"available": False, "message": "No dedicated GPU detected or unsupported."}
     except Exception:
         return {"available": False, "message": "GPU monitoring unavailable."}
-
 
 # =============================================================================
 # WebSocket Endpoint
 # =============================================================================
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """Real-time WebSocket connection for live updates."""
     await ws_manager.connect(websocket)
     try:
-        await ws_manager.send_personal(
-            websocket,
-            {
-                "type": "connected",
-                "message": "Connected to MAi-RAG-PA real-time updates",
-                "heartbeat_status": heartbeat_state,
-            },
-        )
+        await ws_manager.send_personal(websocket, {
+            "type": "connected",
+            "message": "Connected to MAi-RAG-PA real-time updates",
+            "heartbeat_status": heartbeat_state,
+        })
 
         while True:
             data = await websocket.receive_text()
@@ -4174,29 +3721,20 @@ async def websocket_endpoint(websocket: WebSocket):
                     await ws_manager.send_personal(websocket, {"type": "pong"})
                 elif msg_type == "subscribe":
                     channel = msg.get("channel", "")
-                    await ws_manager.send_personal(
-                        websocket,
-                        {
-                            "type": "subscribed",
-                            "channel": channel,
-                        },
-                    )
+                    await ws_manager.send_personal(websocket, {
+                        "type": "subscribed",
+                        "channel": channel,
+                    })
                 else:
-                    await ws_manager.send_personal(
-                        websocket,
-                        {
-                            "type": "error",
-                            "message": f"Unknown message type: {msg_type}",
-                        },
-                    )
-            except json.JSONDecodeError:
-                await ws_manager.send_personal(
-                    websocket,
-                    {
+                    await ws_manager.send_personal(websocket, {
                         "type": "error",
-                        "message": "Invalid JSON",
-                    },
-                )
+                        "message": f"Unknown message type: {msg_type}",
+                    })
+            except json.JSONDecodeError:
+                await ws_manager.send_personal(websocket, {
+                    "type": "error",
+                    "message": "Invalid JSON",
+                })
 
     except WebSocketDisconnect:
         await ws_manager.disconnect(websocket)
@@ -4204,11 +3742,9 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket error: {e}", exc_info=True)
         await ws_manager.disconnect(websocket)
 
-
 # =============================================================================
 # Startup/Shutdown Events
 # =============================================================================
-
 
 @app.on_event("startup")
 async def startup_event():
@@ -4223,7 +3759,6 @@ async def startup_event():
         existing_key = mgr.get("api_key")
         if not existing_key:
             from app.security.auth import generate_api_key
-
             new_key = generate_api_key()
             mgr.set("api_key", new_key)
             logger.info("API key auto-generated on first launch")
@@ -4233,8 +3768,8 @@ async def startup_event():
         logger.warning(f"Auto-generate API key skipped: {e}")
 
     try:
-        from alembic import command
         from alembic.config import Config
+        from alembic import command
 
         alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
         alembic_cfg.set_main_option("script_location", str(PROJECT_ROOT / "alembic"))
@@ -4243,9 +3778,7 @@ async def startup_event():
         head_rev = command.heads(alembic_cfg)
 
         if current_rev != head_rev:
-            logger.info(
-                f"Database schema outdated. Upgrading from {current_rev} to {head_rev}..."
-            )
+            logger.info(f"Database schema outdated. Upgrading from {current_rev} to {head_rev}...")
             command.upgrade(alembic_cfg, "head")
             logger.info("Database migration completed successfully.")
         else:
@@ -4255,7 +3788,6 @@ async def startup_event():
         logger.warning("App will continue with existing schema.")
 
     env_status = env_checker.check_all()
-
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -4292,7 +3824,6 @@ async def shutdown_event():
 
     logger.info("MAi-RAG-PA API shutdown complete")
 
-
 # =============================================================================
 # GPU Monitoring Endpoint
 # =============================================================================
@@ -4302,14 +3833,8 @@ async def get_gpu_info():
     try:
         # Try NVIDIA (Linux/Windows)
         result = subprocess.run(
-            [
-                "nvidia-smi",
-                "--query-gpu=utilization.gpu,memory.used,memory.total",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=3,
+            ["nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"], 
+            capture_output=True, text=True, timeout=3
         )
         if result.returncode == 0:
             parts = result.stdout.strip().split(",")
@@ -4320,34 +3845,24 @@ async def get_gpu_info():
                 "memory_used_mb": int(parts[1].strip()),
                 "memory_total_mb": int(parts[2].strip()),
             }
-
+        
         # Try macOS (Basic detection, no real-time usage without heavy tools)
-        result = subprocess.run(
-            ["system_profiler", "SPDisplaysDataType"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
+        result = subprocess.run(["system_profiler", "SPDisplaysDataType"], capture_output=True, text=True, timeout=3)
         if result.returncode == 0 and "Chipset Model" in result.stdout:
             return {
                 "available": True,
                 "vendor": "Apple",
                 "utilization_percent": 0,
-                "message": "GPU detected (macOS). Real-time usage requires third-party tools.",
+                "message": "GPU detected (macOS). Real-time usage requires third-party tools."
             }
-
-        return {
-            "available": False,
-            "message": "No dedicated GPU detected or unsupported.",
-        }
+            
+        return {"available": False, "message": "No dedicated GPU detected or unsupported."}
     except Exception:
         return {"available": False, "message": "GPU monitoring unavailable."}
-
 
 # =============================================================================
 # Frontend Serving (MUST BE LAST)
 # =============================================================================
-
 
 @app.get("/")
 async def serve_frontend():
@@ -4357,11 +3872,8 @@ async def serve_frontend():
         return FileResponse(str(frontend_path), headers={"Cache-Control": "no-cache"})
     return JSONResponse(
         status_code=404,
-        content={
-            "message": "MAi-RAG-PA API running. Frontend not built. Run: cd frontend && npm run build"
-        },
+        content={"message": "MAi-RAG-PA API running. Frontend not built. Run: cd frontend && npm run build"}
     )
-
 
 @app.get("/sounds/{filename}")
 async def serve_sound(filename: str):
@@ -4371,7 +3883,6 @@ async def serve_sound(filename: str):
         return FileResponse(str(sound_path))
     raise HTTPException(status_code=404, detail="Sound file not found")
 
-
 @app.get("/fonts/{path:path}")
 async def serve_font(path: str):
     """Serve font files."""
@@ -4379,7 +3890,6 @@ async def serve_font(path: str):
     if font_path.exists():
         return FileResponse(str(font_path))
     raise HTTPException(status_code=404, detail="Font file not found")
-
 
 @app.get("/{full_path:path}")
 async def serve_static_files(full_path: str):
@@ -4394,9 +3904,6 @@ async def serve_static_files(full_path: str):
         raise HTTPException(status_code=404, detail="Frontend not found")
 
     if full_path.startswith("assets/"):
-        return FileResponse(
-            str(file_path),
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
-        )
+        return FileResponse(str(file_path), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
     return FileResponse(str(file_path))
