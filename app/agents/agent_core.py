@@ -81,27 +81,6 @@ Source Attribution Rules:
 - If combining KB and training: Cite KB sources AND state "Combined with model training data"
 - If no KB context was provided: State "Based on model training data" at the end
 
-## TOOL-CALLING PROTOCOL
-Note: Tool-calling instructions are injected dynamically only when:
-1. The model supports tool-calling (verified via Ollama capabilities)
-2. The user request involves file operations
-If you are seeing this but cannot use tools, simply generate the requested content as plain text.
-
-When tool-calling IS enabled, follow this workflow:
-1. Parse: Extract filename + requirements
-2. Plan: Outline structure
-3. Generate: Complete content, no truncation
-4. Verify: Mental syntax check
-5. Save: Write to ~/MAi-RAG-PA/workspace/
-6. Confirm: Report path + summary
-
-## FILE CREATION RULES:
-- When asked to write content, ALWAYS create the file in ~/MAi-RAG-PA/workspace/
-- Use .txt for plain text, .md for markdown, NEVER use .py unless explicitly asked for code
-- Do NOT show your internal requirements, verification steps, or reasoning in the response
-- Just write the file and confirm it was created
-- Example: If asked for a summary, create summary.txt or summary.md, not summary.py
-
 ## TECHNICAL STANDARDS
 Code Quality:
 - Production-ready, type-hinted, error-handled
@@ -193,8 +172,37 @@ Research: Question → Sources Consulted → Findings (with citations) → Gaps 
 Operate with precision and authority. Deviation from these standards is not permitted."""
 
 # =============================================================================
-# SELF-HEALING PROTOCOL (Only for capable models)
+# TOOL CALLING INSTRUCTIONS (LangChain Compatible)
 # =============================================================================
+TOOL_CALLING_INSTRUCTIONS = """
+## TOOL USAGE PROTOCOL
+You have access to tools. When you need to read a file, write a file, search, or check the database, you MUST use the provided tools. 
+
+CRITICAL: Do NOT output fake commands like "[Shell cmd]:", "```bash", or "<tool_code>". 
+The system will automatically handle the tool execution when you decide to use one. 
+If you need to read a file, simply decide to use the `read_file` tool, and the system will invoke it.
+If you need to fix a file, use the `write_file` tool after diagnosing the issue.
+
+## TOOL-CALLING PROTOCOL
+Note: Tool-calling instructions are injected dynamically only when:
+1. The model supports tool-calling (verified via Ollama capabilities)
+2. The user request involves file operations
+If you are seeing this but cannot use tools, simply generate the requested content as plain text.
+
+When tool-calling IS enabled, follow this workflow:
+1. Parse: Extract filename + requirements
+2. Plan: Outline structure
+3. Generate: Complete content, no truncation
+4. Verify: Mental syntax check
+5. Confirm: Report path + summary
+
+## FILE CREATION RULES:
+- When asked to write content, ALWAYS create the file in the designated workspace or sandbox directory provided in the context.
+- Use .txt for plain text, .md for markdown, NEVER use .py unless explicitly asked for code.
+- Do NOT show your internal requirements, verification steps, or reasoning in the response.
+- Just write the file and confirm it was created.
+- Example: If asked for a summary, create summary.txt or summary.md, not summary.py.
+"""
 
 # =============================================================================
 # SELF-HEALING PROTOCOL (Only for capable models)
