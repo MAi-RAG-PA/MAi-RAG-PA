@@ -139,7 +139,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, showToast }) => {
     if (el) {
       const header = document.querySelector('header');
       const headerHeight = header ? header.offsetHeight : 88;
-
+      
       // Calculate exact position and add a 20px buffer so it's not cramped under the header
       const elementPosition = el.getBoundingClientRect().top + window.scrollY;
       const offsetPosition = elementPosition - headerHeight - 20;
@@ -302,45 +302,45 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, showToast }) => {
                 flexWrap: 'nowrap',
               }}
             >
-              <a
-                href="#console"
-                onClick={(e) => handleClick(e, 'console')}
+              <a 
+                href="#console" 
+                onClick={(e) => handleClick(e, 'console')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
               >
                 Chat Console
               </a>
-              <a
-                href="#notes"
-                onClick={(e) => handleClick(e, 'notes')}
+              <a 
+                href="#notes" 
+                onClick={(e) => handleClick(e, 'notes')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
               >
                 Text Editor
               </a>
-              <a
-                href="#memory"
-                onClick={(e) => handleClick(e, 'memory')}
+              <a 
+                href="#memory" 
+                onClick={(e) => handleClick(e, 'memory')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
               >
                 Memory
               </a>
-              <a
-                href="#planner"
-                onClick={(e) => handleClick(e, 'planner')}
+              <a 
+                href="#planner" 
+                onClick={(e) => handleClick(e, 'planner')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
               >
                 Calendar Planner
               </a>
-              <a
-                href="#settings"
-                onClick={(e) => handleClick(e, 'settings')}
+              <a 
+                href="#settings" 
+                onClick={(e) => handleClick(e, 'settings')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
@@ -448,7 +448,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, showToast }) => {
                 isProcessing
                   ? systemStatus === 'running'
                     ? 'Stopping MAi-RAG-PA services, please wait'
-                    : 'Starting MAi-RAG services, please wait'
+                    : 'Starting MAi-RAG-PA services, please wait'
                   : systemStatus === 'running'
                     ? 'Stop MAi-RAG-PA services'
                     : 'Start MAi-RAG-PA services'
@@ -479,11 +479,28 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, showToast }) => {
               href="https://www.paypal.com/ncp/payment/GSTCK29MSGCH4"
               target="_blank"
               rel="noopener noreferrer"
-              title="PayPal me - If you find MAi-RAG-PA useful, Please donate to help contine updates & new features"
+              title="PayPal me - If you find MAi-RAG-PA useful, Please donate to help continue updates & new features"
               className="donate-button"
               aria-label="Support MAi-RAG-PA with a donation via PayPal (opens in new tab)"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              Coffee & Donate 🍩
+              <span>Coffee & Donate</span>
+              {/* Realistic Chocolate Donut with Lower Crescent & Drip */}
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, filter: 'drop-shadow(0px 2px 3px rgba(0,0,0,0.4))' }}>
+                {/* Donut Base (Golden Brown) */}
+                <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z" fill="#E6A15C"/>
+                {/* Chocolate Frosting (Extended lower with a subtle drip) */}
+                <path d="M12 3C7.5 3 3.5 6 3 10C3.5 14 7 15.5 12 15.5C13 15.5 13.5 17.5 14.5 17.5C15.5 17.5 15.5 15.5 16.5 15.5C17.5 15.5 18 17 19 17C20 17 20.5 14 21 10C20.5 6 16.5 3 12 3Z" fill="#4E342E"/>
+                {/* Center Hole (Matches dark UI background) */}
+                <circle cx="12" cy="12" r="3.5" fill="#1a1a1a"/>
+                {/* Colorful Sprinkles */}
+                <rect x="8" y="6" width="3" height="1.2" rx="0.6" fill="#FF4081" transform="rotate(15 8 6)"/>
+                <rect x="15" y="5" width="3" height="1.2" rx="0.6" fill="#00E676" transform="rotate(-10 15 5)"/>
+                <rect x="10" y="9" width="3" height="1.2" rx="0.6" fill="#FFEA00" transform="rotate(45 10 9)"/>
+                <rect x="16" y="9" width="3" height="1.2" rx="0.6" fill="#2979FF" transform="rotate(-30 16 9)"/>
+                <rect x="7" y="11" width="3" height="1.2" rx="0.6" fill="#FFFFFF" transform="rotate(60 7 11)"/>
+                <rect x="13" y="13" width="3" height="1.2" rx="0.6" fill="#FF9100" transform="rotate(20 13 13)"/>
+              </svg>
             </a>
 
             {isMobile && (
