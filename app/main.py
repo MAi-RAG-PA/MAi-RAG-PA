@@ -2125,8 +2125,51 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         MODEL_REQUEST_COUNT.labels(model=resolved, endpoint="chat").inc()
         MODEL_DURATION.labels(model=resolved).observe(_model_duration)
 
+        # =====================================================================
+        # AUTO-SAVE CHAT MESSAGES TO DATABASE (Crucial for Persistence)
+        # =====================================================================
+        try:
+            import uuid
+            # Use provided thread_id or generate a new one for new chats
+            thread_id = getattr(chat_request, 'thread_id', None) or str(uuid.uuid4())
+            user_content = chat_request.query
+            ai_content = result.get("content", "")
+            
+            mgr = get_sqlite_manager()
+            with mgr.get_cursor() as cur:
+                # 1. Ensure the thread exists in the database
+                cur.execute(
+                    "INSERT OR IGNORE INTO chat_threads (id, title, created_at, last_message_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                    (thread_id, user_content[:50] if user_content else "New Chat")
+                )
+                
+                # 2. Save User Message with exact server timestamp
+                user_msg_id = str(uuid.uuid4())
+                cur.execute("""
+                    INSERT INTO chat_messages (id, thread_id, role, content, model, timestamp)
+                    VALUES (?, ?, 'user', ?, ?, CURRENT_TIMESTAMP)
+                """, (user_msg_id, thread_id, user_content, resolved))
+                
+                # 3. Save AI Response with exact server timestamp
+                ai_msg_id = str(uuid.uuid4())
+                cur.execute("""
+                    INSERT INTO chat_messages (id, thread_id, role, content, model, timestamp)
+                    VALUES (?, ?, 'assistant', ?, ?, CURRENT_TIMESTAMP)
+                """, (ai_msg_id, thread_id, ai_content, resolved))
+                
+                # 4. Update thread's last activity
+                cur.execute("UPDATE chat_threads SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?", (thread_id,))
+                
+            # Pass the thread_id back to the frontend so it knows where to save future messages
+            result["thread_id"] = thread_id 
+            
+        except Exception as save_err:
+            logger.error(f"[CHAT] Failed to auto-save messages to DB: {save_err}", exc_info=True)
+
         return result
+
     except Exception as e:
+        # THIS IS THE MISSING OUTER EXCEPT BLOCK THAT FIXES THE SYNTAX ERROR
         logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2201,9 +2244,9 @@ async def get_chat_messages(thread_id: str):
         mgr = get_sqlite_manager()
         with mgr.get_cursor() as cur:
             cur.execute("""
-                SELECT id, role, content, timestamp, model, filename
+                SELECT id, role, content, timestamp, model, filename 
                 FROM chat_messages 
-                WHERE thread_id = ? 
+                WHERE thread_id = ?
                 ORDER BY timestamp ASC
             """, (thread_id,))
             messages = []
@@ -2211,11 +2254,20 @@ async def get_chat_messages(thread_id: str):
                 timestamp = 0
                 if row[3]:
                     try:
-                        dt_str = str(row[3]).replace(' ', 'T')
-                        dt = datetime.fromisoformat(dt_str)
-                        timestamp = int(dt.timestamp() * 1000)
+                        # 1. If it's already an integer (like 1784711092662), use it directly
+                        if isinstance(row[3], (int, float)):
+                            timestamp = int(row[3])
+                        else:
+                            # 2. Otherwise, parse it as an ISO string (legacy format)
+                            dt_str = str(row[3]).replace(' ', 'T')
+                            dt = datetime.fromisoformat(dt_str)
+                            timestamp = int(dt.timestamp() * 1000)
                     except Exception:
-                        pass
+                        # 3. Last resort: try converting the string directly to an int
+                        try:
+                            timestamp = int(str(row[3]))
+                        except Exception:
+                            timestamp = 0
 
                 messages.append({
                     "id": row[0],
