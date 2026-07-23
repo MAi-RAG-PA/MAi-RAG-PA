@@ -105,7 +105,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       try {
         const response = await apiClient.get('/api/system/protected-models');
         const missingModels = response.data.protected_models.filter((m: any) => !m.installed);
-
+        
         if (missingModels.length > 0) {
           const warnings = missingModels.map((m: any) => m.warning).join('\n');
           setProtectedModelsWarning(warnings);
@@ -115,7 +115,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         console.error('Failed to check protected models:', err);
       }
     };
-
+    
     checkProtectedModels();
   }, []);
 
@@ -129,7 +129,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         setSwapUsed(res.data.swap_used || 0);
         setSwapTotal(res.data.swap_total || 0);
         setSwapPercent(res.data.swap_percent || 0);
-
+        
         const cpuRes = await apiClient.get('/api/system/cpu');
         setCpuPercent(cpuRes.data.percent || 0);
 
@@ -238,10 +238,8 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       const threadsRes = await apiClient.get('/api/memory/sqlite/chat/threads');
       const threadsData = threadsRes.data.threads || [];
 
-      console.log(`[CHAT] Loaded ${threadsData.length} threads from backend`);
 
       if (threadsData.length === 0) {
-        console.log('[CHAT] No threads found, creating new thread');
         await createNewThread();
         setIsLoadingThreads(false);
         return;
@@ -252,19 +250,28 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           try {
             const messagesRes = await apiClient.get(`/api/memory/sqlite/chat/messages/${thread.id}`);
             const msgs = messagesRes.data.messages || [];
+          
+            const mappedMessages = msgs.map((msg: any) => {
+              let parsedTimestamp = Date.now();
+              
+              if (msg.timestamp && msg.timestamp > 0) {
+                const ts = new Date(msg.timestamp).getTime();
+                if (!isNaN(ts) && ts > 0) {
+                  parsedTimestamp = ts;
+                }
+              }
 
-            console.log(`[CHAT] Thread ${thread.id}: ${msgs.length} messages`);
-
-            const mappedMessages = msgs.map((msg: any) => ({
-              id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              from: msg.from === 'user' ? 'user' : 'ai',
-              text: msg.text || msg.content || '',
-              filename: msg.filename || undefined,
-              model: msg.model && msg.model !== 'default' && msg.model !== 'unknown'
-                ? msg.model
-                : localStorage.getItem('mai-rag-current-model') || selectedModel,
-              timestamp: msg.timestamp && msg.timestamp > 1e12 ? msg.timestamp : Date.now(),
-            }));
+              return {
+                id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                from: msg.from === 'user' || msg.role === 'user' ? 'user' : 'ai',
+                text: msg.text || msg.content || '',
+                filename: msg.filename || undefined,
+                model: msg.model && msg.model !== 'default' && msg.model !== 'unknown'
+                  ? msg.model
+                  : localStorage.getItem('mai-rag-current-model') || selectedModel,
+                timestamp: parsedTimestamp, 
+              };
+            });
 
             return {
               id: thread.id,
@@ -273,6 +280,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
               createdAt: new Date(thread.created_at).getTime(),
               lastUpdated: new Date(thread.last_message_at || thread.created_at).getTime(),
             };
+
           } catch (err) {
             console.error(`[CHAT] Failed to load messages for thread ${thread.id}:`, err);
             return {
@@ -287,10 +295,10 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       );
 
       setThreads(threadsWithMessages);
+      
       const firstThread = threadsWithMessages[0];
       if (firstThread) {
         setCurrentThreadId(firstThread.id);
-        console.log(`[CHAT] Set current thread to ${firstThread.id}`);
       }
     } catch (err) {
       console.error('[CHAT] Failed to load threads from backend:', err);
@@ -308,23 +316,23 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     const newThread: ChatThread = {
       id: newThreadId,
       title: 'New Chat',
-      messages: [{
-        id: 'welcome-' + Date.now(),
-        from: 'ai',
-        text: 'System online. Select a model and ask me to create a file, or just chat.',
-        model: 'system',
-        timestamp: Date.now()
+      messages: [{ 
+        id: 'welcome-' + Date.now(), 
+        from: 'ai', 
+        text: 'System online. Select a model and ask me to create a file, or just chat.', 
+        model: 'system', 
+        timestamp: Date.now() 
       }],
       createdAt: Date.now(),
       lastUpdated: Date.now()
     };
-
+  
     try {
       await apiClient.post('/api/memory/sqlite/chat/thread', { id: newThreadId, title: 'New Chat' });
     } catch (err) {
       console.error('Failed to create thread in database:', err);
     }
-
+  
     setThreads(prev => [newThread, ...prev]);
     setCurrentThreadId(newThreadId);
     setIsSidebarOpen(false);
@@ -338,7 +346,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     try {
       // DEBUG: Check exactly what is in localStorage right now
       const debugKey = localStorage.getItem('mai-rag-api-key');
-      console.log('🚨 DEBUG DELETE: localStorage key is:', debugKey);
 
       await apiClient.delete(`/api/memory/sqlite/chat/thread/${id}`);
 
@@ -495,7 +502,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       console.warn('[CHAT] Send blocked:', { input: input.trim(), isLoading });
       return;
     }
-
+  
     if (!currentThreadId) {
       console.error('[CHAT] No current thread ID!');
       showToast('Error: No active chat thread');
@@ -514,7 +521,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       timestamp: Date.now(),
     };
 
-    console.log('[CHAT] Adding user message to state:', userMsg);
 
    // Update local state
     setThreads(prev => {
@@ -528,7 +534,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
             }
           : t
       );
-      console.log('[CHAT] Updated threads state:', updated);
       return updated;
     });
 
@@ -541,13 +546,11 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       // SAVE THREAD AND USER MESSAGE TO DATABASE
       // =================================================================
       try {
-        console.log('[CHAT] Saving thread to database...');
         await apiClient.post('/api/memory/sqlite/chat/thread', {
           id: currentThreadId,
           title: currentThread?.title || 'New Chat',
         });
-
-        console.log('[CHAT] Saving user message to database...');
+      
         await apiClient.post('/api/memory/sqlite/chat/message', {
           thread_id: currentThreadId,
           role: 'user',
@@ -555,7 +558,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           model: selectedModel,
           timestamp: userMsg.timestamp,
         });
-        console.log('[CHAT] ✓ User message saved to database');
       } catch (saveErr: any) {
         console.error('[CHAT] Failed to save user message:', saveErr);
         showToast('Failed to save message to database');
@@ -568,14 +570,12 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         ? { query: currentInput, filename: extractedFilename, model: selectedModel }
         : { query: currentInput, model: selectedModel };
 
-      console.log('[CHAT] Sending to /api/chat:', payload);
 
       const response = await apiClient.post('/api/chat', payload, {
         signal: abortControllerRef.current.signal,
         timeout: 3600000,
       });
 
-      console.log('[CHAT] Received response:', response.data);
 
       const content =
         response.data?.content ||
@@ -592,16 +592,14 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         timestamp: Date.now(),
       };
 
-      console.log('[CHAT] Adding AI message to state:', aiMsg);
 
       // Update local state with AI response
       setThreads(prev => {
         const updated = prev.map(t =>
-          t.id === currentThreadId
-            ? { ...t, messages: [...t.messages, aiMsg], lastUpdated: Date.now() }
+          t.id === currentThreadId 
+            ? { ...t, messages: [...t.messages, aiMsg], lastUpdated: Date.now() } 
             : t
         );
-        console.log('[CHAT] Updated threads with AI response:', updated);
         return updated;
       });
 
@@ -609,7 +607,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       // SAVE AI MESSAGE TO DATABASE
       // =================================================================
       try {
-        console.log('[CHAT] Saving AI message to database...');
         await apiClient.post('/api/memory/sqlite/chat/message', {
           thread_id: currentThreadId,
           role: 'assistant',
@@ -617,7 +614,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           model: aiMsg.model,
           timestamp: aiMsg.timestamp,
         });
-        console.log('[CHAT] ✓ AI message saved to database');
       } catch (saveErr: any) {
         console.error('[CHAT] Failed to save AI message:', saveErr);
         showToast('Failed to save AI response to database');
@@ -629,7 +625,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       console.error('[CHAT] Request failed:', error);
       if (error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') {
         const errorMsg = error.response?.data?.detail || error.message || 'Connection error';
-
+      
         const errorMsgObj: Message = {
           id: (Date.now() + 1).toString(),
           from: 'ai',
@@ -637,7 +633,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           model: selectedModel,
           timestamp: Date.now(),
         };
-
+      
         setThreads(prev =>
           prev.map(t =>
             t.id === currentThreadId
@@ -906,10 +902,10 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
             </select>
 
             {protectedModelsWarning && (
-              <div style={{
-                fontSize: '0.75rem',
-                color: '#f59e0b',
-                marginTop: '4px',
+              <div style={{ 
+                fontSize: '0.75rem', 
+                color: '#f59e0b', 
+                marginTop: '4px', 
                 padding: '6px 10px',
                 background: 'rgba(245, 158, 11, 0.1)',
                 borderRadius: '6px',
