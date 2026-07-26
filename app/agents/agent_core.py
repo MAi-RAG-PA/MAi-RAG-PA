@@ -533,7 +533,7 @@ def _get_llm(
     temperature: float = 0.7,
     repeat_penalty: float = 1.1,
     num_predict: int = 2048,
-    timeout: int = 300,
+    timeout: int = 1800,
     num_ctx: int = 4096
 ) -> ChatOllama:
     """
@@ -1234,6 +1234,9 @@ def agent_loop(
     model: Optional[str] = None,
     max_iterations: int = 10,
 ) -> Dict[str, Any]:
+    print("\n" + "="*50)
+    print("🚨 AGENT LOOP STARTED")
+    print("="*50 + "\n")
     """Execute ReAct loop with tool-calling, falling back to chat mode if needed."""
     llm = _get_llm(model)
     model_name = model or get_default_model() or llm.model
@@ -1266,14 +1269,15 @@ def agent_loop(
     supports_tools = _model_tool_support.get(model_name)
     if supports_tools is False:
         return _simple_chat_fallback(llm, query, rag_context, model_name)
-
+    print(f"🔧 Attempting to bind tools for: {model_name}")
     try:
         llm_with_tools = llm.bind_tools(TOOLS)
+        print("✅ Tool binding SUCCESSFUL")
     except Exception as e:
-        logger.warning("Tool binding failed for %s: %s", model_name, e)
+        print(f"❌ TOOL BINDING FAILED: {e}")
         _model_tool_support[model_name] = False
         return _simple_chat_fallback(llm, query, rag_context, model_name)
-
+        
     # Pass model_name to get_system_prompt for capability-based prompt injection
     system_prompt = get_system_prompt(model_name)
     user_profile_context = get_user_profile_context()
@@ -1329,6 +1333,30 @@ def agent_loop(
                 messages.append(
                     ToolMessage(content=result, tool_call_id=tc["id"])
                 )
+                
+        elif response.content:
+            # SELF-HEALING FALLBACK: Intercept JSON tool calls outputted as plain text
+            clean_content = _strip_markdown_fences(response.content.strip())
+            try:
+                import json
+                parsed = json.loads(clean_content)
+                if "name" in parsed and "arguments" in parsed:
+                    tool_name = parsed["name"]
+                    tool_args = parsed["arguments"]
+                    logger.info(f"🔧 INTERCEPTED JSON TOOL CALL: {tool_name}")
+                    
+                    # Execute the tool manually
+                    result = execute_tool_call(tool_name, tool_args)
+                    
+                    # Add to message history and continue the loop
+                    messages.append(AIMessage(content=response.content))
+                    messages.append(ToolMessage(content=str(result), tool_call_id="json_fallback_1"))
+                    
+                    # Loop again to get the final synthesized answer
+                    continue 
+            except json.JSONDecodeError:
+                pass # Not a JSON tool call, proceed to final response logic
+                
         else:
             _model_tool_support[model_name] = True
             final_response = response.content.strip() if response.content else ""
