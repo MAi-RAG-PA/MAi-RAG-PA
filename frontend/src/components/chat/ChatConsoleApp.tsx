@@ -934,8 +934,21 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
                 <div style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: '12px', background: msg.from === 'user' ? 'var(--accent)' : 'rgba(255,255,255,0.08)', color: msg.from === 'user' ? '#000' : 'var(--text)', wordBreak: 'break-word', lineHeight: 1.5, position: 'relative' }}>
                   <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
                   <div style={{ fontSize: '0.65rem', opacity: 0.6, marginTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>
+                    {(() => {
+                      const msgDate = new Date(msg.timestamp);
+                      const now = new Date();
+                      const isToday = msgDate.getUTCFullYear() === now.getUTCFullYear() &&
+                                      msgDate.getUTCMonth() === now.getUTCMonth() &&
+                                      msgDate.getUTCDate() === now.getUTCDate();
+                      if (isToday) {
+                        return msgDate.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }) + ' UTC';
+                      } else {
+                        return msgDate.toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' UTC';
+                      }
+                    })()}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {msg.from === 'ai' && msg.model && msg.model !== 'system' && (
                         <span style={{ fontFamily: 'monospace', fontSize: '0.6rem', opacity: 0.8, background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '4px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {msg.model}
