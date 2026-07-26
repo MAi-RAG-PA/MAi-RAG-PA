@@ -27,6 +27,7 @@ from app.security.input_validation import sanitize_filename
 from app.metrics import MODEL_REQUEST_COUNT, MODEL_DURATION
 from app.documents.chunker import chunk_text_semantic as chunk_text
 from app.documents.parser import parse_file as parser_parse_file
+from app.agents.agent_core import process_request
 
 import re
 import ollama
@@ -1970,16 +1971,22 @@ def detect_repetition(text: str, threshold: int = 5) -> bool:
 @app.post("/api/chat")
 async def chat_endpoint(request: Request, chat_request: AgentRequest):
     """Chat endpoint with file creation support and STM context injection."""
+    print("\n" + "="*50)
+    print("🚨 CHAT ENDPOINT HIT! Query:", chat_request.query[:50] if chat_request.query else "EMPTY")
+    print("="*50 + "\n")
+    
     try:
         import time as _time
         _model_start = _time.time()
         loop = asyncio.get_event_loop()
 
         def run_chat():
+            print("👉 ENTERED run_chat() executor thread")
             t0 = _time.time()
             
-            # Direct model usage - NO ROUTING OVERHEAD
+            print("👉 Calling get_default_model()...")
             requested_model = chat_request.model or get_default_model()
+            print(f"✅ Resolved model: {requested_model}")
             
             # =================================================================
             # FILE CREATION DETECTION - Check for [FILE] prefix
@@ -2015,110 +2022,70 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             # =================================================================
             # DYNAMIC CONTEXT & MODEL RESOLUTION
             # =================================================================
-            # 1. Determine hardware tier (default to "medium" if frontend doesn't send it)
+            print("👉 Getting hardware tier and context config...")
             hardware_tier = chat_request.hardware_tier or "medium"
+            context_config = {"num_ctx": 4096, "rag_limit": 3}
+            print(f"✅ Context config retrieved: {context_config}")
             
-            # 2. Get safe context limits for this tier
-            context_config = model_manager.get_context_config(hardware_tier)
-            
-            # 3. Resolve the model
+            print("👉 Resolving model via model_manager...")
             try:
                 resolved_model = model_manager.resolve_model(requested_model)
             except RuntimeError:
                 resolved_model = get_default_model()
+            print(f"✅ Final resolved model: {resolved_model}")
             
+            print("👉 Instantiating LLM...")
+            llm = _get_llm(resolved_model, num_ctx=context_config["num_ctx"])
+            print("✅ LLM instantiated")
+
+            print("👉 Fetching RAG context...")
+            rag_context, rag_used = fetch_rag_context(query_text, top_k=context_config["rag_limit"])
+            print(f"✅ RAG done (used={rag_used}, len={len(rag_context)})")
+            
+            print("👉 Building STM context...")
+            stm_context = _build_stm_context(query_text)
+            print("✅ STM context built")
+            
+            print("👉 Getting system prompt...")
+            base_prompt = get_system_prompt()
+            print(f"✅ System prompt loaded ({len(base_prompt)} chars)")
+            
+            print("👉 Assembling full prompt...")
             t1 = _time.time()
             logger.info(f"[CHAT] Model resolved in {t1-t0:.3f}s: {resolved_model}")
             
-            # 4. Instantiate LLM with dynamic num_ctx
-            llm = _get_llm(
-                resolved_model, 
-                num_ctx=context_config["num_ctx"]
-            )
+            llm = _get_llm(resolved_model, num_ctx=context_config["num_ctx"])
             
             t2 = _time.time()
             logger.info(f"[CHAT] LLM instance ready in {t2-t1:.3f}s (num_ctx={context_config['num_ctx']})")
 
             # =================================================================
-            # DYNAMIC RAG & PROMPT ASSEMBLY
+            # ADVANCED AGENT LOOP (Enables Tool Calling, RAG, and STM)
             # =================================================================
-            # Fetch RAG context using the hardware-safe rag_limit
-            rag_context, rag_used = fetch_rag_context(query_text, top_k=context_config["rag_limit"])
+            print("🚨 Delegating to agent_loop for tool-calling support...")
             
-            stm_context = _build_stm_context(query_text)
-            t3 = _time.time()
-            logger.info(f"[CHAT] Contexts built in {t3-t2:.3f}s (RAG chunks: {context_config['rag_limit']})")
-
-            base_prompt = get_system_prompt()
+            # Import process_request at the top of the file if not already there:
+            # from app.agents.agent_core import process_request
             
-            # Conditionally inject RAG context if found
-            if rag_used:
-                full_prompt = (
-                    f"{base_prompt}\n\n"
-                    f"## Knowledge Base Context\n{rag_context}\n\n"
-                    f"## User's Personal Context (from Short-Term Memory)\n{stm_context}\n\n"
-                    f"User: {query_text}\nAssistant:" if stm_context else 
-                    f"{base_prompt}\n\n## Knowledge Base Context\n{rag_context}\n\nUser: {query_text}\nAssistant:"
-                )
-            else:
-                full_prompt = (
-                    f"{base_prompt}\n\n"
-                    f"## User's Personal Context (from Short-Term Memory)\n{stm_context}\n\n"
-                    f"User: {query_text}\nAssistant:" if stm_context else 
-                    f"{base_prompt}\n\nUser: {query_text}\nAssistant:"
-                )
+            result = process_request(
+                user_query=query_text, 
+                model=resolved_model
+            )
             
-            t4 = _time.time()
-            logger.info(f"[CHAT] Prompt assembled in {t4-t3:.3f}s ({len(full_prompt)//4} tokens est.)")
-
-            response = llm.invoke(full_prompt)
-
-            try:
-                prompt_tokens = len(full_prompt) // 4
-                completion_tokens = len(response.content) // 4
-                mgr = get_sqlite_manager()
-                mgr.track_token_usage(resolved_model, prompt_tokens, completion_tokens, "chat")
-            except Exception as e:
-                logger.debug(f"Token tracking failed: {e}")
+            print("✅ agent_loop COMPLETED")
+            print(f"📝 Response length: {len(result.get('content', ''))} chars")
+            print(f"🛠️ Tool calls made: {len(result.get('tool_calls', []))}")
             
-            # =================================================================
-            # REPETITION DETECTION & RETRY
-            # =================================================================
-            if detect_repetition(response.content):
-                logger.warning(f"[CHAT] Repetition loop detected from {resolved_model}")
-                try:
-                    logger.info(f"[CHAT] Retrying with higher temperature (0.9, repeat_penalty=1.5)")
-                    llm_retry = _get_llm(
-                        resolved_model, 
-                        temperature=0.9, 
-                        repeat_penalty=1.5,
-                        num_ctx=context_config["num_ctx"] # Keep the same context limit on retry
-                    )
-                    response = llm_retry.invoke(full_prompt)
-                    
-                    if detect_repetition(response.content):
-                        logger.error(f"[CHAT] Retry also failed - model {resolved_model} inadequate")
-                        return {
-                            "content": INADEQUATE_MODEL_RESPONSE,
-                            "model": resolved_model,
-                            "warning": "Model entered repetition loop even after retry"
-                        }
-                    else:
-                        logger.info(f"[CHAT] Retry succeeded")
-                except Exception as retry_err:
-                    logger.error(f"[CHAT] Retry failed: {retry_err}")
-                    return {
-                        "content": INADEQUATE_MODEL_RESPONSE,
-                        "model": resolved_model,
-                        "warning": f"Retry failed: {str(retry_err)}"
-                    }
-
-            t5 = _time.time()
-            logger.info(f"[CHAT] LLM generation completed in {t5-t4:.3f}s")
+            # Return in the format the rest of main.py expects
+            return {
+                "content": result.get("content", ""),
+                "model": result.get("model", resolved_model),
+                "tool_calls": result.get("tool_calls", [])
+            }
             
-            return {"content": response.content, "model": resolved_model}
-
+        print("👉 About to call loop.run_in_executor...")
         result = await loop.run_in_executor(executor, run_chat)
+        print("✅ run_in_executor FINISHED")
 
         _model_duration = _time.time() - _model_start
         resolved = result.get("model", get_default_model())
@@ -2126,41 +2093,35 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         MODEL_DURATION.labels(model=resolved).observe(_model_duration)
 
         # =====================================================================
-        # AUTO-SAVE CHAT MESSAGES TO DATABASE (Crucial for Persistence)
+        # AUTO-SAVE CHAT MESSAGES TO DATABASE
         # =====================================================================
         try:
             import uuid
-            # Use provided thread_id or generate a new one for new chats
             thread_id = getattr(chat_request, 'thread_id', None) or str(uuid.uuid4())
             user_content = chat_request.query
             ai_content = result.get("content", "")
             
             mgr = get_sqlite_manager()
             with mgr.get_cursor() as cur:
-                # 1. Ensure the thread exists in the database
                 cur.execute(
                     "INSERT OR IGNORE INTO chat_threads (id, title, created_at, last_message_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
                     (thread_id, user_content[:50] if user_content else "New Chat")
                 )
                 
-                # 2. Save User Message with exact server timestamp
                 user_msg_id = str(uuid.uuid4())
                 cur.execute("""
                     INSERT INTO chat_messages (id, thread_id, role, content, model, timestamp)
                     VALUES (?, ?, 'user', ?, ?, CURRENT_TIMESTAMP)
                 """, (user_msg_id, thread_id, user_content, resolved))
                 
-                # 3. Save AI Response with exact server timestamp
                 ai_msg_id = str(uuid.uuid4())
                 cur.execute("""
                     INSERT INTO chat_messages (id, thread_id, role, content, model, timestamp)
                     VALUES (?, ?, 'assistant', ?, ?, CURRENT_TIMESTAMP)
                 """, (ai_msg_id, thread_id, ai_content, resolved))
                 
-                # 4. Update thread's last activity
                 cur.execute("UPDATE chat_threads SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?", (thread_id,))
                 
-            # Pass the thread_id back to the frontend so it knows where to save future messages
             result["thread_id"] = thread_id 
             
         except Exception as save_err:
@@ -2169,7 +2130,9 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         return result
 
     except Exception as e:
-        # THIS IS THE MISSING OUTER EXCEPT BLOCK THAT FIXES THE SYNTAX ERROR
+        print(f"❌ FATAL ERROR IN /api/chat: {e}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
