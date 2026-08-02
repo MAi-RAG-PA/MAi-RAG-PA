@@ -74,9 +74,16 @@ const SystemPromptPanel: React.FC<SystemPromptPanelProps> = ({ showToast }) => {
     }
   };
 
-  const resetToDefault = () => {
-    setPrompt(DEFAULT_SYSTEM_PROMPT);
-    showToast("Ultimate default prompt loaded");
+  const resetToDefault = async () => {
+    try {
+      const response = await apiClient.get('/api/settings/system-prompt/default');
+      const defaultPrompt = response.data.prompt || response.data.content || response.data;
+      setPrompt(defaultPrompt);
+      showToast('Default prompt loaded. Click "Save" to apply.');
+    } catch (err) {
+      console.error('Failed to load default prompt:', err);
+      showToast('Failed to load default prompt');
+    }
   };
 
   return (
