@@ -493,13 +493,8 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) {
-      console.warn('[CHAT] Send blocked:', { input: input.trim(), isLoading });
-      return;
-    }
-  
+    if (!input.trim() || isLoading) return;
     if (!currentThreadId) {
-      console.error('[CHAT] No current thread ID!');
       showToast('Error: No active chat thread');
       return;
     }
@@ -516,50 +511,24 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       timestamp: Date.now(),
     };
 
-    // Update local state
-    setThreads(prev => {
-      const updated = prev.map(t =>
-        t.id === currentThreadId
-          ? {
-              ...t,
-              messages: [...t.messages, userMsg],
-              lastUpdated: Date.now(),
-              title: t.messages.length === 0 ? input.slice(0, 30) : t.title,
-            }
-          : t
-      );
-      return updated;
-    });
+    // 1. Update local state immediately for UI responsiveness
+    setThreads(prev => prev.map(t =>
+      t.id === currentThreadId
+        ? {
+            ...t,
+            messages: [...t.messages, userMsg],
+            lastUpdated: Date.now(),
+            title: t.messages.length === 0 ? input.slice(0, 30) : t.title,
+          }
+        : t
+    ));
 
     const currentInput = input;
     setInput('');
     setIsLoading(true);
 
     try {
-      // =================================================================
-      // SAVE THREAD AND USER MESSAGE TO DATABASE
-      // =================================================================
-      try {
-        await apiClient.post('/api/memory/sqlite/chat/thread', {
-          id: currentThreadId,
-          title: currentThread?.title || 'New Chat',
-        });
-      
-        await apiClient.post('/api/memory/sqlite/chat/message', {
-          thread_id: currentThreadId,
-          role: 'user',
-          content: currentInput,
-          model: selectedModel,
-          timestamp: userMsg.timestamp,
-        });
-      } catch (saveErr: any) {
-        console.error('[CHAT] Failed to save user message:', saveErr);
-        showToast('Failed to save message to database');
-      }
-
-      // =================================================================
-      // SEND TO LLM
-      // =================================================================
+      // 2. Send to backend. The backend handles ALL database saving now.
       const payload = extractedFilename
         ? { query: currentInput, filename: extractedFilename, model: selectedModel, thread_id: currentThreadId }
         : { query: currentInput, model: selectedModel, thread_id: currentThreadId };
@@ -569,13 +538,8 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         timeout: 3600000,
       });
 
-      const content =
-        response.data?.content ||
-        response.data?.message ||
-        response.data?.response ||
-        response.data?.text ||
-        (typeof response.data === 'string' ? response.data : JSON.stringify(response.data));
-
+      const content = response.data?.content || response.data?.message || response.data?.response || '';
+      
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         from: 'ai',
@@ -584,39 +548,17 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         timestamp: Date.now(),
       };
 
-      // Update local state with AI response
-      setThreads(prev => {
-        const updated = prev.map(t =>
-          t.id === currentThreadId 
-            ? { ...t, messages: [...t.messages, aiMsg], lastUpdated: Date.now() } 
-            : t
-        );
-        return updated;
-      });
-
-      // =================================================================
-      // SAVE AI MESSAGE TO DATABASE
-      // =================================================================
-      try {
-        await apiClient.post('/api/memory/sqlite/chat/message', {
-          thread_id: currentThreadId,
-          role: 'assistant',
-          content: aiMsg.text,
-          model: aiMsg.model,
-          timestamp: aiMsg.timestamp,
-        });
-      } catch (saveErr: any) {
-        console.error('[CHAT] Failed to save AI message:', saveErr);
-        showToast('Failed to save AI response to database');
-      }
-
-      if (filename) setFilename('');
+      // 3. Update local state with AI response
+      setThreads(prev => prev.map(t =>
+        t.id === currentThreadId 
+          ? { ...t, messages: [...t.messages, aiMsg], lastUpdated: Date.now() } 
+          : t
+      ));
 
     } catch (error: any) {
       console.error('[CHAT] Request failed:', error);
-      if (error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') {
+      if (error.name !== 'AbortError') {
         const errorMsg = error.response?.data?.detail || error.message || 'Connection error';
-      
         const errorMsgObj: Message = {
           id: (Date.now() + 1).toString(),
           from: 'ai',
@@ -624,15 +566,11 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           model: selectedModel,
           timestamp: Date.now(),
         };
-      
-        setThreads(prev =>
-          prev.map(t =>
-            t.id === currentThreadId
-              ? { ...t, messages: [...t.messages, errorMsgObj], lastUpdated: Date.now() }
-              : t
-          )
-        );
-        showToast('Request failed');
+        setThreads(prev => prev.map(t =>
+          t.id === currentThreadId
+            ? { ...t, messages: [...t.messages, errorMsgObj], lastUpdated: Date.now() }
+            : t
+        ));
       }
     } finally {
       setIsLoading(false);
