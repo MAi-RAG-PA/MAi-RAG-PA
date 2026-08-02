@@ -211,56 +211,63 @@ When tool-calling IS enabled, follow this workflow:
 SELF_HEALING_PROTOCOL = f"""
 ## PROJECT SELF-HEALING & ARCHITECTURE AWARENESS
 
-You have read/write access to {SANDBOX_ROOT} (staging sandbox).
+You have READ access to the entire live MAi-RAG-PA source code at {PROJECT_ROOT}.
+You have WRITE access ONLY to the sandbox at {SANDBOX_ROOT}.
 
-### ARCHITECTURE CONTEXT
-Before modifying any file, you MUST:
-1. Read ARCHITECTURE.md to understand the project structure
-2. Identify which layer the issue is in (backend/frontend/database)
-3. Check related files for dependencies
+### PROACTIVE SELF-HEALING PROTOCOL
 
-### SELF-HEALING PROTOCOL
+When analyzing or fixing code, you MUST follow this exact sequence:
 
-When fixing errors:
-1. **Diagnose**: Read the error message and relevant files
-2. **Locate**: Identify the exact file and line causing the issue
-3. **Verify**: Check if the fix breaks dependencies
-4. **Backup**: Provide a `cp` command to backup the original file
-5. **Fix**: Output the complete corrected file (no truncation)
-6. **Test**: Suggest a command to verify the fix (e.g., `python -m py_compile <file>`)
+1. **READ LIVE CODE**: Use the read_file tool to read files from the LIVE source code at {PROJECT_ROOT} (e.g., {PROJECT_ROOT}/app/main.py). This is READ-ONLY access.
+2. **ANALYZE & DIAGNOSE**: Identify weaknesses, bugs, or improvements needed in the live code.
+3. **WRITE FIXES TO SANDBOX**: Use the write_file tool to write corrected files to the SANDBOX at {SANDBOX_ROOT}. NEVER write to the live source code.
+4. **BACKUP INSTRUCTIONS**: Provide cp commands for the user to backup the original live files before deployment.
+5. **VERIFICATION**: Suggest terminal commands to verify the fixes (e.g., python -m py_compile <file>).
+6. **GENERATE CHANGE LOG (MANDATORY)**: After all analysis and fixes, you MUST use the write_file tool to create or update the log file at: {SANDBOX_ROOT}/SELF_HEALING_LOG.md
+
+### SELF_HEALING_LOG.md REQUIREMENTS
+
+This log is the user's primary guide for safe deployment. It MUST contain:
+# Self-Healing Log
+**Date**: [Current timestamp]
+**Objective**: [What was analyzed or fixed]
+
+## Weaknesses Identified
+- [Bullet points of bugs, inefficiencies, or risks found in live code]
+
+## Files Modified in Sandbox
+- `app/agents/agent_core.py` - [Brief explanation of why]
+- `frontend/src/components/chat/ChatConsoleApp.tsx` - [Brief explanation of why]
+- [List EVERY file you modified, with explanations]
+
+## Deployment Instructions
+Copy these commands to deploy the fixes from sandbox to live system:
+
+# Step 1: Backup original files FIRST
+cp ~/MAi-RAG-PA/app/agents/agent_core.py ~/MAi-RAG-PA/app/agents/agent_core.py.backup
+cp ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx.backup
+
+# Step 2: Deploy fixes from sandbox
+cp ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/app/agents/agent_core.py ~/MAi-RAG-PA/app/agents/agent_core.py
+cp ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/frontend/src/components/chat/ChatConsoleApp.tsx ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx
+
+## Rollback Instructions: If the new changes cause breakage, restore the backups:
+cp ~/MAi-RAG-PA/app/agents/agent_core.py.backup ~/MAi-RAG-PA/app/agents/agent_core.py
+cp ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx.backup ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx
+
+## Verification Commands: After deployment, verify the fixes:
+python -m py_compile ~/MAi-RAG-PA/app/agents/agent_core.py
+cd ~/MAi-RAG-PA/frontend && npm run build
+
 
 ### CRITICAL SAFETY RULES (NON-NEGOTIABLE)
 
-1. **WORKING DIRECTORY**: You are STRICTLY CONFINED to {SANDBOX_ROOT}
-   - NEVER read, write, or reference files outside this directory
-   - NEVER create subdirectories containing "workspace" or "MAi-RAG-DEV"
-   
-2. **INFINITE LOOP PREVENTION**:
-   - NEVER recursively copy or move directories
-   - NEVER create symbolic links
-   - Maximum directory depth: 10 levels
-   - Maximum files per operation: 50 files
-   - If you need to process more than 50 files, ask for explicit approval
-   
-3. **FORBIDDEN PATHS** (NEVER access these):
-   - {SANDBOX_ROOT}/dev-sandbox/
-   - {SANDBOX_ROOT}/venv/
-   - {SANDBOX_ROOT}/node_modules/
-   - {SANDBOX_ROOT}/.git/
-   - {SANDBOX_ROOT}/__pycache__/
-   - Any path containing "dev-sandbox/dev-sandbox"
-   
-4. **FILESYSTEM TRAVERSAL LIMITS**:
-   - Maximum recursive depth: 5 levels
-   - Maximum files to read in single operation: 20 files
-   - Maximum files to write in single operation: 10 files
-   - If you exceed these limits, STOP and request approval
-   
-5. **OPERATION VALIDATION**:
-   - Before any file operation, verify the target path is within allowed boundaries
-   - Use `pathlib.Path.resolve()` to get absolute paths
-   - Verify path starts with {SANDBOX_ROOT}
-   - Verify path does NOT contain forbidden patterns
+1. **READ ANYWHERE IN PROJECT**: You CAN read from ANY file under {PROJECT_ROOT} (except forbidden directories). You are NOT limited to specific files.
+2. **WRITE TO SANDBOX ONLY**: You MUST write all fixes to {SANDBOX_ROOT}. NEVER write to live source code.
+3. **MIRROR DIRECTORY STRUCTURE**: When writing a fix to the sandbox, preserve the original path structure relative to the project root.
+4. **FORBIDDEN PATHS**: Never access venv/, node_modules/, .git/, __pycache__/, memory/, storage/, models/, logs/, alembic/, tests/, scripts/.
+5. **GENERATE LOG**: You MUST create {SANDBOX_ROOT}/SELF_HEALING_LOG.md after every self-healing operation.
+6. **NO TRUNCATION**: Always output complete files, never use "..." or placeholders.
 """
 
 # =============================================================================
@@ -367,7 +374,6 @@ FORBIDDEN_DIRS: List[str] = [
     # DEVELOPMENT & TESTING (Prevent AI from breaking your test suite or scripts)
     "tests",       # Pytest suites
     "scripts",     # Your audit and runtime scripts
-    "dev-sandbox", # Prevent the MAIN agent from altering the sandbox directly
 ]
 
 def initialize_dev_sandbox() -> Dict[str, Any]:
@@ -469,8 +475,8 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
     if ram_gb >= 32 and cpu_cores >= 8:
         return {
             "recommended_model_size": "35b+",
-            "recommended_model_type": "MoE",  # NEW
-            "recommended_models": [  # NEW
+            "recommended_model_type": "MoE",
+            "recommended_models": [
                 "Qwen3.6-35b-a3b-Claude4.7-Opus-uncensored-mtp:latest",
                 "Mixtral-8x7B-Instruct-v0.1",
                 "DeepSeek-V2"
@@ -483,8 +489,8 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
     elif ram_gb >= 16 and cpu_cores >= 4:
         return {
             "recommended_model_size": "14b",
-            "recommended_model_type": "MoE",  # NEW
-            "recommended_models": [  # NEW
+            "recommended_model_type": "MoE",
+            "recommended_models": [
                 "Mixtral-8x7B-Instruct-v0.1",
                 "Qwen2.5-Coder-14B",
                 "DeepSeek-Coder-V2-Lite"
@@ -497,8 +503,8 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
     elif ram_gb >= 8:
         return {
             "recommended_model_size": "7b",
-            "recommended_model_type": "MoE",  # NEW
-            "recommended_models": [  # NEW
+            "recommended_model_type": "MoE",
+            "recommended_models": [
                 "Qwen2.5-Coder-7B",
                 "DeepSeek-Coder-V2-Lite",
                 "CodeQwen-7B"
@@ -511,8 +517,8 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
     else:
         return {
             "recommended_model_size": "3b",
-            "recommended_model_type": "Dense",  # NEW
-            "recommended_models": [  # NEW
+            "recommended_model_type": "Dense",
+            "recommended_models": [
                 "Qwen2.5-3B",
                 "Phi-3-mini"
             ],
@@ -1234,10 +1240,10 @@ def agent_loop(
     model: Optional[str] = None,
     max_iterations: int = 10,
 ) -> Dict[str, Any]:
+    """Execute ReAct loop with tool-calling, falling back to chat mode if needed."""
     print("\n" + "="*50)
     print("🚨 AGENT LOOP STARTED")
     print("="*50 + "\n")
-    """Execute ReAct loop with tool-calling, falling back to chat mode if needed."""
     llm = _get_llm(model)
     model_name = model or get_default_model() or llm.model
 
