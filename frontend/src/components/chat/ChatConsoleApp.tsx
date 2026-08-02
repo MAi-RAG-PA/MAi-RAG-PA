@@ -133,7 +133,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         const cpuRes = await apiClient.get('/api/system/cpu');
         setCpuPercent(cpuRes.data.percent || 0);
 
-        // GPU Fetch integrated here
         const gpuRes = await apiClient.get('/api/system/gpu');
         if (gpuRes.data.available) {
           setGpuAvailable(true);
@@ -237,7 +236,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     try {
       const threadsRes = await apiClient.get('/api/memory/sqlite/chat/threads');
       const threadsData = threadsRes.data.threads || [];
-
 
       if (threadsData.length === 0) {
         await createNewThread();
@@ -344,9 +342,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     if (!confirm('Delete this chat thread?')) return;
 
     try {
-      // DEBUG: Check exactly what is in localStorage right now
-      const debugKey = localStorage.getItem('mai-rag-api-key');
-
       await apiClient.delete(`/api/memory/sqlite/chat/thread/${id}`);
 
       setThreads(prev => prev.filter(t => t.id !== id));
@@ -521,8 +516,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       timestamp: Date.now(),
     };
 
-
-   // Update local state
+    // Update local state
     setThreads(prev => {
       const updated = prev.map(t =>
         t.id === currentThreadId
@@ -567,15 +561,13 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       // SEND TO LLM
       // =================================================================
       const payload = extractedFilename
-        ? { query: currentInput, filename: extractedFilename, model: selectedModel }
-        : { query: currentInput, model: selectedModel };
-
+        ? { query: currentInput, filename: extractedFilename, model: selectedModel, thread_id: currentThreadId }
+        : { query: currentInput, model: selectedModel, thread_id: currentThreadId };
 
       const response = await apiClient.post('/api/chat', payload, {
         signal: abortControllerRef.current.signal,
         timeout: 3600000,
       });
-
 
       const content =
         response.data?.content ||
@@ -591,7 +583,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         model: response.data?.model || selectedModel,
         timestamp: Date.now(),
       };
-
 
       // Update local state with AI response
       setThreads(prev => {
