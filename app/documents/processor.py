@@ -1,23 +1,23 @@
 # app/documents/processor.py
-import csv
-import hashlib
-import json
-import logging
 import os
 import re
-import xml.etree.ElementTree as ET
-from dataclasses import asdict, dataclass
-from datetime import datetime
+import json
+import csv
+import hashlib
+import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Dict, Optional, Tuple
+from datetime import datetime
+from dataclasses import dataclass, asdict
 
 import pdfplumber
+import xml.etree.ElementTree as ET
+
+from ebooklib import epub, ITEM_DOCUMENT
 from bs4 import BeautifulSoup
-from ebooklib import ITEM_DOCUMENT, epub
 
 try:
     from docx import Document
-
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
@@ -25,18 +25,15 @@ except ImportError:
 
 try:
     import frontmatter
-
     FRONTMATTER_AVAILABLE = True
 except ImportError:
     FRONTMATTER_AVAILABLE = False
     frontmatter = None
 
 try:
-    from string import punctuation
-
     import spacy
     from spacy.lang.en.stop_words import STOP_WORDS
-
+    from string import punctuation
     SPACY_AVAILABLE = True
     _nlp = None
 except ImportError:
@@ -46,7 +43,6 @@ except ImportError:
 
 try:
     from striprtf.striprtf import rtf_to_text
-
     RTF_AVAILABLE = True
 except ImportError:
     RTF_AVAILABLE = False
@@ -55,7 +51,6 @@ except ImportError:
 try:
     from odf import opendocument
     from odf.text import P
-
     ODT_AVAILABLE = True
 except ImportError:
     ODT_AVAILABLE = False
@@ -64,7 +59,6 @@ except ImportError:
 
 try:
     from pptx import Presentation
-
     PPTX_AVAILABLE = True
 except ImportError:
     PPTX_AVAILABLE = False
@@ -72,7 +66,6 @@ except ImportError:
 
 try:
     import openpyxl
-
     XLSX_AVAILABLE = True
 except ImportError:
     XLSX_AVAILABLE = False
@@ -80,7 +73,6 @@ except ImportError:
 
 try:
     from pylatexenc.latex2text import LatexNodes2Text
-
     LATEX_AVAILABLE = True
 except ImportError:
     LATEX_AVAILABLE = False
@@ -88,7 +80,6 @@ except ImportError:
 
 try:
     from docutils.core import publish_parts
-
     RST_AVAILABLE = True
 except ImportError:
     RST_AVAILABLE = False
@@ -102,7 +93,6 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DocumentMetadata:
     """Rich document metadata structure"""
-
     filename: str
     source_type: str
     author: Optional[str] = None
@@ -151,8 +141,7 @@ def extract_keywords(text: str, top_n: int = 20) -> List[str]:
     try:
         doc = nlp(text.lower())
         candidates = [
-            token.text
-            for token in doc
+            token.text for token in doc
             if token.text not in STOP_WORDS
             and token.text not in punctuation
             and len(token.text) > 2
@@ -191,52 +180,38 @@ def file_hash(filepath: Path) -> str:
 
 
 def extract_metadata(filepath: Path) -> DocumentMetadata:
-    """Extract rich metadata from any document format"""
-    stat = filepath.stat()
+    """Extract metadata from filename ONLY, ignoring internal file metadata."""
+    filename = filepath.name
+    stem = filepath.stem
+    parts = [p.strip() for p in stem.split(' - ')]
+    
+    # Parse Title - Subtitle - Author format
+    if len(parts) >= 3:
+        title = parts[0]
+        subtitle = " - ".join(parts[1:-1])
+        author = parts[-1]
+    elif len(parts) == 2:
+        title = parts[0]
+        subtitle = ""
+        author = parts[1]
+    else:
+        title = stem
+        subtitle = ""
+        author = "Unknown Author"
+    
+    # Get collection/genre from parent directory name
+    collection = filepath.parent.name
+    
     meta = DocumentMetadata(
-        filename=filepath.name,
-        source_type=filepath.suffix[1:].lower(),
-        created=datetime.fromtimestamp(stat.st_ctime).isoformat(),
-        modified=datetime.fromtimestamp(stat.st_mtime).isoformat(),
+        title=title,
+        author=author,
+        subtitle=subtitle,
+        source_type=filepath.suffix.lstrip('.'),
+        file_path=str(filepath),
         file_hash=file_hash(filepath),
+        collection=collection,  # ← Uses directory name as genre/collection
     )
-
-    ext = meta.source_type.lower()
-
-    try:
-        if ext == "pdf":
-            try:
-                import fitz
-
-                doc = fitz.open(filepath)
-                meta.title = doc.metadata.get("title", "")
-                meta.author = doc.metadata.get("author", "")
-                doc.close()
-            except ImportError:
-                pass
-
-        elif ext == "docx" and DOCX_AVAILABLE:
-            doc = Document(filepath)
-            meta.title = doc.core_properties.title or ""
-            meta.author = doc.core_properties.author or ""
-
-        elif ext == "md" and FRONTMATTER_AVAILABLE:
-            with open(filepath, "r", encoding="utf-8") as f:
-                fm = frontmatter.load(f)
-                meta.title = fm.get("title", "")
-                meta.author = fm.get("author", "")
-                meta.tags = fm.get("tags", [])
-
-        elif ext == "pptx" and PPTX_AVAILABLE:
-            prs = Presentation(filepath)
-            if prs.core_properties.title:
-                meta.title = prs.core_properties.title
-            if prs.core_properties.author:
-                meta.author = prs.core_properties.author
-
-    except Exception as e:
-        logger.warning("Failed to extract metadata from %s: %s", filepath, e)
-
+    
     return meta
 
 
@@ -273,21 +248,17 @@ def process_pdf(pdf_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {
-                    "text": chunk_text,
-                    "metadata": {
-                        **meta.to_dict(),
-                        "chunk_index": idx,
-                        "chunk_word_count": len(chunk_text.split()),
-                    },
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx,
+                    "chunk_word_count": len(chunk_text.split())
                 }
-            )
+            })
 
         logger.info("PDF '%s' split into %s chunks", pdf_path.name, len(chunks))
     except Exception as e:
@@ -310,10 +281,7 @@ def process_epub(epub_path: Path, max_words: int = 300) -> List[Dict]:
                 try:
                     html_content = item.get_content().decode("utf-8")
                     soup = BeautifulSoup(html_content, "html.parser")
-                    headings = [
-                        h.get_text(strip=True)
-                        for h in soup.find_all(["h1", "h2", "h3"])
-                    ]
+                    headings = [h.get_text(strip=True) for h in soup.find_all(["h1", "h2", "h3"])]
                     if headings:
                         section_titles.extend(headings)
 
@@ -334,24 +302,18 @@ def process_epub(epub_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            section_title = (
-                section_titles[idx - 1] if idx - 1 < len(section_titles) else None
-            )
-            chunks.append(
-                {
-                    "text": chunk_text,
-                    "metadata": {
-                        **meta.to_dict(),
-                        "chunk_index": idx,
-                        "section_title": section_title,
-                    },
+            section_title = section_titles[idx - 1] if idx - 1 < len(section_titles) else None
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx,
+                    "section_title": section_title
                 }
-            )
+            })
 
         logger.info("EPUB '%s' split into %s chunks", epub_path.name, len(chunks))
     except Exception as e:
@@ -381,14 +343,16 @@ def process_txt(txt_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("TXT '%s' split into %s chunks", txt_path.name, len(chunks))
     except Exception as e:
@@ -418,14 +382,16 @@ def process_docx(docx_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("DOCX '%s' split into %s chunks", docx_path.name, len(chunks))
     except Exception as e:
@@ -460,14 +426,16 @@ def process_html(html_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("HTML '%s' split into %s chunks", html_path.name, len(chunks))
     except Exception as e:
@@ -497,14 +465,16 @@ def process_markdown(md_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("Markdown '%s' split into %s chunks", md_path.name, len(chunks))
     except Exception as e:
@@ -536,14 +506,16 @@ def process_rtf(rtf_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("RTF '%s' split into %s chunks", rtf_path.name, len(chunks))
     except Exception as e:
@@ -563,9 +535,7 @@ def process_odt(odt_path: Path, max_words: int = 300) -> List[Dict]:
         meta = extract_metadata(odt_path)
 
         doc = opendocument.load(str(odt_path))
-        full_text = "\n\n".join(
-            [p.text for p in doc.text.getElementsByType(P) if p.text.strip()]
-        )
+        full_text = "\n\n".join([p.text for p in doc.text.getElementsByType(P) if p.text.strip()])
         full_text = normalize_text(full_text)
 
         if not full_text:
@@ -575,14 +545,16 @@ def process_odt(odt_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("ODT '%s' split into %s chunks", odt_path.name, len(chunks))
     except Exception as e:
@@ -628,14 +600,16 @@ def process_csv(csv_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("CSV '%s' split into %s chunks", csv_path.name, len(chunks))
     except Exception as e:
@@ -683,14 +657,16 @@ def process_json(json_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("JSON '%s' split into %s chunks", json_path.name, len(chunks))
     except Exception as e:
@@ -724,14 +700,16 @@ def process_xml(xml_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("XML '%s' split into %s chunks", xml_path.name, len(chunks))
     except Exception as e:
@@ -768,14 +746,16 @@ def process_pptx(pptx_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("PPTX '%s' split into %s chunks", pptx_path.name, len(chunks))
     except Exception as e:
@@ -801,9 +781,7 @@ def process_xlsx(xlsx_path: Path, max_words: int = 300) -> List[Dict]:
             full_text += f"Sheet: {sheet_name}\n"
 
             for row in ws.iter_rows(values_only=True):
-                row_text = " | ".join(
-                    [str(cell) if cell is not None else "" for cell in row]
-                )
+                row_text = " | ".join([str(cell) if cell is not None else "" for cell in row])
                 if row_text.strip("| "):
                     full_text += row_text + "\n"
             full_text += "\n"
@@ -818,14 +796,16 @@ def process_xlsx(xlsx_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("XLSX '%s' split into %s chunks", xlsx_path.name, len(chunks))
     except Exception as e:
@@ -860,14 +840,16 @@ def process_tex(tex_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("LaTeX '%s' split into %s chunks", tex_path.name, len(chunks))
     except Exception as e:
@@ -890,9 +872,7 @@ def process_rst(rst_path: Path, max_words: int = 300) -> List[Dict]:
             soup = BeautifulSoup(parts["body"], "html.parser")
             full_text = soup.get_text()
         else:
-            full_text = re.sub(
-                r"^[=\-~`\"+#*^]{3,}\s*$", "", rst_content, flags=re.MULTILINE
-            )
+            full_text = re.sub(r"^[=\-~`\"+#*^]{3,}\s*$", "", rst_content, flags=re.MULTILINE)
             full_text = re.sub(r"\.\.\s+[a-z]+::", "", full_text)
             full_text = re.sub(r":[a-z]+:`[^`]*`", "", full_text)
 
@@ -905,14 +885,16 @@ def process_rst(rst_path: Path, max_words: int = 300) -> List[Dict]:
         meta.word_count = len(full_text.split())
         meta.keywords = extract_keywords(full_text[:5000])
 
-        chunk_texts = chunk_text_semantic(
-            full_text, max_words=max_words, overlap_sentences=2
-        )
+        chunk_texts = chunk_text_semantic(full_text, max_words=max_words, overlap_sentences=2)
 
         for idx, chunk_text in enumerate(chunk_texts, start=1):
-            chunks.append(
-                {"text": chunk_text, "metadata": {**meta.to_dict(), "chunk_index": idx}}
-            )
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    **meta.to_dict(),
+                    "chunk_index": idx
+                }
+            })
 
         logger.info("RST '%s' split into %s chunks", rst_path.name, len(chunks))
     except Exception as e:
@@ -921,9 +903,7 @@ def process_rst(rst_path: Path, max_words: int = 300) -> List[Dict]:
     return chunks
 
 
-def process_directory(
-    directory: Path, max_words: int = 300, force_reprocess: bool = False
-) -> List[Dict]:
+def process_directory(directory: Path, max_words: int = 300, force_reprocess: bool = False) -> List[Dict]:
     """Process all supported files in a directory recursively with change detection"""
     all_chunks = []
     processed_count = 0
@@ -994,14 +974,11 @@ def process_directory(
             try:
                 cache_file = metadata_cache_dir / f"{file_path.name}.json"
                 with open(cache_file, "w") as f:
-                    json.dump(
-                        {
-                            "file_hash": file_hash(file_path),
-                            "processed_at": datetime.now().isoformat(),
-                            "chunk_count": len(file_chunks),
-                        },
-                        f,
-                    )
+                    json.dump({
+                        "file_hash": file_hash(file_path),
+                        "processed_at": datetime.now().isoformat(),
+                        "chunk_count": len(file_chunks)
+                    }, f)
             except Exception as e:
                 logger.warning("Failed to update cache for %s: %s", file_path, e)
 
@@ -1018,21 +995,7 @@ def process_directory(
 def get_supported_extensions() -> List[str]:
     """Return list of supported file extensions"""
     return [
-        ".pdf",
-        ".epub",
-        ".txt",
-        ".docx",
-        ".html",
-        ".htm",
-        ".md",
-        ".rtf",
-        ".odt",
-        ".csv",
-        ".tsv",
-        ".json",
-        ".xml",
-        ".pptx",
-        ".xlsx",
-        ".tex",
-        ".rst",
+        ".pdf", ".epub", ".txt", ".docx", ".html", ".htm", ".md",
+        ".rtf", ".odt", ".csv", ".tsv", ".json", ".xml",
+        ".pptx", ".xlsx", ".tex", ".rst"
     ]
