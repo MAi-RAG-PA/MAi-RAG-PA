@@ -64,10 +64,15 @@ const LongTermMemoryApp: React.FC = () => {
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     const ws = new WebSocket(wsUrl);
 
+    ws.onopen = () => console.log("✅ WebSocket CONNECTED to:", wsUrl);
+    
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+        console.log("📩 RAW WS MESSAGE RECEIVED:", msg); // PROVE WE ARE GETTING IT
+        
         if (msg.type === "ingest_progress") {
+          console.log("📊 UPDATING PROGRESS STATE:", msg);
           setProgress({
             chunksIngested: msg.chunks_ingested,
             currentFileChunks: msg.current_file_chunks,
@@ -76,11 +81,13 @@ const LongTermMemoryApp: React.FC = () => {
             source: msg.source,
           });
         }
-      } catch {}
+      } catch (err) {
+        console.error("❌ WS Parse Error:", err);
+      }
     };
 
-    ws.onclose = () => {};
-    ws.onerror = () => {};
+    ws.onerror = (err) => console.error("❌ WebSocket Error:", err);
+    ws.onclose = () => console.log("🔌 WebSocket Closed");
 
     return () => ws.close();
   }, []);
@@ -151,16 +158,24 @@ const LongTermMemoryApp: React.FC = () => {
   const canProcess = !isProcessing && !!selectedCollection && hasSource;
 
   const handleChunkAndIngest = async () => {
-    if (!selectedCollection || !hasSource) return;
+    console.log("BUTTON CLICKED. Collection:", selectedCollection, "Dir:", ingestDirectory, "HasSource:", hasSource);
+    
+    if (!selectedCollection || !hasSource) {
+      console.log("❌ BLOCKED: Missing collection or source!");
+      return;
+    }
 
+    console.log("Passing checks. Setting isProcessing to true...");
     setIsProcessing(true);
     setResultMessage("");
     setProgress(null);
 
     try {
+      console.log("ATTEMPTING API REQUEST TO /api/memory/qdrant/chunk-and-ingest ...");
       let response;
 
       if (files && files.length > 0) {
+        console.log("Sending FILES payload");
         const formData = new FormData();
         for (let i = 0; i < files.length; i++) {
           formData.append("files", files[i]);
@@ -173,6 +188,7 @@ const LongTermMemoryApp: React.FC = () => {
           headers: { "Content-Type": "multipart/form-data" },
         });
       } else {
+        console.log("Sending DIRECTORY payload:", ingestDirectory.trim());
         response = await apiClient.post("/api/memory/qdrant/chunk-and-ingest", null, {
           params: {
             collection: selectedCollection,
@@ -183,6 +199,7 @@ const LongTermMemoryApp: React.FC = () => {
         });
       }
 
+      console.log("API RESPONSE RECEIVED:", response.data);
       const data = response.data;
 
       let msg: string;
@@ -204,12 +221,14 @@ const LongTermMemoryApp: React.FC = () => {
       setSelectedCollection("");
       setProgress(null);
     } catch (error: any) {
+      console.error("❌ API REQUEST FAILED:", error);
       setResultMessage(`✗ ${error.response?.data?.detail || error.message}`);
     } finally {
+      console.log("FINALLY BLOCK: Setting isProcessing to false");
       setIsProcessing(false);
     }
   };
-
+  
   const handleExportLTM = async () => {
     setIsExportingLTM(true);
     try {
@@ -604,54 +623,61 @@ const LongTermMemoryApp: React.FC = () => {
       </div>
 
       <div style={{ marginTop: "8px", minHeight: "36px" }}>
-        {isProcessing && progress ? (
-          <div>
-            <div style={{ fontSize: "0.8rem", marginBottom: "4px", color: "var(--text)", opacity: 0.9 }}>
-              Processing: {progress.source} ({progress.currentFileChunks}/{progress.totalFileChunks} chunks)
-            </div>
-            <div
-              style={{
-                position: "relative",
-                borderRadius: "6px",
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.04)",
-                height: "20px",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  height: "100%",
-                  width: `${Math.min(100, Math.round((progress.currentFileChunks / Math.max(1, progress.totalFileChunks)) * 100))}%`,
-                  backgroundColor: "var(--accent)",
-                  opacity: 0.5,
-                  transition: "width 0.3s",
-                }}
-                role="progressbar"
-                aria-valuenow={progress.currentFileChunks}
-                aria-valuemax={progress.totalFileChunks}
-              />
+        {isProcessing ? (
+          progress ? (
+            <div>
+              <div style={{ fontSize: "0.8rem", marginBottom: "4px", color: "var(--text)", opacity: 0.9 }}>
+                Processing: {progress.source} ({progress.currentFileChunks}/{progress.totalFileChunks} chunks)
+              </div>
               <div
                 style={{
                   position: "relative",
-                  zIndex: 1,
-                  textAlign: "center",
-                  lineHeight: "20px",
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
+                  borderRadius: "6px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.04)",
+                  height: "20px",
+                  overflow: "hidden",
                 }}
               >
-                {Math.round((progress.currentFileChunks / Math.max(1, progress.totalFileChunks)) * 100)}%
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    height: "100%",
+                    width: `${Math.min(100, Math.round((progress.currentFileChunks / Math.max(1, progress.totalFileChunks)) * 100))}%`,
+                    backgroundColor: "var(--accent)",
+                    opacity: 0.5,
+                    transition: "width 0.3s",
+                  }}
+                  role="progressbar"
+                  aria-valuenow={progress.currentFileChunks}
+                  aria-valuemax={progress.totalFileChunks}
+                />
+                <div
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    textAlign: "center",
+                    lineHeight: "20px",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  {Math.round((progress.currentFileChunks / Math.max(1, progress.totalFileChunks)) * 100)}%
+                </div>
+              </div>
+              <div style={{ fontSize: "0.75rem", opacity: 0.7, marginTop: "2px" }}>
+                Total: {progress.chunksIngested} chunks from {progress.filesProcessed} files
               </div>
             </div>
-            <div style={{ fontSize: "0.75rem", opacity: 0.7, marginTop: "2px" }}>
-              Total: {progress.chunksIngested} chunks from {progress.filesProcessed} files
+          ) : (
+            <div style={{ fontSize: "0.85rem", padding: "10px", color: "var(--accent)", fontWeight: 600, textAlign: "center" }}>
+              ⏳ Reading and chunking files... (This may take a moment for large directories)
             </div>
-          </div>
+          )
         ) : resultMessage ? (
+        
           <div
             style={{
               fontSize: "0.8rem",
