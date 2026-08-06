@@ -5,11 +5,10 @@ import logging
 import re
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional, List, Dict, Any
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import (Distance, PointIdsList, PointStruct,
-                                  VectorParams)
+from qdrant_client.models import Distance, VectorParams, PointStruct, PointIdsList
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -20,12 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class QdrantMemoryManager:
-    def __init__(
-        self,
-        host: str = "localhost",
-        port: int = 6333,
-        model_name: str = "all-MiniLM-L6-v2",
-    ):
+    def __init__(self, host: str = "127.0.0.1", port: int = 6333, model_name: str = "all-MiniLM-L6-v2"):
         self.qdrant_url = f"http://{host}:{port}"
         self.qdrant_available = False
         self.client: Optional[QdrantClient] = None
@@ -41,23 +35,15 @@ class QdrantMemoryManager:
             if SentenceTransformer is None:
                 raise ImportError("sentence-transformers is not installed")
 
-            local_model_path = (
-                Path(__file__).parent.parent.parent / "models" / "all-MiniLM-L6-v2"
-            )
+            local_model_path = Path(__file__).parent.parent.parent / "models" / "all-MiniLM-L6-v2"
             if local_model_path.exists():
-                logger.info(
-                    "Loading embedding model from local path: %s", local_model_path
-                )
+                logger.info("Loading embedding model from local path: %s", local_model_path)
                 try:
                     self.encoder = SentenceTransformer(str(local_model_path))
                 except Exception:
                     self.encoder = SentenceTransformer(model_name)
             else:
-                logger.warning(
-                    "Local model not found at %s, using model name: %s",
-                    local_model_path,
-                    model_name,
-                )
+                logger.warning("Local model not found at %s, using model name: %s", local_model_path, model_name)
                 self.encoder = SentenceTransformer(model_name)
 
             # Use new method name with fallback for older versions
@@ -85,16 +71,12 @@ class QdrantMemoryManager:
         try:
             self.client.create_collection(
                 collection_name=collection_name,
-                vectors_config=VectorParams(
-                    size=self.vector_size, distance=Distance.COSINE
-                ),
+                vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE),
             )
             logger.info("✓ Created Qdrant collection: %s", collection_name)
             return True
         except Exception as e:
-            logger.error(
-                "Failed to create collection %s: %s", collection_name, e, exc_info=True
-            )
+            logger.error("Failed to create collection %s: %s", collection_name, e, exc_info=True)
             return False
 
     def delete_collection(self, collection_name: str) -> bool:
@@ -106,12 +88,7 @@ class QdrantMemoryManager:
             logger.info("Deleted collection: %s", collection_name)
             return True
         except Exception as e:
-            logger.error(
-                "Failed to delete collection '%s': %s",
-                collection_name,
-                e,
-                exc_info=True,
-            )
+            logger.error("Failed to delete collection '%s': %s", collection_name, e, exc_info=True)
             return False
 
     def ingest_documents(
@@ -145,9 +122,7 @@ class QdrantMemoryManager:
             line_ref = doc.get("line_reference", doc.get("lines", ""))
 
             if not chapter and not page:
-                ch_match = re.search(
-                    r"(?:Chapter|Act|Scene)\s+(\d+|[IVXLCDM]+)", text, re.IGNORECASE
-                )
+                ch_match = re.search(r"(?:Chapter|Act|Scene)\s+(\d+|[IVXLCDM]+)", text, re.IGNORECASE)
                 pg_match = re.search(r"(?:Page|p\.|pg\.)\s*(\d+)", text, re.IGNORECASE)
                 if ch_match:
                     chapter = ch_match.group(0)
@@ -180,11 +155,7 @@ class QdrantMemoryManager:
                     collection_name=collection_name,
                     points=points[i : i + batch_size],
                 )
-            return {
-                "status": "success",
-                "ingested": len(points),
-                "collection": collection_name,
-            }
+            return {"status": "success", "ingested": len(points), "collection": collection_name}
         except Exception as e:
             logger.error("Qdrant upsert failed: %s", e, exc_info=True)
             return {"status": "error", "message": str(e)}
@@ -201,12 +172,7 @@ class QdrantMemoryManager:
             )
             return len(document_ids)
         except Exception as e:
-            logger.error(
-                "Failed to delete documents from %s: %s",
-                collection_name,
-                e,
-                exc_info=True,
-            )
+            logger.error("Failed to delete documents from %s: %s", collection_name, e, exc_info=True)
             return 0
 
     def search(self, collection_name: str, query: str, top_k: int = 5) -> List[dict]:
@@ -216,11 +182,7 @@ class QdrantMemoryManager:
 
         try:
             query_embedding = self.encoder.encode(query)
-            query_embedding = (
-                query_embedding.tolist()
-                if hasattr(query_embedding, "tolist")
-                else list(query_embedding)
-            )
+            query_embedding = query_embedding.tolist() if hasattr(query_embedding, "tolist") else list(query_embedding)
 
             try:
                 response = self.client.query_points(
@@ -284,24 +246,15 @@ class QdrantMemoryManager:
                 snapshot_info = future.result(timeout=60)
 
             snapshot_path = (
-                snapshot_info.location
-                if hasattr(snapshot_info, "location")
-                else str(snapshot_info)
+                snapshot_info.location if hasattr(snapshot_info, "location") else str(snapshot_info)
             )
             logger.info("Created snapshot for '%s': %s", collection_name, snapshot_path)
             return snapshot_path
         except concurrent.futures.TimeoutError:
-            logger.error(
-                "Snapshot creation timed out after 60s for '%s'", collection_name
-            )
+            logger.error("Snapshot creation timed out after 60s for '%s'", collection_name)
             return None
         except Exception as e:
-            logger.error(
-                "Failed to create snapshot for '%s': %s",
-                collection_name,
-                e,
-                exc_info=True,
-            )
+            logger.error("Failed to create snapshot for '%s': %s", collection_name, e, exc_info=True)
             return None
 
     def list_snapshots(self, collection_name: str) -> List[dict]:
@@ -315,19 +268,12 @@ class QdrantMemoryManager:
                 {
                     "name": s.name if hasattr(s, "name") else str(s),
                     "size": s.size if hasattr(s, "size") else 0,
-                    "created_at": str(s.creation_time)
-                    if hasattr(s, "creation_time")
-                    else "unknown",
+                    "created_at": str(s.creation_time) if hasattr(s, "creation_time") else "unknown",
                 }
                 for s in snapshots
             ]
         except Exception as e:
-            logger.error(
-                "Failed to list snapshots for '%s': %s",
-                collection_name,
-                e,
-                exc_info=True,
-            )
+            logger.error("Failed to list snapshots for '%s': %s", collection_name, e, exc_info=True)
             return []
 
     def delete_snapshot(self, collection_name: str, snapshot_name: str) -> bool:
@@ -340,14 +286,10 @@ class QdrantMemoryManager:
                 collection_name=collection_name,
                 snapshot_name=snapshot_name,
             )
-            logger.info(
-                "Deleted snapshot '%s' from '%s'", snapshot_name, collection_name
-            )
+            logger.info("Deleted snapshot '%s' from '%s'", snapshot_name, collection_name)
             return True
         except Exception as e:
-            logger.error(
-                "Failed to delete snapshot '%s': %s", snapshot_name, e, exc_info=True
-            )
+            logger.error("Failed to delete snapshot '%s': %s", snapshot_name, e, exc_info=True)
             return False
 
     def rotate_snapshots(self, collection_name: str, keep: int = 7) -> int:
@@ -356,9 +298,7 @@ class QdrantMemoryManager:
         if len(snapshots) <= keep:
             return 0
 
-        sorted_snaps = sorted(
-            snapshots, key=lambda s: s.get("created_at", ""), reverse=True
-        )
+        sorted_snaps = sorted(snapshots, key=lambda s: s.get("created_at", ""), reverse=True)
         to_delete = sorted_snaps[keep:]
         deleted = 0
 
@@ -366,17 +306,10 @@ class QdrantMemoryManager:
             if self.delete_snapshot(collection_name, snap["name"]):
                 deleted += 1
 
-        logger.info(
-            "Rotated snapshots for '%s': kept %s, deleted %s",
-            collection_name,
-            keep,
-            deleted,
-        )
+        logger.info("Rotated snapshots for '%s': kept %s, deleted %s", collection_name, keep, deleted)
         return deleted
 
-    def backup_all_collections(
-        self, backup_dir: Optional[Path] = None, keep: int = 7
-    ) -> dict:
+    def backup_all_collections(self, backup_dir: Optional[Path] = None, keep: int = 7) -> dict:
         """Create snapshots for all collections and rotate old ones."""
         if backup_dir is None:
             backup_dir = Path(__file__).parent.parent.resolve() / "backups" / "qdrant"
