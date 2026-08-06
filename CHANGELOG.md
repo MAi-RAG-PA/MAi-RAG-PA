@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
 </p>
 
 <h1 align="center">MAi-RAG-PA</h1>
@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.0 | Effective Date: June 2026</strong><br />
+  <strong>Current Version 1.4.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -33,6 +33,82 @@ All notable changes to MAi-RAG-PA will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+
+Changelog
+## [1.4.0] - 2026-08-06
+
+## Fixed: WebSocket Connection Issues
+Corrected WebSocket URL in LongTermMemoryApp.tsx to properly connect to localhost:8000 during development instead of localhost:5173
+
+## Fixed: Qdrant Connection Reliability
+- Resolved IPv6/IPv4 localhost resolution bug by changing host="localhost" to host="127.0.0.1" in qdrant_manager.py, preventing Python's qdrant_client from failing to connect on systems where localhost - resolves to IPv6 ::1 instead of IPv4.
+
+## Fixed: Short-Term Memory (STM) Size Display
+- Corrected the Short-Term Memory (STM) analytics panel incorrectly reporting 0 B of storage despite having hundreds of entries.
+- Added proper database path resolution (Path.resolve()) and validation to prevent silent failures when querying empty database files
+- Added comprehensive error handling and logging and deadlock prevention in the frontend Axios interceptors to ensure the UI remains responsive even if background API key fetching stalls.
+
+## Fixed: Long-Term Memory (LTM) Ingestion Progress
+- Implemented real-time progress bar with percentage indicator during chunking and ingestion process
+- Added WebSocket broadcasts with asyncio.sleep(0) to prevent event loop blocking during synchronous file parsing operations, allowing WebSocket progress broadcasts to successfully flush to the frontend.
+- Replaced FastAPI's strict File() dependency with manual multipart/form-data request parsing in the /chunk-and-ingest endpoint. This prevents the server from silently dropping or hanging on certain HTTP payloads.
+- Progress updates now display: "Chunking: [filename]... (X/Y files)"
+
+## Fixed: Chat Thread Persistence
+- Resolved chat thread fragmentation issue where hard refresh would create new threads instead of continuing existing conversations
+- Active thread ID is now saved to localStorage and restored on page load
+- Thread deletion properly updates localStorage to maintain continuity
+
+## Fixed: Syntax Errors
+- Corrected missing sqlite3 import in STM size endpoint
+
+## Changed
+** System Prompt Enforcement:**
+- Ensured LLM fallback behaviors strictly adhere to the anti-hallucination system prompts when RAG context is empty or when using heavily modified/merged models.
+
+
+# Changelog 
+## [1.3.8] - 2026-08-02
+
+## Added
+- Proactive self-healing workflow with 6-step process (Clone → Analyze → Sandbox Fix → Log → Review → Deploy/Rollback).
+- Mandatory `SELF_HEALING_LOG.md` generation at sandbox root after every self-healing operation.
+- JSON tool-call interception fallback for models that output tools as plain text instead of native tool calls.
+- Smart timestamp display: time-only for today's messages, date+time for older messages.
+- Comprehensive debug prints in `/api/chat` and `agent_loop` for troubleshooting.
+- Non-technical user triggering via natural language (e.g., "the system is broken").
+
+### Changed
+- Extended LLM timeout from 300s to 1800s (30 minutes) for large models on CPU.
+- Reduced default context window from 8192 to 4096 tokens for CPU stability.
+- Updated `SELF_HEALING_PROTOCOL` to allow reading live code while restricting writes to sandbox.
+- Refined `FORBIDDEN_DIRS` to allow LLM access to its own `dev-sandbox/` workspace.
+- Updated `ARCHITECTURE.md` with accurate directory tree and corrected paths.
+- Fully merged and corrected `SELF-HEALING-SYSTEM-USER-WORKFLOW.md` documentation.
+
+### Fixed
+- Critical `index.html` missing `}` causing frontend crash and chat disappearance on hard refresh.
+- Chat thread persistence bug where frontend omitted `thread_id`, creating ghost threads in database.
+- Timestamp parsing bug where backend returned `0` for integer epoch timestamps, causing `Date.now()` fallback.
+- Sandbox path validation incorrectly blocking LLM from its own `dev-sandbox/` directory.
+- `agent_loop` docstring placement (moved to top of function for proper Python convention).
+
+## [1.2.4] - 2026-07-26
+### Updated
+- SQLite backend for robust memory management.
+- Prometheus metrics integration for system observability.
+- Agentic workflow with verification (Generate → Verify → Fix → Save) using LangChain `bind_tools()`.
+
+### Changed
+- Optimized Ollama CPU-only inference parameters for Intel i3-1215U.
+- Refined model fallback chain (qwen2.5-coder:32b → qwen2.5-coder:14b → qwen3-coder-30b-a3b-1m).
+
+### Fixed
+- Resolved critical data ingestion deduplication logic skipping valid documents.
+- Fixed cross-platform compatibility issues in `ci.yaml`.
+- Removed restrictive UI/UX limitations on file selection and chunking.
+
 
 ## [1.0.0] - 2026-07-11
 
@@ -216,14 +292,6 @@ Built on the shoulders of giants:
 - Advanced RAG Dataset ingestion capabilities (multi-modal documents)
 - Automated backups
 - Let us know what featues you would like implemented.
-
----
-
-## Version History
-
-| Version | Release Date | Description |
-|---------|-------------|-------------|
-| 1.0.0   | 2026-07-11  | Initial Release |
 
 ---
 
