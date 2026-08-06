@@ -7,7 +7,15 @@
 
 <p align="center">
   <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
-</p>
+</p>  
+  
+**SUPER EASY ONE-LINE Installer for ALL Mainstream Operating Systems:**
+
+```bash
+curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
+```
+
+(See <a href="MAi-INSTALLATION.md">Installation</a> Documentation for complete information for troublshooting or dependency issues.)
 
 <p align="center">
   <img src="assets/intro.png" alt="MAi-RAG-PA Overview" width="900">
@@ -43,7 +51,13 @@
 - 100% Private - No data ever leaves your machine
 
 ### System Requirements
-- **OS**: Linux (Ubuntu 22.04+, Fedora 38+, Arch), macOS 12+, Windows (WSL2), and others
+- **OS**: Linux (Ubuntu 22.04+, Fedora 38+, Arch), macOS 12+, Windows (WSL2), and others.
+
+- **We have a SUPER EASY ONE-LINE Installer for ALL Mainstream Operating Systems, and other Unix Varients:**
+
+```bash
+curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
+```
 
 ### Minimum Hardware
 - **CPU**: Intel i3 / AMD Ryzen 3 or better
