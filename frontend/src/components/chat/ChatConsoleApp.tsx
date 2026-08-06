@@ -294,9 +294,18 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
 
       setThreads(threadsWithMessages);
       
-      const firstThread = threadsWithMessages[0];
-      if (firstThread) {
-        setCurrentThreadId(firstThread.id);
+      // RESTORE LAST ACTIVE THREAD FROM LOCALSTORAGE
+      const savedThreadId = localStorage.getItem('mai-rag-current-thread-id');
+      const threadExists = threadsWithMessages.some(t => t.id === savedThreadId);
+      
+      if (savedThreadId && threadExists) {
+        setCurrentThreadId(savedThreadId);
+      } else {
+        const firstThread = threadsWithMessages[0];
+        if (firstThread) {
+          setCurrentThreadId(firstThread.id);
+          localStorage.setItem('mai-rag-current-thread-id', firstThread.id);
+        }
       }
     } catch (err) {
       console.error('[CHAT] Failed to load threads from backend:', err);
@@ -308,9 +317,12 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       setIsLoadingThreads(false);
     }
   };
-
+  
   const createNewThread = async () => {
     const newThreadId = Date.now().toString();
+    
+    localStorage.setItem('mai-rag-current-thread-id', newThreadId);
+
     const newThread: ChatThread = {
       id: newThreadId,
       title: 'New Chat',
@@ -348,8 +360,16 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
 
       if (currentThreadId === id) {
         const remaining = threads.filter(t => t.id !== id);
-        setCurrentThreadId(remaining.length > 0 ? remaining[0].id : '');
-        if (remaining.length === 0) createNewThread();
+        const nextId = remaining.length > 0 ? remaining[0].id : '';
+        
+        setCurrentThreadId(nextId);
+        
+        if (nextId) {
+          localStorage.setItem('mai-rag-current-thread-id', nextId);
+        } else {
+          localStorage.removeItem('mai-rag-current-thread-id');
+          createNewThread();
+        }
       }
       showToast('Thread deleted permanently');
     } catch (err: any) {
