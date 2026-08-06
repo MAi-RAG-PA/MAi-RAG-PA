@@ -368,6 +368,7 @@ async def _phase2_ingest_from_disk(
                 if result.get("status") == "success":
                     ingested += result.get("ingested", len(documents))
 
+                # Broadcast progress to frontend
                 try:
                     await ws_manager.broadcast({
                         "type": "ingest_progress",
@@ -541,7 +542,7 @@ app.add_middleware(
 
 app.include_router(rag_router, prefix="/api/rag", tags=["RAG"])
 app.include_router(v1_router, prefix="/api/v1", tags=["API v1"])
-app.add_middleware(MetricsMiddleware)
+#app.add_middleware(MetricsMiddleware)
 
 sqlite_manager: Optional[SQLiteMemoryManager] = None
 qdrant_manager: Optional[QdrantMemoryManager] = None
@@ -2143,12 +2144,34 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
 @app.get("/api/memory/analytics/stm-size")
 async def get_stm_size():
     """Calculate and return the approximate size and entry count of Short-Term Memory."""
+    import sqlite3
+
     try:
-        db_path = PROJECT_ROOT / "memory" / "memory_store.db"
+        # Force an absolute, resolved path to prevent relative path bugs
+        db_path = (PROJECT_ROOT / "memory" / "memory_store.db").resolve()
+        
+        # Log the exact path so we can see if it's looking in the wrong place
+        logger.info(f"🔍 Checking STM size at: {db_path}")
+        
+        if not db_path.exists():
+            logger.error(f"❌ Database file does NOT exist at: {db_path}")
+            return {"size": 0, "entries": 0}
+
         with sqlite3.connect(str(db_path)) as conn:
             cursor = conn.cursor()
             
-            # Use COALESCE to prevent NULL sums if any keys/values are NULL
+            # Check if table exists first to prevent silent failures
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='short_term_memory'")
+            if not cursor.fetchone():
+                logger.warning("⚠️ Table 'short_term_memory' does not exist yet.")
+                return {"size": 0, "entries": 0}
+            
+            # Get count
+            cursor.execute("SELECT COUNT(*) FROM short_term_memory")
+            count_result = cursor.fetchone()
+            total_entries = count_result[0] if count_result else 0
+            
+            # Get size
             cursor.execute("""
                 SELECT COALESCE(SUM(LENGTH(COALESCE(key, '')) + LENGTH(COALESCE(value, ''))), 0) 
                 FROM short_term_memory
@@ -2156,14 +2179,13 @@ async def get_stm_size():
             result = cursor.fetchone()
             size_bytes = result[0] if result else 0
             
-            cursor.execute("SELECT COUNT(*) FROM short_term_memory")
-            count_result = cursor.fetchone()
-            total_entries = count_result[0] if count_result else 0
-            
+        logger.info(f"✅ STM Size Calculated: {size_bytes} bytes, {total_entries} entries")
         return {"size": size_bytes, "entries": total_entries}
         
     except Exception as e:
-        logger.error(f"Failed to get STM size: {e}")
+        logger.error(f"❌ Failed to get STM size: {e}")
+        import traceback
+        traceback.print_exc()
         return {"size": 0, "entries": 0}
 
 @app.delete("/api/memory/sqlite/chat/thread/{thread_id}")
@@ -2933,35 +2955,33 @@ async def execute_natural_language_query(request: dict, api_key: str = Depends(v
 # =============================================================================
 
 @app.post("/api/memory/qdrant/chunk-and-ingest")
-@limiter.limit("60/minute")
 async def chunk_and_ingest(
     request: Request,
-    directory: str = Query(""),
-    files: List[UploadFile] = File(default=[]),
-    api_key: str = Depends(verify_api_key),
 ):
-    """Two-phase chunk + ingest with disk-backed safety."""
+    """Two-phase chunk + ingest with disk-backed safety and real-time progress."""
+    import asyncio
     import sys
     from app.documents.parser import SUPPORTED_EXTENSIONS
 
+    # 1. MANUALLY parse the request to prevent FastAPI File() hanging bugs
     content_type = request.headers.get("content-type", "")
     is_multipart = "multipart/form-data" in content_type
 
     if is_multipart:
         form_data = await request.form()
-        effective_collection = (form_data.get("collection") or "").strip()
+        effective_collection = str(form_data.get("collection", "")).strip()
+        directory = str(form_data.get("directory", "")).strip()
         chunk_size = int(form_data.get("chunk_size", 1000))
         chunk_overlap = int(form_data.get("chunk_overlap", 200))
+        uploaded_files = form_data.getlist("files")
     else:
-        effective_collection = (request.query_params.get("collection") or "").strip()
+        effective_collection = str(request.query_params.get("collection", "")).strip()
+        directory = str(request.query_params.get("directory", "")).strip()
         chunk_size = int(request.query_params.get("chunk_size", 1000))
         chunk_overlap = int(request.query_params.get("chunk_overlap", 200))
+        uploaded_files = []
 
-    logger.info(
-        f"!!! CHUNK_AND_INGEST: collection='{effective_collection}', dir='{directory}', files={len(files) if files else 0}",
-        file=sys.stderr,
-        flush=True,
-    )
+    logger.info(f"!!! CHUNK_AND_INGEST: collection='{effective_collection}', dir='{directory}'", flush=True)
 
     if not effective_collection:
         raise HTTPException(status_code=400, detail="Collection name is required")
@@ -2979,7 +2999,6 @@ async def chunk_and_ingest(
             field_name="content_hash",
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
-        logger.info(f"    PAYLOAD INDEX: created for '{effective_collection}'")
     except Exception as e:
         logger.debug(f"Payload index creation skipped: {e}")
 
@@ -2990,24 +3009,10 @@ async def chunk_and_ingest(
     skipped_duplicates_ref = [0]
     files_processed_ref = [0]
     errors: list[str] = []
-
     source_files: list[tuple[str, Path]] = []
 
-    if files and len(files) > 0:
-        upload_tmp = cache_dir / "_uploads"
-        upload_tmp.mkdir(parents=True, exist_ok=True)
-        for file in files:
-            try:
-                safe_name = sanitize_filename(file.filename or "unnamed")
-                dest = upload_tmp / safe_name
-                content = await file.read()
-                dest.write_bytes(content)
-                source_files.append((safe_name, dest))
-            except Exception as e:
-                fname = file.filename or "unnamed"
-                errors.append(f"{fname}: upload error: {str(e)}")
-
-    elif directory:
+    # 2. Handle Directory Upload
+    if directory and not uploaded_files:
         dir_path = Path(directory).expanduser().resolve()
         if not dir_path.exists() or not dir_path.is_dir():
             raise HTTPException(status_code=400, detail=f"Directory not found: {directory}")
@@ -3017,36 +3022,71 @@ async def chunk_and_ingest(
             all_files.extend(dir_path.rglob(f"*{ext}"))
 
         if not all_files:
-            return {
-                "status": "no_files",
-                "message": f"No supported files found in {dir_path}. Supported: {', '.join(SUPPORTED_EXTENSIONS)}",
-            }
+            return {"status": "no_files", "message": f"No supported files found in {dir_path}."}
 
         for fp in all_files:
             source_files.append((str(fp.relative_to(dir_path)), fp))
+            
+    # 3. Handle Direct File Uploads
+    elif uploaded_files and len(uploaded_files) > 0:
+        upload_tmp = cache_dir / "_uploads"
+        upload_tmp.mkdir(parents=True, exist_ok=True)
+        for file in uploaded_files:
+            try:
+                safe_name = sanitize_filename(file.filename or "unnamed")
+                dest = upload_tmp / safe_name
+                content = await file.read()
+                dest.write_bytes(content)
+                source_files.append((safe_name, dest))
+            except Exception as e:
+                errors.append(f"{file.filename}: upload error: {str(e)}")
     else:
         raise HTTPException(status_code=400, detail="Either files or directory must be provided")
 
     if not source_files and not errors:
         return {"status": "no_files", "message": "All files were empty or unreadable"}
 
-    logger.info(f"    Processing {len(source_files)} files")
+    logger.info(f"    Processing {len(source_files)} files", flush=True)
 
     phase1_results: list[tuple[str, int, bool]] = []
+    total_files = len(source_files)
 
-    for source_label, file_path in source_files:
+    # 4. PHASE 1: Chunking with REAL-TIME PROGRESS BAR
+    for idx, (source_label, file_path) in enumerate(source_files, start=1):
         try:
+            # 1. LOG IT SO WE CAN SEE IT IN THE TERMINAL
+            logger.info(f"📡 BROADCASTING PROGRESS: File {idx}/{total_files} - {file_path.name}")
+            
+            # 2. BROADCAST TO FRONTEND
+            try:
+                await ws_manager.broadcast({
+                    "type": "ingest_progress",
+                    "source": f"Chunking: {file_path.name[:30]}...",
+                    "chunks_ingested": 0,
+                    "current_file_chunks": idx,
+                    "total_file_chunks": total_files,
+                    "files_processed": idx - 1,
+                })
+            except Exception as e:
+                logger.error(f"WS Broadcast failed: {e}")
+
+            # 3. FORCE EVENT LOOP TO YIELD AND SEND THE MESSAGE
+            await asyncio.sleep(0) 
+
+            # 4. DO THE ACTUAL CHUNKING WORK
             count, _, is_struct = await _phase1_chunk_file_to_disk(
                 file_path, source_label, cache_dir, chunk_size, chunk_overlap
             )
             phase1_results.append((source_label, count, is_struct))
-            logger.info(f"    Phase1: {source_label} → {count} chunks, structured={is_struct}")
+            logger.info(f"    Phase1: {source_label} -> {count} chunks", flush=True)
+            
         except Exception as e:
             import traceback
-            logger.info(f"    Phase1 ERROR: {source_label}: {e}")
+            logger.error(f"    Phase1 ERROR: {source_label}: {e}")
             traceback.print_exc(file=sys.stderr)
-            errors.append(f"{source_label}: parsing/chunking failed: {str(e)}")
-
+            errors.append(f"{source_label}: parsing failed: {str(e)}")
+            
+    # Cleanup temp uploads
     upload_tmp = cache_dir / "_uploads"
     if upload_tmp.exists():
         try:
@@ -3054,6 +3094,7 @@ async def chunk_and_ingest(
         except Exception:
             pass
 
+    # 5. PHASE 2: Ingesting with REAL-TIME PROGRESS BAR
     for source_label, expected_count, is_struct in phase1_results:
         if expected_count == 0:
             continue
@@ -3068,6 +3109,7 @@ async def chunk_and_ingest(
             logger.error(f"Phase 2 failed for '{source_label}': {e}", exc_info=True)
             errors.append(f"{source_label}: ingestion failed: {str(e)}")
 
+    # Cleanup cache
     if not errors and cache_dir.exists():
         try:
             remaining = list(cache_dir.iterdir())
@@ -3076,23 +3118,12 @@ async def chunk_and_ingest(
         except Exception:
             pass
 
-    logger.info(
-        f"    COMPLETE: {files_processed_ref[0]} files, {total_chunks_ref[0]} chunks, errors={len(errors)}",
-        file=sys.stderr,
-        flush=True,
-    )
-
     total_ingested = total_chunks_ref[0]
     total_skipped = skipped_duplicates_ref[0]
 
-    if total_ingested == 0 and total_skipped > 0:
-        status_msg = "duplicate"
-    elif total_ingested > 0 and total_skipped > 0:
-        status_msg = "partial"
-    elif total_ingested > 0:
-        status_msg = "success"
-    else:
-        status_msg = "no_files"
+    status_msg = "duplicate" if total_ingested == 0 and total_skipped > 0 else \
+                 "partial" if total_ingested > 0 and total_skipped > 0 else \
+                 "success" if total_ingested > 0 else "no_files"
 
     return {
         "status": status_msg,
