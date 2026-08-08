@@ -10,15 +10,18 @@
 </p>
 
 <p align="center">
-  <a href="README.md">Home</a> •
-  <a href="MAi-README.md">Full Documentation</a> •
-  <a href="MAi-INSTALLATION.md">Installation</a> •
-  <a href="MAi-OLLAMA-MODELS.md">Models</a> •
-  <a href="MAi-SSH-SETUP.md">SSH & LAN</a> •
-  <a href="SELF-HEALING-SYSTEM-USER-WORKFLOW.md">Self-Healing System</a> •
-  <a href="CHANGELOG.md">Changelog</a> •
-  <a href="MAi-LICENCE-LEGAL-NOTICE.md">License</a>
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/README.md">🏠 Home</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md">📚 Full Docs</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md">⚙️ Installation</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-OLLAMA-MODELS.md">🤖 Models</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-SSH-SETUP.md">🌐 SSH & LAN</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/SELF-HEALING-SYSTEM-USER-WORKFLOW.md">🩺 Self-Healing</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md">📝 Changelog</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-LICENCE-LEGAL-NOTICE.md">⚖️ License</a>
 </p>
+
+---
+
 
 <p align="center">
   <strong>Current Version 1.5.0 | Effective Date: June 2026</strong><br />
@@ -372,13 +375,15 @@ Built on the shoulders of giants:
 
 ---
 
-**Full Documentation**: [MAi-README.md](MAi-README.md)
-**Installation Guide**: [MAi-INSTALLATION.md](MAi-INSTALLATION.md)
-**Model Recommendations**: [MAi-OLLAMA-MODELS.md](MAi-OLLAMA-MODELS.md)
-**Docker Guide**: [DOCKER.md](DOCKER.md)
-**SSH Setup**: [MAi-SSH-SETUP.md](MAi-SSH-SETUP.md)
-**Licence & Legal Notice**: [MAi-LICENCE-LEGAL-NOTICE.md](MAi-LICENCE-LEGAL-NOTICE.md)
-**Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+## Documentation
+
+- [Full Documentation](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md) - Complete feature overview and usage guide
+- [Installation](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md) - Step-by-step setup for all platforms, system requirements, starting/stopping
+- [Model Recommendations](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-OLLAMA-MODELS.md) - Choosing the right AI model for your hardware
+- [Self-Healing System](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/SELF-HEALING-SYSTEM-USER-WORKFLOW.md) - Guide on the Self-Healing System Initiation Process
+- [SSH & LAN](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-SSH-SETUP.md) - Access the system remotely from other devices
+- [Changelog](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md) - Version history and updates
+- [License & Legal](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-LICENCE-LEGAL-NOTICE.md) - Terms of use and commercial licensing
 
 **Issues**: [GitHub Issues](https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues)
 **Discussions**: [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
