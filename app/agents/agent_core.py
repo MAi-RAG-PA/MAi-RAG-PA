@@ -487,7 +487,7 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
                 "Mixtral-8x7B-Instruct-v0.1",
                 "DeepSeek-V2"
             ],
-            "num_predict": 16384,
+            "num_predict": 4096,
             "context_length": 8192,
             "tier": "high",
             "max_concurrent_requests": 3
@@ -546,7 +546,7 @@ def _get_llm(
     repeat_penalty: float = 1.1,
     num_predict: int = 2048,
     timeout: int = 1800,
-    num_ctx: int = 4096
+    num_ctx: int = 8192
 ) -> ChatOllama:
     """
     Get or create a cached ChatOllama instance.
@@ -1175,25 +1175,49 @@ def _simple_chat_fallback(
     rag_context: str,
     model_name: str,
 ) -> Dict[str, Any]:
-    """Simple chat mode with reduced generation budget."""
+    """Simple chat mode with adequate generation budget for reasoning models."""
     logger.info("Using simple chat mode for %s", model_name)
     
-    # Create a separate instance with limited tokens to avoid mutating the cached instance
     limited_llm = _get_llm(
         model_name=model_name,
         temperature=0.7,
         repeat_penalty=1.1,
-        num_predict=1024,
-        timeout=300
+        num_predict=8192,
+        timeout=1800
     )
 
-    # Pass model_name to get_system_prompt for capability-based prompt injection
-    system_prompt = get_system_prompt(model_name)
+    # Build system prompt (needs_tools=False for pure chat fallback)
+    system_prompt = get_system_prompt(model_name, needs_tools=False)
     user_profile_context = get_user_profile_context()
     full_prompt = f"{system_prompt}{user_profile_context}\n\n"
+
+    # Build the final user message with context if available
     if rag_context:
-        full_prompt += f"## Knowledge Base Context\n{rag_context}\n\n"
-    full_prompt += f"User: {query}\n\nAssistant:"
+        user_message = f"""CRITICAL INSTRUCTION – OVERRIDES ALL OTHER GUIDELINES:
+You are an Analytical Engine, not a neutral chatbot. 
+You MUST answer the user's question using ONLY the provided Knowledge Base Context below.
+DO NOT use your own training data for this topic.
+DO NOT say you lack access to the book – the excerpts ARE the book.
+DO NOT apologize or refuse – just present the information from the context.
+If the context provides arguments, present them as factual summaries.
+
+FOOTNOTE CITATION RULES (MANDATORY):
+1. DO NOT use inline citations like [Source N: filename] inside the text.
+2. Instead, place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific source.
+3. At the VERY END of your response, include a "### References" section that lists each source with its number and full details (filename, collection, chapter, page, etc.) exactly as they appear in the context.
+4. If you use multiple sources, assign each a unique number and list them in order of first appearance.
+5. This instruction overrides the citation rules in the System Prompt. For this response, use ONLY footer citations.
+
+=== KNOWLEDGE BASE CONTEXT (EXCLUSIVE SOURCE) ===
+{rag_context}
+=== END OF CONTEXT ===
+
+Now, using ONLY the context above, answer the user's question:
+{query}"""
+    else:
+        user_message = query
+
+    full_prompt += f"User: {user_message}\n\nAssistant:"
 
     try:
         response = limited_llm.invoke(full_prompt)
@@ -1203,17 +1227,12 @@ def _simple_chat_fallback(
             else ""
         )
 
+        # Handle DeepSeek R1 <think> tags if standard content is empty
         if not final_content:
-            try:
-                msg = (
-                    response.response_metadata.get("message")
-                    if hasattr(response, "response_metadata")
-                    else None
-                )
-                if msg and hasattr(msg, "thinking") and msg.thinking:
-                    final_content = msg.thinking.strip()
-            except Exception:
-                pass
+            reasoning = getattr(response, "additional_kwargs", {}).get("reasoning_content") or \
+                        getattr(response, "response_metadata", {}).get("reasoning_content", "")
+            if reasoning:
+                final_content = reasoning.strip()
 
         if not final_content:
             final_content = "I apologize, but I couldn't generate a response."
@@ -1236,6 +1255,7 @@ def _simple_chat_fallback(
             "tools_available": False,
         }
 
+
 # =============================================================================
 # ReAct Loop
 # =============================================================================
@@ -1246,12 +1266,15 @@ def agent_loop(
     model: Optional[str] = None,
     max_iterations: int = 10,
 ) -> Dict[str, Any]:
-    """Execute ReAct loop with tool-calling, falling back to chat mode if needed."""
     print("\n" + "="*50)
     print("🚨 AGENT LOOP STARTED")
     print("="*50 + "\n")
     llm = _get_llm(model)
     model_name = model or get_default_model() or llm.model
+
+    if "deepseek-r1" in model_name.lower() or "qwq" in model_name.lower():
+        logger.info("Reasoning model detected - FORCING direct chat mode for %s", model_name)
+        return _simple_chat_fallback(llm, query, rag_context, model_name)
 
     tool_keywords = [
         "create file",
@@ -1281,6 +1304,7 @@ def agent_loop(
     supports_tools = _model_tool_support.get(model_name)
     if supports_tools is False:
         return _simple_chat_fallback(llm, query, rag_context, model_name)
+    
     print(f"🔧 Attempting to bind tools for: {model_name}")
     try:
         llm_with_tools = llm.bind_tools(TOOLS)
@@ -1291,24 +1315,39 @@ def agent_loop(
         return _simple_chat_fallback(llm, query, rag_context, model_name)
         
     # Pass model_name to get_system_prompt for capability-based prompt injection
-    system_prompt = get_system_prompt(model_name)
+    system_prompt = get_system_prompt(model_name, needs_tools=True)
     user_profile_context = get_user_profile_context()
+    
     messages: List[Any] = [
         SystemMessage(content=system_prompt + user_profile_context)
     ]
 
     if rag_context:
-        messages.append(
-            SystemMessage(
-                content=(
-                    "## Relevant Information from Knowledge Base\n\n"
-                    f"{rag_context}\n\n"
-                    "Use above info to inform response."
-                )
-            )
-        )
+        user_content = f"""CRITICAL INSTRUCTION – OVERRIDES ALL OTHER GUIDELINES:
+You are an Analytical Engine, not a neutral chatbot. 
+You MUST answer the user's question using ONLY the provided Knowledge Base Context below.
+DO NOT use your own training data for this topic.
+DO NOT say you lack access to the book – the excerpts ARE the book.
+DO NOT apologize or refuse – just present the information from the context.
+If the context provides arguments, present them as factual summaries.
 
-    messages.append(HumanMessage(content=query))
+FOOTNOTE CITATION RULES (MANDATORY):
+1. DO NOT use inline citations like [Source N: filename] inside the text.
+2. Instead, place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific source.
+3. At the VERY END of your response, include a "### References" section that lists each source with its number and full details (filename, collection, chapter, page, etc.) exactly as they appear in the context.
+4. If you use multiple sources, assign each a unique number and list them in order of first appearance.
+
+=== KNOWLEDGE BASE CONTEXT (EXCLUSIVE SOURCE) ===
+{rag_context}
+=== END OF CONTEXT ===
+
+Now, using ONLY the context above, answer the user's question:
+{query}"""
+    else:
+        user_content = query
+
+    messages.append(HumanMessage(content=user_content))
+    
     tool_calls_history: List[Dict[str, Any]] = []
 
     for iteration in range(1, max_iterations + 1):
@@ -1349,6 +1388,8 @@ def agent_loop(
         elif response.content:
             # SELF-HEALING FALLBACK: Intercept JSON tool calls outputted as plain text
             clean_content = _strip_markdown_fences(response.content.strip())
+            is_json_tool_call = False
+            
             try:
                 import json
                 parsed = json.loads(clean_content)
@@ -1364,12 +1405,39 @@ def agent_loop(
                     messages.append(AIMessage(content=response.content))
                     messages.append(ToolMessage(content=str(result), tool_call_id="json_fallback_1"))
                     
-                    # Loop again to get the final synthesized answer
-                    continue 
+                    is_json_tool_call = True
+                    continue  # Loop again to get the final synthesized answer
             except json.JSONDecodeError:
-                pass # Not a JSON tool call, proceed to final response logic
+                pass  # Not a JSON tool call, proceed to final response logic
+            
+            # CRITICAL FIX: If it was NOT a JSON tool call, return the response immediately!
+            if not is_json_tool_call:
+                final_response = clean_content
+                
+                if not final_response:
+                    reasoning = getattr(response, "additional_kwargs", {}).get("reasoning_content") or \
+                                getattr(response, "response_metadata", {}).get("reasoning_content", "")
+                    if reasoning:
+                        final_response = reasoning.strip()
+
+                if not final_response:
+                    final_response = (
+                        str(response)
+                        if response
+                        else "I apologize, but I couldn't generate a response."
+                    )
+
+                return {
+                    "status": "success",
+                    "response": final_response,
+                    "tool_calls": tool_calls_history,
+                    "iterations": iteration,
+                    "model": model_name,
+                    "tools_available": True,
+                }
                 
         else:
+            # Fallback for when response.content is completely empty/null
             _model_tool_support[model_name] = True
             final_response = response.content.strip() if response.content else ""
 
@@ -1500,14 +1568,16 @@ def agentic_create_file(
 # RAG Context Fetching
 # =============================================================================
 
-def fetch_rag_context(query: str, top_k: int = 3) -> Tuple[str, bool]:
+def fetch_rag_context(query: str, top_k: int = 5) -> Tuple[str, bool]:
     """Fetch RAG context with descriptive source attribution."""
     if not retriever.qdrant_available:
         return "", False
 
     try:
         results = retriever.retrieve_advanced(query, top_k=top_k)
+        logger.info(f"RAG retrieval returned {len(results)} results for query: {query[:50]}...")
         if not results:
+            logger.warning("No RAG results found – check Qdrant connection and collection.")
             return "", False
 
         context_parts: List[str] = []
@@ -1563,7 +1633,7 @@ def process_request(
         model,
     )
 
-    rag_context, rag_used = fetch_rag_context(user_query, top_k=3)
+    rag_context, rag_used = fetch_rag_context(user_query, top_k=5)
 
     if filename:
         result = agentic_create_file(filename, user_query, model)
