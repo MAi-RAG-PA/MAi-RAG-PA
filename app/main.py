@@ -2078,7 +2078,7 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             
             print("👉 Resolving model via model_manager...")
             try:
-                resolved_model = resolve_model_with_fallback(requested_model, "medium")
+                resolved_model = model_manager.resolve_model(requested_model)
             except RuntimeError:
                 resolved_model = get_default_model()
             print(f"Final resolved model: {resolved_model}")
