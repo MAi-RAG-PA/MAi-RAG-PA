@@ -239,7 +239,7 @@ If required system models are missing, a warning appears under the model selecto
 ### 3. Text Editor (Notes & Code)
 
 <p align="center">
-  <img src="assets/text-Editor.png" alt="MAi-RAG-PA Text Editor" width="900">
+  <img src="assets/Text-Editor.png" alt="MAi-RAG-PA Text Editor" width="900">
 </p>
 
 **Multi-format editor supporting 16 file types:**
