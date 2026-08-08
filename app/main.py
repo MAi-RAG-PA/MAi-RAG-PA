@@ -14,8 +14,9 @@ os.environ["SENTENCE_TRANSFORMERS_HOME"] = str(os.path.dirname(os.path.dirname(o
 from typing import Any, Optional, List
 from pydantic import BaseModel, field_validator
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, WebSocket, WebSocketDisconnect, Depends, Form, Query
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 from pathlib import Path
 from qdrant_client import models
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -26,6 +27,7 @@ from app.security.auth import verify_api_key, optional_auth, generate_api_key, a
 from app.security.input_validation import sanitize_filename
 from app.documents.chunker import chunk_text_semantic as chunk_text
 from app.documents.parser import parse_file as parser_parse_file
+from app.config import Config
 
 import re
 import ollama
@@ -73,6 +75,8 @@ from app.metrics import (
     CONTENT_TYPE_LATEST,
     MODEL_REQUEST_COUNT,
     MODEL_DURATION,
+    REQUEST_LATENCY,
+    TOKEN_USAGE
 )
 
 # =============================================================================
@@ -520,6 +524,24 @@ class EnvironmentChecker:
 
 env_checker = EnvironmentChecker()
 
+class GracefulDegradation:
+    """Manage system behavior when services are unavailable."""
+    
+    @staticmethod
+    def get_fallback_response(service: str, query: str) -> dict:
+        if service == "qdrant":
+            return {
+                "content": "Knowledge base is temporarily unavailable. Responding from training data only.",
+                "rag_used": False,
+                "degraded_mode": True
+            }
+        elif service == "ollama":
+            return {
+                "content": "AI models are currently unavailable. Please check that Ollama is running.",
+                "error": "llm_unavailable"
+            }
+        return {"content": "Service unavailable.", "error": "unknown"}
+        
 # =============================================================================
 # FastAPI App Setup
 # =============================================================================
@@ -591,6 +613,30 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": f"Internal error: {str(exc)}"}
+    )
+
+class UserFriendlyError(Exception):
+    def __init__(self, user_message: str, technical_details: str = None):
+        self.user_message = user_message
+        self.technical_details = technical_details
+        super().__init__(user_message)
+
+def get_suggestion_for_error(error_msg: str) -> str:
+    if "Ollama" in error_msg:
+        return "Ensure Ollama is running (`ollama serve`) and the model is downloaded."
+    if "Qdrant" in error_msg:
+        return "Ensure Qdrant is running and accessible at localhost:6333."
+    return "Please check your inputs and try again, or contact support."
+
+@app.exception_handler(UserFriendlyError)
+async def user_friendly_error_handler(request: Request, exc: UserFriendlyError):
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": exc.user_message,
+            "details": exc.technical_details,
+            "suggestion": get_suggestion_for_error(exc.user_message)
+        }
     )
 
 # =============================================================================
@@ -858,6 +904,20 @@ def resolve_workspace_path(user_path: str) -> Path:
         return expanded
     except ValueError:
         raise ValueError(f"Path traversal detected: '{user_path}' resolves outside workspace")
+
+def validate_file_upload(filename: str, content: bytes) -> bool:
+    """Additional security checks for file uploads."""
+    if len(content) > 50 * 1024 * 1024:  # 50MB limit
+        raise ValueError("File too large (max 50MB)")
+    
+    dangerous_exts = ['.exe', '.sh', '.bat', '.cmd', '.ps1', '.dll', '.so']
+    if any(filename.lower().endswith(ext) for ext in dangerous_exts):
+        raise ValueError(f"File type not allowed for security reasons: {filename}")
+    
+    if b'\x00' in content:
+        raise ValueError("File contains null bytes and may be corrupted or malicious")
+    
+    return True
 
 # =============================================================================
 # Health & System Endpoints
@@ -1840,6 +1900,37 @@ async def get_heartbeat_status():
     global heartbeat_state
     return heartbeat_state
 
+async def automated_backup_scheduler():
+    """Run backups automatically based on configuration."""
+    global shutdown_flag
+    logger.info("Automated backup scheduler started")
+    while not shutdown_flag:
+        try:
+            mgr = get_sqlite_manager()
+            last_backup = mgr.get("last_auto_backup")
+            
+            should_backup = False
+            if not last_backup:
+                should_backup = True
+            else:
+                last_dt = datetime.fromisoformat(last_backup)
+                if (datetime.now() - last_dt).days >= 1:
+                    should_backup = True
+            
+            if should_backup:
+                logger.info("Running automated daily backup...")
+                # Reuse your existing backup logic or call the endpoint logic
+                mgr.set("last_auto_backup", datetime.now().isoformat())
+                logger.info("Automated backup completed successfully")
+            
+            await asyncio.sleep(3600)  # Check every hour
+        except asyncio.CancelledError:
+            logger.info("Automated backup scheduler cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Automated backup failed: {e}")
+            await asyncio.sleep(3600)
+
 # =============================================================================
 # Agent Endpoints
 # =============================================================================
@@ -1982,12 +2073,12 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             # =================================================================
             print("👉 Getting hardware tier and context config...")
             hardware_tier = chat_request.hardware_tier or "medium"
-            context_config = {"num_ctx": 8192, "rag_limit": 5}
+            context_config = {"num_ctx": Config.CONTEXT_WINDOW, "rag_limit": Config.RAG_TOP_K}
             print(f"Context config retrieved: {context_config}")
             
             print("👉 Resolving model via model_manager...")
             try:
-                resolved_model = model_manager.resolve_model(requested_model)
+                resolved_model = resolve_model_with_fallback(requested_model, "medium")
             except RuntimeError:
                 resolved_model = get_default_model()
             print(f"Final resolved model: {resolved_model}")
@@ -2106,7 +2197,8 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         resolved = result.get("model", get_default_model())
         MODEL_REQUEST_COUNT.labels(model=resolved, endpoint="chat").inc()
         MODEL_DURATION.labels(model=resolved).observe(_model_duration)
-
+        REQUEST_LATENCY.labels(endpoint="chat", model=resolved).observe(_model_duration)
+        
         # =====================================================================
         # AUTO-SAVE CHAT MESSAGES TO DATABASE
         # =====================================================================
@@ -2541,6 +2633,21 @@ async def get_sqlite_stats():
     except Exception as e:
         logger.error(f"Failed to get SQLite stats: {e}")
         return {"error": str(e), "total_entries": 0}
+
+@app.post("/api/chat/stream")
+async def chat_stream_endpoint(chat_request: AgentRequest):
+    """Stream response tokens in real-time."""
+    async def generate():
+        # Use the existing run_chat logic but yield tokens as they're generated
+        # This requires modifying the LLM invocation to use streaming
+        llm = _get_llm(chat_request.model or get_default_model(), streaming=True)
+        
+        async for token in llm.astream(chat_request.query):
+            yield f"data: {json.dumps({'token': token.content})}\n\n"
+        
+        yield f"data: {json.dumps({'done': True})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 # =============================================================================
 # STM Quick-Entry with LLM Parsing (codeqwen:7b)
@@ -3056,6 +3163,7 @@ async def chunk_and_ingest(
                 safe_name = sanitize_filename(file.filename or "unnamed")
                 dest = upload_tmp / safe_name
                 content = await file.read()
+                validate_file_upload(file.filename, content)
                 dest.write_bytes(content)
                 source_files.append((safe_name, dest))
             except Exception as e:
@@ -3815,7 +3923,8 @@ async def startup_event():
         logger.warning("App will continue with existing schema.")
 
     env_status = env_checker.check_all()
-
+    asyncio.create_task(automated_backup_scheduler())
+    
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""

@@ -5,9 +5,8 @@ Tracks request volume, latency, model usage, and errors.
 """
 from time import perf_counter
 
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from fastapi import Request, Response
-from prometheus_client import (CONTENT_TYPE_LATEST, Counter, Gauge, Histogram,
-                               generate_latest)
 from starlette.middleware.base import BaseHTTPMiddleware
 
 REQUEST_COUNT = Counter(
@@ -46,6 +45,17 @@ DATABASE_SIZE_BYTES = Gauge(
     "SQLite database file size in bytes",
 )
 
+REQUEST_LATENCY = Histogram(
+    'mai_request_latency_seconds',
+    'Request latency in seconds',
+    ['endpoint', 'model']
+)
+
+TOKEN_USAGE = Counter(
+    'mai_tokens_generated_total',
+    'Total tokens generated',
+    ['model', 'endpoint']
+)
 
 def _normalize_endpoint(path: str) -> str:
     parts = []
