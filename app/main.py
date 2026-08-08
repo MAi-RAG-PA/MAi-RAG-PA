@@ -527,7 +527,6 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 app = FastAPI(
     title="MAi-RAG-PA API",
-    version="2.0.0",
     description="Personal AI Assistant with RAG, Tool-Calling, and Agentic Workflows"
 )
 
@@ -1089,7 +1088,6 @@ async def health_check(request: Request):
             "status": overall_status,
             "response_time_ms": response_time_ms,
             "checks": checks,
-            "version": "2.0.0",
             "timestamp": datetime.now().isoformat()
         }
     )
@@ -2033,20 +2031,20 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                 user_profile_context = get_user_profile_context()
                 full_prompt = f"{system_prompt}{user_profile_context}\n\n"
                 
-                if rag_context:  # <-- MUST BE AT 16 SPACES (inside the deepseek block)
+                if rag_context:
                     full_prompt += (
-                        "## KNOWLEDGE BASE CONTEXT (PRIVATE DATABASE)\n"
-                        "The following text excerpts are provided from the user's private knowledge base. "
-                        "You DO NOT need to have read the full source material in your training data. "
-                        "You MUST use ONLY these excerpts to construct your answer. Do not state that you lack access to the book or document.\n\n"
+                        "## KNOWLEDGE BASE CONTEXT (PRIMARY SOURCE)\n"
+                        "The following text excerpts are provided from the user's private knowledge base (documents, articles, datasets, notes). "
+                        "Use them as your primary reference. You may supplement with your training data when it adds valuable context or alternative perspectives to provide a comprehensive response.\n"
+                        "DO NOT state that you lack access to the source material – treat these excerpts as authoritative.\n\n"
                         "FOOTNOTE CITATION RULES (MANDATORY):\n"
-                        "1. DO NOT use inline citations like [Source N: filename] inside the text.\n"
-                        "2. Instead, place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific source.\n"
-                        "3. At the VERY END of your response, include a '### References' section that lists each source with its number and full details (filename, collection, chapter, page, etc.) exactly as they appear in the context, so the user can verify and research further.\n"
-                        "4. If you use multiple sources, assign each a unique number and list them in order of first appearance.\n\n"
-                        f"=== KNOWLEDGE BASE CONTEXT (EXCLUSIVE SOURCE) ===\n{rag_context}\n=== END OF CONTEXT ===\n\n"
-                        f"Now, using ONLY the context above, answer the user's question:\n{query_text}"
+                        "1. Place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific source.\n"
+                        "2. At the VERY END of your response, include a '### References' section that lists each source with its number and full details (filename with its exact extension like .pdf, .epub, .txt, .doc, etc., collection, chapter, page) exactly as they appear in the context.\n"
+                        "3. If you supplement with training data, clearly indicate when information comes from your training vs. the knowledge base.\n\n"
+                        f"=== KNOWLEDGE BASE CONTEXT ===\n{rag_context}\n=== END OF CONTEXT ===\n\n"
+                        f"Now, provide a comprehensive answer to the user's question, using the knowledge base as your primary source:\n{query_text}"
                     )
+
                 else:
                     full_prompt += f"User: {query_text}\n\nAssistant:"
                 
