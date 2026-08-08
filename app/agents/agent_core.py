@@ -1217,7 +1217,7 @@ def _simple_chat_fallback(
     rag_context: str,
     model_name: str,
 ) -> Dict[str, Any]:
-    """Simple chat mode with adequate generation budget for reasoning models."""
+    """Simple chat mode with adequate generation budget."""
     logger.info("Using simple chat mode for %s", model_name)
     
     limited_llm = _get_llm(
@@ -1235,7 +1235,7 @@ def _simple_chat_fallback(
 
     # Build the final user message with context if available
     if rag_context:
-        user_message = f"""CRITICAL INSTRUCTION – OVERRIDES ALL OTHER GUIDELINES:
+        user_content = f"""CRITICAL INSTRUCTION – OVERRIDES ALL OTHER GUIDELINES:
 You are an Analytical Engine. You MUST answer the user's question using the provided Knowledge Base Context as your primary source.
 The knowledge base excerpts are authoritative sources from the user's documents, articles, datasets, and notes.
 You may supplement with your training data when it adds valuable context, alternative perspectives, or additional relevant information to provide a comprehensive, detailed response.
@@ -1252,11 +1252,11 @@ FOOTNOTE CITATION RULES (MANDATORY):
 
 Now, provide a comprehensive answer to the user's question, using the knowledge base as your primary source and supplementing with your training data where it adds value:
 {query}"""
-
     else:
-        user_message = query
+        user_content = query
 
-    full_prompt += f"User: {user_message}\n\nAssistant:"
+    # FIXED: Changed user_message to user_content
+    full_prompt += f"User: {user_content}\n\nAssistant:"
 
     try:
         response = limited_llm.invoke(full_prompt)
@@ -1293,7 +1293,6 @@ Now, provide a comprehensive answer to the user's question, using the knowledge 
             "model": model_name,
             "tools_available": False,
         }
-
 
 # =============================================================================
 # ReAct Loop
@@ -1379,7 +1378,6 @@ FOOTNOTE CITATION RULES (MANDATORY):
 
 Now, provide a comprehensive answer to the user's question, using the knowledge base as your primary source and supplementing with your training data where it adds value:
 {query}"""
-
     else:
         user_content = query
 
