@@ -18,7 +18,25 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, System
 from app.memory.sqlite_memory import SQLiteMemoryManager
 from app.agents.verifier import ContentVerifier
 from app.rag.retriever import AdvancedRetriever
+from functools import lru_cache
 
+@lru_cache(maxsize=100)
+def get_cached_system_prompt(model: str, needs_tools: bool = False) -> str:
+    """Cache system prompts to avoid repeated DB reads."""
+    return get_system_prompt(model, needs_tools)
+
+@lru_cache(maxsize=1)
+def get_cached_available_models() -> list:
+    """Cache model list. Invalidate by calling get_cached_available_models.cache_clear()"""
+    try:
+        import urllib.request
+        req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=2) as response:
+            data = json.loads(response.read().decode())
+            return [m["name"] for m in data.get("models", [])]
+    except Exception:
+        return []
+        
 logger = logging.getLogger(__name__)
 
 # =============================================================================
@@ -703,6 +721,49 @@ def get_default_model() -> Optional[str]:
     except Exception as e:
         logger.error("Failed to detect available models: %s", e, exc_info=True)
         return None
+
+def resolve_model_with_fallback(requested_model: str, query_complexity: str = "medium") -> str:
+    """Intelligent model resolution based on query complexity and hardware."""
+    hw_caps = detect_hardware_capabilities()
+    
+    complexity_map = {
+        "simple": ["qwen2.5:7b", "codeqwen:7b"],
+        "medium": ["qwen2.5:14b", "qwen3:30b-a3b"],
+        "complex": ["qwen3:30b-a3b", "mixtral:8x7b"],
+        "reasoning": ["deepseek-r1:14b", "qwq:32b"]
+    }
+    
+    preferred_models = complexity_map.get(query_complexity, complexity_map["medium"])
+    
+    # Try requested model first
+    if requested_model:
+        try:
+            import urllib.request
+            req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=2) as response:
+                data = json.loads(response.read().decode())
+                available = [m["name"] for m in data.get("models", [])]
+                if requested_model in available:
+                    return requested_model
+        except Exception:
+            pass
+    
+    # Fall back to complexity-appropriate model
+    for model in preferred_models:
+        try:
+            import urllib.request
+            req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=2) as response:
+                data = json.loads(response.read().decode())
+                available = [m["name"] for m in data.get("models", [])]
+                if model in available:
+                    logger.info(f"Falling back to {model} for {query_complexity} complexity")
+                    return model
+        except Exception:
+            continue
+    
+    # Ultimate fallback
+    return get_default_model() or "qwen2.5:7b"
 
 # =============================================================================
 # System Prompt Management
