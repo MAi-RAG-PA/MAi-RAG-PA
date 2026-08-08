@@ -40,6 +40,7 @@ const cleanAIResponse = (text: string): string => {
   cleaned = cleaned.replace(/<\|start\|>.*?<\|channel\|>/g, '');
   cleaned = cleaned.replace(/<\|.*?\|>/g, '');
   cleaned = cleaned.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, ''); // <--- ADD THIS FOR DEEPSEEK R1
   cleaned = cleaned.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '');
   cleaned = cleaned.replace(/```thinking[\s\S]*?```/gi, '');
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
@@ -237,12 +238,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       const threadsRes = await apiClient.get('/api/memory/sqlite/chat/threads');
       const threadsData = threadsRes.data.threads || [];
 
-      if (threadsData.length === 0) {
-        await createNewThread();
-        setIsLoadingThreads(false);
-        return;
-      }
-
       const threadsWithMessages = await Promise.all(
         threadsData.map(async (thread: any) => {
           try {
@@ -251,14 +246,10 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           
             const mappedMessages = msgs.map((msg: any) => {
               let parsedTimestamp = Date.now();
-              
               if (msg.timestamp && msg.timestamp > 0) {
                 const ts = new Date(msg.timestamp).getTime();
-                if (!isNaN(ts) && ts > 0) {
-                  parsedTimestamp = ts;
-                }
+                if (!isNaN(ts) && ts > 0) parsedTimestamp = ts;
               }
-
               return {
                 id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 from: msg.from === 'user' || msg.role === 'user' ? 'user' : 'ai',
@@ -278,40 +269,41 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
               createdAt: new Date(thread.created_at).getTime(),
               lastUpdated: new Date(thread.last_message_at || thread.created_at).getTime(),
             };
-
           } catch (err) {
             console.error(`[CHAT] Failed to load messages for thread ${thread.id}:`, err);
-            return {
-              id: thread.id,
-              title: thread.title,
-              messages: [],
-              createdAt: new Date(thread.created_at).getTime(),
-              lastUpdated: new Date(thread.last_message_at || thread.created_at).getTime(),
-            };
+            return { id: thread.id, title: thread.title, messages: [], createdAt: Date.now(), lastUpdated: Date.now() };
           }
         })
       );
 
       setThreads(threadsWithMessages);
       
-      // RESTORE LAST ACTIVE THREAD FROM LOCALSTORAGE
+      // BULLETPROOF RESTORE LOGIC
       const savedThreadId = localStorage.getItem('mai-rag-current-thread-id');
-      const threadExists = threadsWithMessages.some(t => t.id === savedThreadId);
       
-      if (savedThreadId && threadExists) {
+      if (savedThreadId && threadsWithMessages.some(t => t.id === savedThreadId)) {
+        console.log("✅ Restored active thread from localStorage:", savedThreadId);
         setCurrentThreadId(savedThreadId);
+      } else if (threadsWithMessages.length > 0) {
+        console.log("⚠️ Saved thread not found, falling back to first available:", threadsWithMessages[0].id);
+        setCurrentThreadId(threadsWithMessages[0].id);
+        localStorage.setItem('mai-rag-current-thread-id', threadsWithMessages[0].id);
       } else {
-        const firstThread = threadsWithMessages[0];
-        if (firstThread) {
-          setCurrentThreadId(firstThread.id);
-          localStorage.setItem('mai-rag-current-thread-id', firstThread.id);
-        }
+        console.log("🆕 No threads exist, creating new one.");
+        await createNewThread();
       }
+
     } catch (err) {
       console.error('[CHAT] Failed to load threads from backend:', err);
       showToast('Failed to load chat history from database');
-      if (threads.length === 0) {
+      
+      // CRITICAL: Do NOT create a new thread on network error if we already have a saved ID
+      const savedThreadId = localStorage.getItem('mai-rag-current-thread-id');
+      if (!savedThreadId) {
         await createNewThread();
+      } else {
+        console.log("🔄 Backend fetch failed, but trusting localStorage ID:", savedThreadId);
+        setCurrentThreadId(savedThreadId);
       }
     } finally {
       setIsLoadingThreads(false);
@@ -513,11 +505,18 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   };
 
   const sendMessage = async () => {
+    console.log("🚨🚨🚨 SEND MESSAGE TRIGGERED 🚨🚨🚨");
+    console.log("🚨 currentThreadId is:", currentThreadId);
+    console.log("🚨 input is:", input);
+    
     if (!input.trim() || isLoading) return;
     if (!currentThreadId) {
       showToast('Error: No active chat thread');
       return;
     }
+
+    // DEBUG LOG: Prove what we are sending
+    console.log("📤 SENDING MESSAGE with thread_id:", currentThreadId);
 
     abortControllerRef.current = new AbortController();
     const extractedFilename = extractFilename(input);
@@ -555,7 +554,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
 
       const response = await apiClient.post('/api/chat', payload, {
         signal: abortControllerRef.current.signal,
-        timeout: 3600000,
+        timeout: 7200000,
       });
 
       const content = response.data?.content || response.data?.message || response.data?.response || '';
