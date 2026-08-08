@@ -24,10 +24,8 @@ from app.rag.model_manager import ModelManager
 from app.websocket_manager import ws_manager
 from app.security.auth import verify_api_key, optional_auth, generate_api_key, api_key_header
 from app.security.input_validation import sanitize_filename
-from app.metrics import MODEL_REQUEST_COUNT, MODEL_DURATION
 from app.documents.chunker import chunk_text_semantic as chunk_text
 from app.documents.parser import parse_file as parser_parse_file
-from app.agents.agent_core import process_request
 
 import re
 import ollama
@@ -64,6 +62,7 @@ from app.agents.agent_core import (
     clear_model_cache,
     get_rag_status,
     fetch_rag_context,
+    get_user_profile_context,
 )
 
 from app.metrics import (
@@ -72,6 +71,8 @@ from app.metrics import (
     DATABASE_SIZE_BYTES,
     generate_latest,
     CONTENT_TYPE_LATEST,
+    MODEL_REQUEST_COUNT,
+    MODEL_DURATION,
 )
 
 # =============================================================================
@@ -602,7 +603,8 @@ class AgentRequest(BaseModel):
     filename: Optional[str] = None
     model: Optional[str] = None
     hardware_tier: Optional[str] = None
-
+    thread_id: Optional[str] = None
+    
     @field_validator('query')
     @classmethod
     def validate_query(cls, v):
@@ -1850,134 +1852,91 @@ def _build_stm_context(query: str) -> str:
     start = time.time()
     mgr = get_sqlite_manager()
     sections = []
-
-    # Load ALL user profile data (facts, patterns, notes)
+    
     try:
         profile = mgr.get_user_profile()
         if profile:
-            fact_lines = []
-            note_lines = []
-            pattern_lines = []
-            
+            fact_lines, note_lines, pattern_lines = [], [], []
             for key, value in profile.items():
                 if key.startswith("stm_note_"):
-                    # These are direct notes from STM
-                    if isinstance(value, str):
-                        note_lines.append(f"- {value}")
+                    if isinstance(value, str): note_lines.append(f"- {value}")
                     continue
-                
                 if key.startswith("pattern_") or key.startswith("learned_pattern_"):
-                    # These are learned patterns
                     if isinstance(value, str):
                         try:
                             pattern_data = json.loads(value)
                             if isinstance(pattern_data, dict):
                                 desc = pattern_data.get('description', pattern_data.get('preference', ''))
-                                if desc:
-                                    pattern_lines.append(f"- {desc}")
-                        except:
-                            pass
+                                if desc: pattern_lines.append(f"- {desc}")
+                        except: pass
                     continue
+                if key == "api_key_retrieved": continue
                 
-                if key == "api_key_retrieved":
-                    continue
-                
-                # Regular user facts
                 if isinstance(value, str):
                     try:
                         fact_data = json.loads(value)
                         if isinstance(fact_data, dict):
                             if fact_data.get("type") == "user_fact":
                                 fact_lines.append(f"- {fact_data.get('raw', fact_data.get('description', value))}")
-                            elif 'description' in fact_data:
-                                fact_lines.append(f"- {fact_data['description']}")
-                            elif 'preference' in fact_data:
-                                fact_lines.append(f"- {fact_data['preference']}")
+                            elif 'description' in fact_data: fact_lines.append(f"- {fact_data['description']}")
+                            elif 'preference' in fact_data: fact_lines.append(f"- {fact_data['preference']}")
                             continue
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                    except (json.JSONDecodeError, TypeError): pass
                     fact_lines.append(f"- {value}")
             
-            if fact_lines:
-                sections.append("### Personal Facts\n" + "\n".join(fact_lines[:10]))
-            if note_lines:
-                sections.append("### User Notes\n" + "\n".join(note_lines[:5]))
-            if pattern_lines:
-                sections.append("### Learned Preferences\n" + "\n".join(pattern_lines[:5]))
+            if fact_lines: sections.append("### Personal Facts\n" + "\n".join(fact_lines[:10]))
+            if note_lines: sections.append("### User Notes\n" + "\n".join(note_lines[:5]))
+            if pattern_lines: sections.append("### Learned Preferences\n" + "\n".join(pattern_lines[:5]))
     except Exception as e:
         logger.debug(f"Failed to load user profile for context: {e}")
 
-    # Time-based context (existing logic)
     lower_q = query.lower()
-    time_keywords = ["appointment", "schedule", "meeting", "birthday", "deadline",
-                     "when", "next", "upcoming", "last", "dentist", "doctor"]
-
-    if any(kw in lower_q for kw in time_keywords):
+    if any(kw in lower_q for kw in ["appointment", "schedule", "meeting", "birthday", "deadline", "when", "next", "upcoming", "last", "dentist", "doctor"]):
         try:
             events = mgr.get_upcoming_events(limit=5)
             if events:
-                event_lines = []
-                for ev in events:
-                    title = ev.get("title", "")
-                    start_time = ev.get("start_time", "")
-                    event_lines.append(f"- {title} on {start_time}")
-                sections.append("### Upcoming Events\n" + "\n".join(event_lines))
-        except Exception:
-            pass
-
+                sections.append("### Upcoming Events\n" + "\n".join([f"- {ev.get('title', '')} on {ev.get('start_time', '')}" for ev in events]))
+        except Exception: pass
         try:
             reminders = mgr.get_pending_reminders(limit=5)
             if reminders:
-                reminder_lines = []
-                for rem in reminders:
-                    text = rem.get("text", "")
-                    due = rem.get("due_time", "")
-                    reminder_lines.append(f"- {text} (due: {due})")
-                sections.append("### Active Reminders\n" + "\n".join(reminder_lines))
-        except Exception:
-            pass
+                sections.append("### Active Reminders\n" + "\n".join([f"- {rem.get('text', '')} (due: {rem.get('due_time', '')})" for rem in reminders]))
+        except Exception: pass
 
-    task_keywords = ["todo", "task", "done", "finish", "complete", "pending"]
-    if any(kw in lower_q for kw in task_keywords):
+    if any(kw in lower_q for kw in ["todo", "task", "done", "finish", "complete", "pending"]):
         try:
             todos = mgr.get_pending_todos(limit=5)
             if todos:
-                todo_lines = []
-                for td in todos:
-                    title = td.get("title", "")
-                    priority = td.get("priority", "")
-                    todo_lines.append(f"- [{priority}] {title}")
-                sections.append("### Pending Todos\n" + "\n".join(todo_lines))
-        except Exception:
-            pass
+                sections.append("### Pending Todos\n" + "\n".join([f"- [{td.get('priority', '')}] {td.get('title', '')}" for td in todos]))
+        except Exception: pass
 
-    result = "\n\n".join(sections) if sections else ""
-    elapsed = time.time() - start
-    logger.info(f"STM context built in {elapsed:.3f}s, length: {len(result)} chars")
+    result = "\n".join(sections) if sections else ""
+    logger.info(f"STM context built in {time.time() - start:.3f}s, length: {len(result)} chars")
     return result
 
 def detect_repetition(text: str, threshold: int = 5) -> bool:
     """Detect if text contains repetitive loops."""
     lines = text.split('\n')
-    if len(lines) < 10:
-        return False
-    
+    if len(lines) < 10: return False
     paragraph_counts = {}
     for i in range(0, len(lines) - 2):
         paragraph = '\n'.join(lines[i:i+3])
         paragraph_counts[paragraph] = paragraph_counts.get(paragraph, 0) + 1
-    
     return any(count >= threshold for count in paragraph_counts.values())
 
 @app.post("/api/chat")
 async def chat_endpoint(request: Request, chat_request: AgentRequest):
     """Chat endpoint with file creation support and STM context injection."""
+    incoming_thread_id = getattr(chat_request, 'thread_id', None)
+    logger.info(f"🚨🚨🚨 CHAT ENDPOINT RECEIVED: thread_id={incoming_thread_id}, query={chat_request.query[:50]}")
+
     print("\n" + "="*50)
     print("🚨 CHAT ENDPOINT HIT! Query:", chat_request.query[:50] if chat_request.query else "EMPTY")
     print("="*50 + "\n")
     
     try:
         import time as _time
+        import uuid
         _model_start = _time.time()
         loop = asyncio.get_event_loop()
 
@@ -2025,31 +1984,31 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             # =================================================================
             print("👉 Getting hardware tier and context config...")
             hardware_tier = chat_request.hardware_tier or "medium"
-            context_config = {"num_ctx": 4096, "rag_limit": 3}
-            print(f"✅ Context config retrieved: {context_config}")
+            context_config = {"num_ctx": 8192, "rag_limit": 5}
+            print(f"Context config retrieved: {context_config}")
             
             print("👉 Resolving model via model_manager...")
             try:
                 resolved_model = model_manager.resolve_model(requested_model)
             except RuntimeError:
                 resolved_model = get_default_model()
-            print(f"✅ Final resolved model: {resolved_model}")
+            print(f"Final resolved model: {resolved_model}")
             
             print("👉 Instantiating LLM...")
             llm = _get_llm(resolved_model, num_ctx=context_config["num_ctx"])
-            print("✅ LLM instantiated")
+            print("LLM instantiated")
 
             print("👉 Fetching RAG context...")
             rag_context, rag_used = fetch_rag_context(query_text, top_k=context_config["rag_limit"])
-            print(f"✅ RAG done (used={rag_used}, len={len(rag_context)})")
+            print(f"RAG done (used={rag_used}, len={len(rag_context)})")
             
             print("👉 Building STM context...")
             stm_context = _build_stm_context(query_text)
-            print("✅ STM context built")
+            print("STM context built")
             
             print("👉 Getting system prompt...")
             base_prompt = get_system_prompt()
-            print(f"✅ System prompt loaded ({len(base_prompt)} chars)")
+            print(f"System prompt loaded ({len(base_prompt)} chars)")
             
             print("👉 Assembling full prompt...")
             t1 = _time.time()
@@ -2061,20 +2020,77 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             logger.info(f"[CHAT] LLM instance ready in {t2-t1:.3f}s (num_ctx={context_config['num_ctx']})")
 
             # =================================================================
-            # ADVANCED AGENT LOOP (Enables Tool Calling, RAG, and STM)
+            # FOOLPROOF BYPASS FOR REASONING MODELS (DeepSeek R1, QwQ)
             # =================================================================
-            print("🚨 Delegating to agent_loop for tool-calling support...")
-            
-            # Import process_request at the top of the file if not already there:
-            # from app.agents.agent_core import process_request
+            if "deepseek-r1" in resolved_model.lower() or "qwq" in resolved_model.lower():
+                print("⚡ Reasoning model detected. Bypassing ReAct loop entirely for direct chat.")
+                
+                # 1. Create a high-budget LLM instance (16k context, 8k output, 10 min timeout)
+                high_budget_llm = _get_llm(resolved_model, num_ctx=16384, num_predict=8192, timeout=1800)
+                
+                # 2. Build the prompt exactly as the agent would
+                system_prompt = get_system_prompt(resolved_model)
+                user_profile_context = get_user_profile_context()
+                full_prompt = f"{system_prompt}{user_profile_context}\n\n"
+                
+                if rag_context:  # <-- MUST BE AT 16 SPACES (inside the deepseek block)
+                    full_prompt += (
+                        "## KNOWLEDGE BASE CONTEXT (PRIVATE DATABASE)\n"
+                        "The following text excerpts are provided from the user's private knowledge base. "
+                        "You DO NOT need to have read the full source material in your training data. "
+                        "You MUST use ONLY these excerpts to construct your answer. Do not state that you lack access to the book or document.\n\n"
+                        "FOOTNOTE CITATION RULES (MANDATORY):\n"
+                        "1. DO NOT use inline citations like [Source N: filename] inside the text.\n"
+                        "2. Instead, place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific source.\n"
+                        "3. At the VERY END of your response, include a '### References' section that lists each source with its number and full details (filename, collection, chapter, page, etc.) exactly as they appear in the context, so the user can verify and research further.\n"
+                        "4. If you use multiple sources, assign each a unique number and list them in order of first appearance.\n\n"
+                        f"=== KNOWLEDGE BASE CONTEXT (EXCLUSIVE SOURCE) ===\n{rag_context}\n=== END OF CONTEXT ===\n\n"
+                        f"Now, using ONLY the context above, answer the user's question:\n{query_text}"
+                    )
+                else:
+                    full_prompt += f"User: {query_text}\n\nAssistant:"
+                
+                print("Invoking DeepSeek R1 directly with high token budget...")
+                try:  # <-- MUST BE AT 16 SPACES
+                    response = high_budget_llm.invoke(full_prompt)
+                    ai_content = response.content.strip() if response and hasattr(response, "content") and response.content else ""
+                    
+                    # 3. Fallback to reasoning content if main content is empty (common with R1)
+                    if not ai_content:
+                        ai_content = getattr(response, "additional_kwargs", {}).get("reasoning_content", "") or \
+                                     getattr(response, "response_metadata", {}).get("reasoning_content", "") or \
+                                     "I apologize, but I couldn't generate a response."
+                        ai_content = ai_content.strip()
+                        
+                    print(f"Direct invocation successful. Response length: {len(ai_content)} chars")
+                    
+                    return {
+                        "content": ai_content,
+                        "model": resolved_model,
+                        "tool_calls": []
+                    }
+                except Exception as e:
+                    print(f"❌ Direct invocation failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return {
+                        "content": f"Error generating response: {str(e)}",
+                        "model": resolved_model,
+                        "tool_calls": []
+                    }
+
+            # =================================================================
+            # NORMAL AGENT LOOP (For all other tool-capable models)
+            # =================================================================
+            print("Delegating to agent_loop for tool-calling support...")
             
             result = process_request(
                 user_query=query_text, 
                 model=resolved_model
             )
             
-            print("✅ agent_loop COMPLETED")
-            print(f"📝 Response length: {len(result.get('content', ''))} chars")
+            print("agent_loop COMPLETED")
+            print(f"Response length: {len(result.get('content', ''))} chars")
             print(f"🛠️ Tool calls made: {len(result.get('tool_calls', []))}")
             
             # Return in the format the rest of main.py expects
@@ -2086,7 +2102,7 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             
         print("👉 About to call loop.run_in_executor...")
         result = await loop.run_in_executor(executor, run_chat)
-        print("✅ run_in_executor FINISHED")
+        print("run_in_executor FINISHED")
 
         _model_duration = _time.time() - _model_start
         resolved = result.get("model", get_default_model())
@@ -2097,8 +2113,14 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         # AUTO-SAVE CHAT MESSAGES TO DATABASE
         # =====================================================================
         try:
-            import uuid
-            thread_id = getattr(chat_request, 'thread_id', None) or str(uuid.uuid4())
+            thread_id = getattr(chat_request, 'thread_id', None)
+            
+            if not thread_id or thread_id.strip() == "":
+                thread_id = str(uuid.uuid4())
+                logger.warning("⚠️ No thread_id provided by frontend! Generated new one: %s", thread_id)
+            else:
+                logger.info("Using provided thread_id from frontend: %s", thread_id)
+            
             user_content = chat_request.query
             ai_content = result.get("content", "")
             
@@ -2136,7 +2158,7 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         traceback.print_exc()
         logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
+            
 # =============================================================================
 # SQLite Memory Endpoints
 # =============================================================================
@@ -2179,7 +2201,7 @@ async def get_stm_size():
             result = cursor.fetchone()
             size_bytes = result[0] if result else 0
             
-        logger.info(f"✅ STM Size Calculated: {size_bytes} bytes, {total_entries} entries")
+        logger.info(f"STM Size Calculated: {size_bytes} bytes, {total_entries} entries")
         return {"size": size_bytes, "entries": total_entries}
         
     except Exception as e:
@@ -3356,31 +3378,25 @@ async def verify_compliance(document: dict, request: SyntheticDataRequest) -> fl
 def parse_synthetic_response(content: str, request: SyntheticDataRequest) -> list[dict]:
     """Parse LLM response into structured documents."""
     documents = []
-
     if request.purpose == "adversarial":
-        prompts = [line.strip() for line in content.split("\n") if line.strip().startswith("PROMPT:")]
+        prompts = [line.strip() for line in content.split('\n') if line.strip().startswith("PROMPT:")]
         for i, prompt in enumerate(prompts):
             documents.append({
                 "content": prompt.replace("PROMPT:", "").strip(),
                 "source": f"synthetic_{request.purpose}_{i + 1}",
-                "type": "synthetic",
-                "purpose": request.purpose,
-                "topic": request.topic,
-                "generated_at": datetime.now().isoformat(),
+                "type": "synthetic", "purpose": request.purpose,
+                "topic": request.topic, "generated_at": datetime.now().isoformat(),
             })
     else:
-        sections = content.split("\n\n")
+        sections = content.split('\n\n')
         for i, section in enumerate(sections):
             if section.strip() and len(section.strip()) > 50:
                 documents.append({
                     "content": section.strip(),
                     "source": f"synthetic_{request.purpose}_{i + 1}",
-                    "type": "synthetic",
-                    "purpose": request.purpose,
-                    "topic": request.topic,
-                    "generated_at": datetime.now().isoformat(),
+                    "type": "synthetic", "purpose": request.purpose,
+                    "topic": request.topic, "generated_at": datetime.now().isoformat(),
                 })
-
     return documents
 
 # =============================================================================
@@ -3708,39 +3724,6 @@ async def run_system_doctor():
     except Exception as e:
         logger.error(f"System doctor failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/system/gpu")
-async def get_gpu_info():
-    """Get basic GPU info (cross-platform best effort)."""
-    try:
-        # Try NVIDIA (Linux/Windows)
-        result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"], 
-            capture_output=True, text=True, timeout=3
-        )
-        if result.returncode == 0:
-            parts = result.stdout.strip().split(",")
-            return {
-                "available": True,
-                "vendor": "NVIDIA",
-                "utilization_percent": int(parts[0].strip()),
-                "memory_used_mb": int(parts[1].strip()),
-                "memory_total_mb": int(parts[2].strip()),
-            }
-        
-        # Try macOS (Basic detection, no real-time usage without heavy tools)
-        result = subprocess.run(["system_profiler", "SPDisplaysDataType"], capture_output=True, text=True, timeout=3)
-        if result.returncode == 0 and "Chipset Model" in result.stdout:
-            return {
-                "available": True,
-                "vendor": "Apple",
-                "utilization_percent": 0,
-                "message": "GPU detected (macOS). Real-time usage requires third-party tools."
-            }
-            
-        return {"available": False, "message": "No dedicated GPU detected or unsupported."}
-    except Exception:
-        return {"available": False, "message": "GPU monitoring unavailable."}
 
 # =============================================================================
 # WebSocket Endpoint
