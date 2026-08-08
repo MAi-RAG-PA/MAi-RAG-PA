@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <strong>Current Version 1.4.0 | Effective Date: June 2026</strong><br />
+  <strong>Current Version 1.5.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
