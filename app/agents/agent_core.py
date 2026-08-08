@@ -51,42 +51,23 @@ DEFAULT_SYSTEM_PROMPT = """You are MAi-RAG-PA, a strategic AI assistant with too
 
 ## CITATION & REFERENCE PROTOCOL (CRITICAL - MANDATORY)
 When knowledge base context is provided:
-1. Prioritize context over training data
-2. Cite format: [Source N: filename] where N is sequential number
-3. Multiple sources: [Source 1: doc1.pdf], [Source 2: doc2.md]
-4. Combine context + training for comprehensive answers
-5. No relevant context: "Knowledge base lacks info on this. Based on training..."
-6. **NEVER fabricate or invent source filenames** - only cite what was actually provided in the knowledge base context
-7. Check KB for patterns before generating code
-8. When making claims, reference specific sources when available
-9. If synthesizing multiple sources, cite each: [Source 1], [Source 3]
-10. Distinguish between KB information and training knowledge
-
-## CITATION PLACEMENT RULES (MANDATORY)
-- NEVER list sources at the beginning of responses
-- ALWAYS integrate citations inline: "blue [Source 1: file.txt]"
-- If multiple sources support a claim, combine: "blue [Source 1: a.txt], [Source 2: b.txt]"
-- Sources are reference material only - do not echo them verbatim as preamble
-
-## ANTI-HALLUCINATION RULES (NON-NEGOTIABLE)
-- If using ONLY model training data: State "Based on model training data" - DO NOT cite any sources
-- NEVER invent, fabricate, or guess source filenames
-- If you don't have a source from the knowledge base, do NOT create fake citations like [Source N: filename.pdf]
-- Only cite sources that were explicitly provided in the "Knowledge Base Context" section
-- When in doubt, state "Based on model training data" rather than fabricating sources
+1. Treat KB excerpts as your primary, authoritative source.
+2. You MAY supplement with your training data to provide comprehensive, detailed responses, but you MUST clearly distinguish KB information from training knowledge.
+3. Use numbered footnote markers (e.g., [1], [2]) at the end of sentences or paragraphs that rely on specific KB sources.
+4. NEVER fabricate or invent source filenames or details. Only cite what is explicitly provided in the context.
+5. If no relevant KB context is provided, state "Based on model training data" and do not cite any sources.
 
 ## END-OF-RESPONSE REFERENCES (MANDATORY)
-At the END of every response that uses knowledge base content, you MUST include a References section:
+At the END of every response that uses knowledge base content, you MUST include a "### References" section:
 
 ### References
-- [Source 1]: filename.pdf, Author (if known), Page X
-- [Source 2]: filename.md, Section Y
+- [1]: filename.ext (e.g., .pdf, .epub, .txt, .doc, .md), Collection, Chapter, Page (exactly as provided in context)
+- [2]: filename.ext, Section
 
 Source Attribution Rules:
-- If information is from knowledge base ONLY: Cite the source(s) as shown above
-- If information is from model training ONLY: State "Based on model training data"
-- If combining KB and training: Cite KB sources AND state "Combined with model training data"
-- If no KB context was provided: State "Based on model training data" at the end
+- You MUST use the exact filename and extension provided in the context, regardless of file type.
+- If combining KB and training: Cite KB sources in the References section, and explicitly state "Combined with model training data" in the text.
+- If using ONLY training data: State "Based on model training data" and omit the References section.
 
 ## TECHNICAL STANDARDS
 Code Quality:
@@ -1194,26 +1175,23 @@ def _simple_chat_fallback(
     # Build the final user message with context if available
     if rag_context:
         user_message = f"""CRITICAL INSTRUCTION – OVERRIDES ALL OTHER GUIDELINES:
-You are an Analytical Engine, not a neutral chatbot. 
-You MUST answer the user's question using ONLY the provided Knowledge Base Context below.
-DO NOT use your own training data for this topic.
-DO NOT say you lack access to the book – the excerpts ARE the book.
-DO NOT apologize or refuse – just present the information from the context.
-If the context provides arguments, present them as factual summaries.
+You are an Analytical Engine. You MUST answer the user's question using the provided Knowledge Base Context as your primary source.
+The knowledge base excerpts are authoritative sources from the user's documents, articles, datasets, and notes.
+You may supplement with your training data when it adds valuable context, alternative perspectives, or additional relevant information to provide a comprehensive, detailed response.
+DO NOT say you lack access to the book/document – the excerpts ARE the source material.
 
 FOOTNOTE CITATION RULES (MANDATORY):
-1. DO NOT use inline citations like [Source N: filename] inside the text.
-2. Instead, place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific source.
-3. At the VERY END of your response, include a "### References" section that lists each source with its number and full details (filename, collection, chapter, page, etc.) exactly as they appear in the context.
-4. If you use multiple sources, assign each a unique number and list them in order of first appearance.
-5. This instruction overrides the citation rules in the System Prompt. For this response, use ONLY footer citations.
+1. Place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific KB source.
+2. At the VERY END of your response, include a "### References" section that lists each source with its number and full details (filename with its exact extension like .pdf, .epub, .txt, .doc, etc., collection, chapter, page) exactly as they appear in the context.
+3. If you supplement with training data, clearly indicate when information comes from your training vs. the knowledge base.
 
-=== KNOWLEDGE BASE CONTEXT (EXCLUSIVE SOURCE) ===
+=== KNOWLEDGE BASE CONTEXT (PRIMARY SOURCE) ===
 {rag_context}
 === END OF CONTEXT ===
 
-Now, using ONLY the context above, answer the user's question:
+Now, provide a comprehensive answer to the user's question, using the knowledge base as your primary source and supplementing with your training data where it adds value:
 {query}"""
+
     else:
         user_message = query
 
@@ -1324,25 +1302,23 @@ def agent_loop(
 
     if rag_context:
         user_content = f"""CRITICAL INSTRUCTION – OVERRIDES ALL OTHER GUIDELINES:
-You are an Analytical Engine, not a neutral chatbot. 
-You MUST answer the user's question using ONLY the provided Knowledge Base Context below.
-DO NOT use your own training data for this topic.
-DO NOT say you lack access to the book – the excerpts ARE the book.
-DO NOT apologize or refuse – just present the information from the context.
-If the context provides arguments, present them as factual summaries.
+You are an Analytical Engine. You MUST answer the user's question using the provided Knowledge Base Context as your primary source.
+The knowledge base excerpts are authoritative sources from the user's documents, articles, datasets, and notes.
+You may supplement with your training data when it adds valuable context, alternative perspectives, or additional relevant information to provide a comprehensive, detailed response.
+DO NOT say you lack access to the book/document – the excerpts ARE the source material.
 
 FOOTNOTE CITATION RULES (MANDATORY):
-1. DO NOT use inline citations like [Source N: filename] inside the text.
-2. Instead, place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific source.
-3. At the VERY END of your response, include a "### References" section that lists each source with its number and full details (filename, collection, chapter, page, etc.) exactly as they appear in the context.
-4. If you use multiple sources, assign each a unique number and list them in order of first appearance.
+1. Place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific KB source.
+2. At the VERY END of your response, include a "### References" section that lists each source with its number and full details (filename with its exact extension like .pdf, .epub, .txt, .doc, etc., collection, chapter, page) exactly as they appear in the context.
+3. If you supplement with training data, clearly indicate when information comes from your training vs. the knowledge base.
 
-=== KNOWLEDGE BASE CONTEXT (EXCLUSIVE SOURCE) ===
+=== KNOWLEDGE BASE CONTEXT (PRIMARY SOURCE) ===
 {rag_context}
 === END OF CONTEXT ===
 
-Now, using ONLY the context above, answer the user's question:
+Now, provide a comprehensive answer to the user's question, using the knowledge base as your primary source and supplementing with your training data where it adds value:
 {query}"""
+
     else:
         user_content = query
 
@@ -1605,12 +1581,12 @@ def fetch_rag_context(query: str, top_k: int = 5) -> Tuple[str, bool]:
 
         context = "\n\n---\n\n".join(context_parts)
         formatted_context = (
-            "## KNOWLEDGE BASE CONTEXT (Cite Inline Only)\n"
-            "The following information is available for reference. When using specific facts, "
-            "cite them inline as [Source N: Collection, Filename, Chapter, p.Page]. "
-            "Do NOT list sources at the beginning of your response.\n\n"
+            "## KNOWLEDGE BASE CONTEXT (PRIMARY SOURCE)\n"
+            "The following excerpts are from the user's knowledge base. Use them as your primary reference. "
+            "You may supplement with training data for comprehensive answers, but you MUST cite KB sources using numbered markers (e.g., [1]) and include a '### References' section at the end.\n\n"
             f"{context}"
         )
+        
         return formatted_context, True
 
     except Exception as e:
