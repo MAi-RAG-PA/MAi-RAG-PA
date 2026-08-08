@@ -75,6 +75,9 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const [swapPercent, setSwapPercent] = useState(0);
   const [protectedModelsWarning, setProtectedModelsWarning] = useState<string | null>(null);
 
+  // =================================================================
+  // REFS DECLARATION (Must be BEFORE functions that use them)
+  // =================================================================
   const chatLogContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -83,9 +86,66 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // WEBSOCKET REFS
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Derived state
   const currentThread = threads.find(t => t.id === currentThreadId);
   const messages = currentThread?.messages || [];
 
+  // =================================================================
+  // WEBSOCKET CONNECTION LOGIC
+  // =================================================================
+  const connectWebSocket = () => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    
+    const wsUrl = `ws://${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      console.log('✅ WebSocket connected to', wsUrl);
+      heartbeatIntervalRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30000);
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'ingest_progress') {
+          console.log('📡 Ingest Progress:', data);
+        } else if (data.type === 'notification') {
+          showToast(`${data.title}: ${data.message}`);
+        } else if (data.type === 'heartbeat') {
+          console.log('💓 Heartbeat:', data.status);
+        } else if (data.type === 'pong') {
+          // Backend acknowledged ping
+        }
+      } catch (err) {
+        console.error('Failed to parse WebSocket message:', err);
+      }
+    };
+    
+    ws.onclose = () => {
+      console.log('⚠️ WebSocket disconnected, reconnecting in 5s...');
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+    
+    wsRef.current = ws;
+  };
+
+  // =================================================================
+  // USEEFFECT HOOKS
+  // =================================================================
   useEffect(() => {
     if (chatLogContainerRef.current) {
       chatLogContainerRef.current.scrollTop = chatLogContainerRef.current.scrollHeight;
@@ -99,6 +159,16 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   useEffect(() => {
     loadThreadsFromBackend();
     fetchModels();
+  }, []);
+
+  // WEBSOCKET MOUNT / UNMOUNT EFFECT
+  useEffect(() => {
+    connectWebSocket();
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -151,6 +221,26 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     const interval = setInterval(fetchSystemResources, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // =================================================================
+  // WEBSOCKET MOUNT / UNMOUNT EFFECT
+  // =================================================================
+  useEffect(() => {
+    connectWebSocket();
+    
+    // Cleanup function: runs when component unmounts
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+      }
+    };
+  }, []); // Empty dependency array = runs once on mount
 
   const refreshSystemResources = async () => {
     if (isRefreshingResources) return;
