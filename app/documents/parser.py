@@ -14,7 +14,7 @@ import json
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import List, Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,9 @@ logger = logging.getLogger(__name__)
 # Lazy Import Helpers
 # ---------------------------------------------------------------------------
 
-
 def _get_pymupdf():
     try:
         import fitz
-
         return fitz
     except ImportError:
         raise ImportError("PyMuPDF not installed. Run: pip install pymupdf")
@@ -36,7 +34,6 @@ def _get_pymupdf():
 def _get_docx():
     try:
         from docx import Document
-
         return Document
     except ImportError:
         raise ImportError("python-docx not installed. Run: pip install python-docx")
@@ -44,9 +41,8 @@ def _get_docx():
 
 def _get_epub():
     try:
-        from bs4 import BeautifulSoup
         from ebooklib import epub
-
+        from bs4 import BeautifulSoup
         return epub, BeautifulSoup
     except ImportError:
         raise ImportError(
@@ -57,7 +53,6 @@ def _get_epub():
 def _get_pptx():
     try:
         from pptx import Presentation
-
         return Presentation
     except ImportError:
         raise ImportError("python-pptx not installed. Run: pip install python-pptx")
@@ -66,7 +61,6 @@ def _get_pptx():
 def _get_openpyxl():
     try:
         from openpyxl import load_workbook
-
         return load_workbook
     except ImportError:
         raise ImportError("openpyxl not installed. Run: pip install openpyxl")
@@ -74,9 +68,8 @@ def _get_openpyxl():
 
 def _get_pyarrow():
     try:
-        import pyarrow.feather as feather
         import pyarrow.parquet as pq
-
+        import pyarrow.feather as feather
         return pq, feather
     except ImportError:
         raise ImportError("pyarrow not installed. Run: pip install pyarrow")
@@ -85,7 +78,6 @@ def _get_pyarrow():
 def _get_pandas():
     try:
         import pandas as pd
-
         return pd
     except ImportError:
         raise ImportError("pandas not installed. Run: pip install pandas")
@@ -94,7 +86,6 @@ def _get_pandas():
 def _get_bs4():
     try:
         from bs4 import BeautifulSoup
-
         return BeautifulSoup
     except ImportError:
         return None
@@ -104,6 +95,22 @@ def _get_bs4():
 # Public API
 # ---------------------------------------------------------------------------
 
+def extract_epub_text(epub_path: Path) -> List[str]:
+    """Extract text from an EPUB file using ebooklib."""
+    try:
+        import ebooklib
+        from ebooklib import epub
+        from bs4 import BeautifulSoup
+    except ImportError:
+        raise ImportError("Install ebooklib and beautifulsoup4 for EPUB support: pip install ebooklib beautifulsoup4")
+
+    book = epub.read_epub(str(epub_path))
+    text_parts = []
+    for item in book.get_items():
+        if item.get_type() == ebooklib.ITEM_DOCUMENT:
+            soup = BeautifulSoup(item.get_content(), 'html.parser')
+            text_parts.append(soup.get_text())
+    return text_parts
 
 def parse_file(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
     """Parse any supported file into (text_chunks, structured_records).
@@ -114,7 +121,10 @@ def parse_file(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
     """
     ext = file_path.suffix.lower()
     parser = PARSERS.get(ext)
-
+    
+    if ext == '.epub':
+        return extract_epub_text(file_path), []
+        
     if parser is None:
         try:
             text = file_path.read_text(encoding="utf-8", errors="replace")
@@ -139,11 +149,9 @@ def parse_file(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
         )
         return [], []
 
-
 # ---------------------------------------------------------------------------
 # Unstructured Document Parsers → List[str]
 # ---------------------------------------------------------------------------
-
 
 def _parse_txt(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
     text = file_path.read_text(encoding="utf-8", errors="replace")
@@ -251,7 +259,6 @@ def _parse_pptx(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
 # ---------------------------------------------------------------------------
 # Structured Dataset Parsers → List[Dict[str, Any]]
 # ---------------------------------------------------------------------------
-
 
 def _parse_csv_tsv(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
     """Auto-detect delimiter, return structured records."""
