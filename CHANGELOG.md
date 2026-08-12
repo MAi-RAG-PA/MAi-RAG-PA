@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <strong>Current Version 1.5.1 | Effective Initial Release Date: June 2026</strong><br />
+  <strong>Current Version 1.6.0 | Effective Initial Release Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -33,6 +33,81 @@ All notable changes to MAi-RAG-PA will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+
+# CHANGELOG
+
+## [1.6.0] - 2026-08-12
+
+#### 🧠 Long-Term Memory (LTM) Mode & Research Synthesis
+- **LTM Toggle Switch**: Added a dedicated "LTM" toggle button in the chat console toolbar, allowing users to explicitly enable or disable knowledge base queries. The button features a Red (OFF) / Green (ON) state with hover effects for clear visual feedback.
+- **Collection Selector**: Implemented a dropdown menu next to the LTM toggle that lists all available Qdrant collections, enabling users to target specific knowledge bases for research queries.
+- **Mode‑Based Routing**: Refactored `process_request()` to support three distinct operational modes:
+  - **File Mode**: Highest priority – when a file is attached, the system uses only that file as the source of information with no external references.
+  - **RAG Mode**: When LTM is enabled, the system queries the selected Qdrant collection with an increased `top_k=12` for comprehensive multi‑document synthesis.
+  - **Chat Mode**: Default mode – pure conversation using the model's training data with no knowledge base overhead.
+- **Research Synthesis Prompting**: Enhanced RAG mode with a dedicated prompt that instructs the LLM to synthesise information from multiple sources, group citations from the same source into a single footnote, and provide compact references with author, title, filename, and page numbers only.
+
+#### 📎 File Upload & Chat Enhancement
+- **File Chat Integration**: Added full support for uploading files directly in the chat console. Files are parsed using the existing document parser (supporting `.epub`, `.pdf`, `.docx`, `.txt`, and more) and the extracted text is injected as the primary context.
+- **Frontend File Handling**: Fixed `selectedFile` state management in `ChatConsoleApp.tsx` – files are now properly read to base64, included in the `/api/chat` payload, and cleared after successful submission.
+- **Backend File Processing**: Added robust file‑upload handling in `main.py` with base64 decoding, temporary file creation, and integration with the existing `parse_file()` function.
+- **EPUB Support**: Confirmed and enhanced EPUB extraction via `ebooklib` and `BeautifulSoup` in `app/documents/parser.py`.
+- **Model Name Validation**: Updated the regex in `AgentRequest.validate_model()` to allow forward slashes (`/`) in model names (e.g., `danielsheep/Qwen3-Coder-30B-A3B-Instruct-1M-Unsloth:latest`).
+
+#### 📝 Citation & Reference System Overhaul
+- **Compact, Grouped Footnotes**: Redesigned the citation system to produce cleaner, more readable responses. The LLM now:
+  - Places numeric footnote markers `[1]`, `[2]` in the body text.
+  - Groups all citations from the same source under a single footnote number.
+  - Lists references in a compact `### References` section at the bottom with Author, Title, Filename, and Page numbers only (no chapters, sections, or paragraphs).
+- **Unified Prompting**: Updated all three context‑injection points (`_simple_chat_fallback`, `agent_loop`, and `process_request` RAG mode) with consistent, explicit citation instructions that override the core system prompt's citation rules.
+- **Example‑Driven Guidance**: Added clear "WRONG vs CORRECT" examples in the prompts to eliminate ambiguity and reduce hallucinated citations.
+
+#### 🔧 Backend Stability & Performance
+- **Timeout Elimination**: Set `timeout=None` for all LLM calls in `_get_llm()` and `_simple_chat_fallback()`, eliminating the 1‑hour timeout that was blocking large file processing and long‑form research responses.
+- **Indentation & Syntax Fixes**: Corrected multiple indentation errors in `agent_core.py` caused by inconsistent whitespace in the newly added prompt blocks.
+- **Agent Request Model**: Extended `AgentRequest` with `ltm_enabled` and `ltm_collection` fields to support the new mode‑routing system.
+- **Graceful Degradation**: Improved fallback logic when RAG returns no results – the system now cleanly falls back to chat mode without errors.
+
+#### 🖥️ User Interface Improvements
+- **Custom Toggle Design**: Replaced the default checkbox with a custom Red/Green toggle button that shows "LTM ON" or "LTM OFF" with smooth hover effects and shadow transitions.
+- **Toolbar Consolidation**: Moved the LTM toggle to the main toolbar next to the "Attach file" button for better visibility and consistency with the existing file attachment workflow.
+
+#### 🛡️ Security & Validation
+- **Input Validation Enhancement**: Updated model name validation to accept forward slashes (`/`) which are common in community‑hosted Ollama models.
+- **Path Validation**: File uploads are sanitised and validated to prevent path traversal attacks.
+
+#### 📊 System Audit & Proactive Maintenance
+- **Super Audit Script**: Added `super_audit.py` – a comprehensive, self‑contained Python script that performs static analysis, runtime integration checks, React‑specific audits (ESLint, Prettier, fdupes, depcheck), and LLM‑powered recommendations. The script can optionally trigger the self‑healing system with `--fix`.
+- **Replaces Manual Audits**: Users can now run `./super_audit.py` to get a full health report of their MAi‑RAG‑PA installation, including unused components, debug statements, large files, and architectural recommendations.
+
+#### 📚 Documentation
+- **Self‑Healing Documentation**: Updated `SELF-HEALING-SYSTEM-USER-WORKFLOW.md` with a new "Super Audit Script" section, explaining how to use the proactive codebase analysis tool.
+
+---
+
+#### Summary of Files Modified in this Release:
+- `app/agents/agent_core.py` (Mode‑based routing, citation overhauls, timeout fixes)
+- `app/main.py` (File upload handling, model validation, `ltm_enabled` & `ltm_collection` fields)
+- `app/documents/parser.py` (EPUB extraction confirmation)
+- `frontend/src/components/chat/ChatConsoleApp.tsx` (LTM toggle, file upload integration, UI improvements)
+- `super_audit.py` (New script – proactive codebase auditor)
+- `SELF-HEALING-SYSTEM-USER-WORKFLOW.md` (Documentation update)
+
+---
+
+### 🚀 Upgrade Notes
+- **Frontend**: Run `npm run build` in `frontend/` to rebuild the UI.
+- **Backend**: Restart the server (`./stop.sh && ./start.sh`) to apply backend changes.
+- **Dependencies**: No new Python or Node packages are required for this release.
+- **Database**: No schema changes are required for this release.
+
+---
+
+### 🙏 Special Thanks
+This release was shaped by extensive testing and feedback from the community, with particular emphasis on improving the research synthesis experience and simplifying the citation system for clarity and usability.
+
+---
 
 # CHANGELOG
 ## [1.5.1] - 2026-08-08
@@ -64,7 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All .md documentation files (Updated navigation links to GitHub blob URLs)
 
 ---
-
+  
 # CHANGELOG
 ## [1.5.0] - 2026-08-08
 
