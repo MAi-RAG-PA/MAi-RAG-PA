@@ -20,11 +20,8 @@
   <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-LICENCE-LEGAL-NOTICE.md">⚖️ License</a>
 </p>
 
----
-
-
 <p align="center">
-  <strong>Current Version 1.5.0 | Effective Date: June 2026</strong><br />
+  <strong>Current Version 1.5.1 | Effective Initial Release Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -38,7 +35,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # CHANGELOG
+## [1.5.1] - 2026-08-08
 
+#### Web Presence & SEO Enhancements
+- New High-Converting Landing Page: Replaced the default GitHub Pages build with a custom, dark-themed, responsive index.html landing page.
+- SEO Optimization: Added comprehensive meta tags, including dynamic Open Graph (OG) and Twitter Card metadata for rich social media sharing previews.
+- Keyword Integration: Strategically woven high-value search terms (e.g., "offline AI assistant", "local LLM", "Ollama RAG", "self-healing") into headings, descriptions, and image alt attributes.
+- UI Walkthrough Gallery: Added a structured, centered image gallery showcasing key features (Chat Console, Text Editor, Memory, Calendar views, System Prompt) with bold, accent-colored descriptions.
+- Header Branding: Increased the header logo size to 56px for better visibility and brand recognition.
+
+#### Documentation & Navigation
+- Markdown Rendering Fix: Updated all internal documentation links across .md files to use absolute GitHub blob/main/ URLs, ensuring GitHub's native Markdown renderer displays them correctly instead of serving raw text.
+- Consistent Navigation: Added a unified, persistent navigation header to all documentation pages (MAi-README.md, MAi-INSTALLATION.md, etc.) for website-like browsing.
+
+#### Stability & Reliability
+- WebSocket Auto-Reconnection: Implemented robust WebSocket logic in ChatConsoleApp.tsx with a 5-second automatic retry mechanism on disconnect.
+- Connection Heartbeat: Added a 30-second ping/pong heartbeat to keep WebSocket connections alive and prevent silent drops during long idle periods.
+- Graceful Cleanup: Added proper useEffect cleanup to clear intervals and timeouts, preventing memory leaks when the chat component unmounts.
+
+#### Observability & Metrics
+- Enhanced Prometheus Tracking: Added REQUEST_LATENCY histogram metric to app/metrics.py and integrated it into the /api/chat endpoint to accurately track request duration by model and endpoint.
+
+#### Summary of Files Modified in this Release:
+- index.html (New file: Root landing page: https://mai-rag-pa.github.io/MAi-RAG-PA/ )
+- frontend/src/components/chat/ChatConsoleApp.tsx (WebSocket reconnection & heartbeat)
+- app/main.py (Prometheus REQUEST_LATENCY integration)
+- app/metrics.py (New REQUEST_LATENCY metric definition)
+- All .md documentation files (Updated navigation links to GitHub blob URLs)
+
+---
+
+# CHANGELOG
 ## [1.5.0] - 2026-08-08
 
 ### Major Features
@@ -96,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Hardware Compatibility
 
-- Verified stable operation on Intel i3-1215U with 40GB RAM.
+- Verified stable operation on Intel i3-1215U with 40GB RAM (development machine).
 - Optimized for consumer-grade hardware while maintaining enterprise-grade reliability.
 - Automatic hardware tier detection ensures optimal settings for any system.
 
@@ -115,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-Changelog
+# Changelog
 ## [1.4.0] - 2026-08-06
 
 ## Fixed: WebSocket Connection Issues
@@ -384,7 +411,6 @@ Built on the shoulders of giants:
 - [SSH & LAN](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-SSH-SETUP.md) - Access the system remotely from other devices
 - [Changelog](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md) - Version history and updates
 - [License & Legal](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-LICENCE-LEGAL-NOTICE.md) - Terms of use and commercial licensing
-
 **Issues**: [GitHub Issues](https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues)
 **Discussions**: [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
 **Email**: MAi-RAG-PA@proton.me

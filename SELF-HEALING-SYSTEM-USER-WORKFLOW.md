@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
 </p>
 
 <h1 align="center">MAi-RAG-PA</h1>
@@ -24,7 +24,7 @@
 
 
 <p align="center">
-  <strong>Version 1.0 | Effective Date: June 2026</strong><br />
+  <strong>Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -360,6 +360,49 @@ The MAi-RAG self-healing system is designed to be proactive, not just reactive. 
      - Holistic Analysis: The LLM understands the entire project context, not just isolated error logs.
      - Human-in-the-Loop: You maintain absolute final authority over what gets deployed.
      - Guaranteed Rollback: The pre-existing backup ensures that experimentation never leads to permanent downtime.
+
+
+---
+
+### 🔍 Super Audit Script – Proactive Codebase Analysis
+
+In addition to reacting to bugs, you can proactively scan your entire codebase for issues, duplicates, and improvements using the **Super Audit Script**.
+
+**Location:** `~/MAi-RAG-PA/super_audit.py` (after release) or `~/MAi-RAG/super_audit.py` (development).
+
+**How to run:**
+
+```bash
+cd ~/MAi-RAG-PA
+python3 super_audit.py                 # Full audit with LLM recommendations
+python3 super_audit.py --no-llm        # Static + runtime + React checks only
+python3 super_audit.py --fix           # Audit + trigger self‑healing fixes
+python3 super_audit.py --output report.md
+```
+
+**What it checks:**
+
+| Module | What it finds |
+| :--- | :--- |
+| Static scan | TODOs, debug prints, large files, function definitions. |
+| Runtime integration | Missing DELETE endpoints, undefined handlers. |
+| React audit | Duplicate/unused components, ESLint errors, Prettier issues, duplicate files (fdupes), unused dependencies (depcheck). |
+| LLM analysis | High‑level architectural insights, prioritised action plan. |
+
+**Integration with Self‑Healing:**
+
+- When you run `--fix`, the script sends the audit recommendations to the self‑healing system via `agent_core.process_request`.
+- The system then creates a sandboxed fix and a `SELF_HEALING_LOG.md` in `dev-sandbox/MAi-RAG-DEV/`.
+- You review the log and deploy the fixes manually.
+
+**Requirements:**
+
+- Node.js + `eslint`, `prettier`, `depcheck` (optional – skip if not available).
+- `fdupes` for duplicate file detection (optional).
+- Your local Ollama model (the best available will be auto‑selected).
+
+The script is designed to be safe, read‑only by default, and gives you full control over the final deployment.
+
 
 ########################################################################
 ########################################################################
