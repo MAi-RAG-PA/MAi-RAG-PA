@@ -40,7 +40,7 @@ const cleanAIResponse = (text: string): string => {
   cleaned = cleaned.replace(/<\|start\|>.*?<\|channel\|>/g, '');
   cleaned = cleaned.replace(/<\|.*?\|>/g, '');
   cleaned = cleaned.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
-  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, ''); // <--- ADD THIS FOR DEEPSEEK R1
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '');
   cleaned = cleaned.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '');
   cleaned = cleaned.replace(/```thinking[\s\S]*?```/gi, '');
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
@@ -53,12 +53,14 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string>('');
   const [input, setInput] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filename, setFilename] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [isLoadingThreads, setIsLoadingThreads] = useState(true);
   const [isRefreshingResources, setIsRefreshingResources] = useState(false);
+  const [ltmEnabled, setLtmEnabled] = useState(false);
 
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -75,9 +77,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const [swapPercent, setSwapPercent] = useState(0);
   const [protectedModelsWarning, setProtectedModelsWarning] = useState<string | null>(null);
 
-  // =================================================================
-  // REFS DECLARATION (Must be BEFORE functions that use them)
-  // =================================================================
   const chatLogContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -86,24 +85,17 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // WEBSOCKET REFS
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Derived state
   const currentThread = threads.find(t => t.id === currentThreadId);
   const messages = currentThread?.messages || [];
 
-  // =================================================================
-  // WEBSOCKET CONNECTION LOGIC
-  // =================================================================
   const connectWebSocket = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    
     const wsUrl = `ws://${window.location.host}/ws`;
     const ws = new WebSocket(wsUrl);
-    
     ws.onopen = () => {
       console.log('✅ WebSocket connected to', wsUrl);
       heartbeatIntervalRef.current = setInterval(() => {
@@ -112,7 +104,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         }
       }, 30000);
     };
-    
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -129,23 +120,17 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         console.error('Failed to parse WebSocket message:', err);
       }
     };
-    
     ws.onclose = () => {
       console.log('⚠️ WebSocket disconnected, reconnecting in 5s...');
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
     };
-    
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-    
     wsRef.current = ws;
   };
 
-  // =================================================================
-  // USEEFFECT HOOKS
-  // =================================================================
   useEffect(() => {
     if (chatLogContainerRef.current) {
       chatLogContainerRef.current.scrollTop = chatLogContainerRef.current.scrollHeight;
@@ -161,7 +146,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     fetchModels();
   }, []);
 
-  // WEBSOCKET MOUNT / UNMOUNT EFFECT
   useEffect(() => {
     connectWebSocket();
     return () => {
@@ -176,7 +160,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       try {
         const response = await apiClient.get('/api/system/protected-models');
         const missingModels = response.data.protected_models.filter((m: any) => !m.installed);
-        
         if (missingModels.length > 0) {
           const warnings = missingModels.map((m: any) => m.warning).join('\n');
           setProtectedModelsWarning(warnings);
@@ -186,7 +169,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         console.error('Failed to check protected models:', err);
       }
     };
-    
     checkProtectedModels();
   }, []);
 
@@ -200,10 +182,8 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         setSwapUsed(res.data.swap_used || 0);
         setSwapTotal(res.data.swap_total || 0);
         setSwapPercent(res.data.swap_percent || 0);
-        
         const cpuRes = await apiClient.get('/api/system/cpu');
         setCpuPercent(cpuRes.data.percent || 0);
-
         const gpuRes = await apiClient.get('/api/system/gpu');
         if (gpuRes.data.available) {
           setGpuAvailable(true);
@@ -216,31 +196,19 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         console.error('Failed to fetch system resources:', err);
       }
     };
-
     fetchSystemResources();
     const interval = setInterval(fetchSystemResources, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // =================================================================
-  // WEBSOCKET MOUNT / UNMOUNT EFFECT
-  // =================================================================
   useEffect(() => {
     connectWebSocket();
-    
-    // Cleanup function: runs when component unmounts
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-      }
+      if (wsRef.current) wsRef.current.close();
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     };
-  }, []); // Empty dependency array = runs once on mount
+  }, []);
 
   const refreshSystemResources = async () => {
     if (isRefreshingResources) return;
@@ -249,7 +217,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       const ramResponse = await apiClient.get('/api/system/ram');
       const cpuResponse = await apiClient.get('/api/system/cpu');
       const gpuResponse = await apiClient.get('/api/system/gpu');
-
       setRamUsed(Number(ramResponse.data.used) || 0);
       setRamTotal(Number(ramResponse.data.total) || 0);
       setRamPercent(Number(ramResponse.data.percent) || 0);
@@ -257,7 +224,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       setSwapTotal(Number(ramResponse.data.swap_total) || 0);
       setSwapPercent(Number(ramResponse.data.swap_percent) || 0);
       setCpuPercent(Number(cpuResponse.data.percent) || 0);
-
       if (gpuResponse.data.available) {
         setGpuAvailable(true);
         setGpuPercent(gpuResponse.data.utilization_percent || 0);
@@ -265,7 +231,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       } else {
         setGpuAvailable(false);
       }
-
       showToast('System resources updated');
     } catch (err: any) {
       console.error('Failed to refresh system resources:', err);
@@ -288,12 +253,9 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         const chatModels = response.data.models.filter((model: string) =>
           !embeddingPatterns.some(p => model.toLowerCase().includes(p))
         );
-
         setAvailableModels(chatModels);
-
         const savedCurrent = localStorage.getItem('mai-rag-current-model');
         const savedDefault = localStorage.getItem('mai-rag-default-model');
-
         if (savedCurrent && chatModels.includes(savedCurrent)) {
           setSelectedModel(savedCurrent);
         } else if (savedDefault && chatModels.includes(savedDefault)) {
@@ -317,8 +279,12 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       localStorage.setItem('mai-rag-default-model', newModel);
       apiClient
         .post('/api/settings/default-model', { model: newModel })
-        .then(() => showToast('Default model updated'))
-        .catch(() => showToast('Failed to save default model'));
+        .then(() => showToast('Default model updated successfully'))
+        .catch((err: any) => {
+          console.error('Failed to save default model:', err);
+          const errorMsg = err.response?.data?.detail || err.message || 'Unknown error';
+          showToast(`Failed to save default model: ${errorMsg}`);
+        });
     }
   };
 
@@ -327,13 +293,11 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     try {
       const threadsRes = await apiClient.get('/api/memory/sqlite/chat/threads');
       const threadsData = threadsRes.data.threads || [];
-
       const threadsWithMessages = await Promise.all(
         threadsData.map(async (thread: any) => {
           try {
             const messagesRes = await apiClient.get(`/api/memory/sqlite/chat/messages/${thread.id}`);
             const msgs = messagesRes.data.messages || [];
-          
             const mappedMessages = msgs.map((msg: any) => {
               let parsedTimestamp = Date.now();
               if (msg.timestamp && msg.timestamp > 0) {
@@ -348,10 +312,9 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
                 model: msg.model && msg.model !== 'default' && msg.model !== 'unknown'
                   ? msg.model
                   : localStorage.getItem('mai-rag-current-model') || selectedModel,
-                timestamp: parsedTimestamp, 
+                timestamp: parsedTimestamp,
               };
             });
-
             return {
               id: thread.id,
               title: thread.title,
@@ -365,12 +328,8 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           }
         })
       );
-
       setThreads(threadsWithMessages);
-      
-      // BULLETPROOF RESTORE LOGIC
       const savedThreadId = localStorage.getItem('mai-rag-current-thread-id');
-      
       if (savedThreadId && threadsWithMessages.some(t => t.id === savedThreadId)) {
         console.log("✅ Restored active thread from localStorage:", savedThreadId);
         setCurrentThreadId(savedThreadId);
@@ -382,12 +341,9 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         console.log("🆕 No threads exist, creating new one.");
         await createNewThread();
       }
-
     } catch (err) {
       console.error('[CHAT] Failed to load threads from backend:', err);
       showToast('Failed to load chat history from database');
-      
-      // CRITICAL: Do NOT create a new thread on network error if we already have a saved ID
       const savedThreadId = localStorage.getItem('mai-rag-current-thread-id');
       if (!savedThreadId) {
         await createNewThread();
@@ -399,32 +355,28 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       setIsLoadingThreads(false);
     }
   };
-  
+
   const createNewThread = async () => {
     const newThreadId = Date.now().toString();
-    
     localStorage.setItem('mai-rag-current-thread-id', newThreadId);
-
     const newThread: ChatThread = {
       id: newThreadId,
       title: 'New Chat',
-      messages: [{ 
-        id: 'welcome-' + Date.now(), 
-        from: 'ai', 
-        text: 'System online. Select a model and ask me to create a file, or just chat.', 
-        model: 'system', 
-        timestamp: Date.now() 
+      messages: [{
+        id: 'welcome-' + Date.now(),
+        from: 'ai',
+        text: 'System online. Select a model and ask me to create a file, or just chat.',
+        model: 'system',
+        timestamp: Date.now()
       }],
       createdAt: Date.now(),
       lastUpdated: Date.now()
     };
-  
     try {
       await apiClient.post('/api/memory/sqlite/chat/thread', { id: newThreadId, title: 'New Chat' });
     } catch (err) {
       console.error('Failed to create thread in database:', err);
     }
-  
     setThreads(prev => [newThread, ...prev]);
     setCurrentThreadId(newThreadId);
     setIsSidebarOpen(false);
@@ -434,18 +386,13 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const deleteThread = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Delete this chat thread?')) return;
-
     try {
       await apiClient.delete(`/api/memory/sqlite/chat/thread/${id}`);
-
       setThreads(prev => prev.filter(t => t.id !== id));
-
       if (currentThreadId === id) {
         const remaining = threads.filter(t => t.id !== id);
         const nextId = remaining.length > 0 ? remaining[0].id : '';
-        
         setCurrentThreadId(nextId);
-        
         if (nextId) {
           localStorage.setItem('mai-rag-current-thread-id', nextId);
         } else {
@@ -468,21 +415,17 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       });
       streamRef.current = stream;
       audioChunksRef.current = [];
-
       const audioContext = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioContext;
-
       const source = audioContext.createMediaStreamSource(stream);
       const scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
       scriptProcessorRef.current = scriptProcessor;
-
       scriptProcessor.onaudioprocess = event => {
         const inputData = event.inputBuffer.getChannelData(0);
         const chunk = new Float32Array(inputData.length);
         chunk.set(inputData);
         audioChunksRef.current.push(chunk);
       };
-
       source.connect(scriptProcessor);
       scriptProcessor.connect(audioContext.destination);
       setIsRecording(true);
@@ -495,7 +438,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
 
   const stopRecording = async () => {
     if (!isRecording) return;
-
     try {
       if (scriptProcessorRef.current) {
         scriptProcessorRef.current.disconnect();
@@ -509,10 +451,8 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         await audioContextRef.current.close();
         audioContextRef.current = null;
       }
-
       setIsRecording(false);
       showToast('Processing audio...');
-
       const totalLength = audioChunksRef.current.reduce((acc, chunk) => acc + chunk.length, 0);
       const audioData = new Float32Array(totalLength);
       let offset = 0;
@@ -520,19 +460,16 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         audioData.set(chunk, offset);
         offset += chunk.length;
       }
-
       const pcmData = new Int16Array(audioData.length);
       for (let i = 0; i < audioData.length; i++) {
         const s = Math.max(-1, Math.min(1, audioData[i]));
         pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
-
       const wavBuffer = new ArrayBuffer(44 + pcmData.length * 2);
       const view = new DataView(wavBuffer);
       const writeString = (offset: number, string: string) => {
         for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
       };
-
       writeString(0, 'RIFF');
       view.setUint32(4, 36 + pcmData.length * 2, true);
       writeString(8, 'WAVE');
@@ -546,9 +483,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       view.setUint16(34, 16, true);
       writeString(36, 'data');
       view.setUint32(40, pcmData.length * 2, true);
-
       const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
-
       try {
         const formData = new FormData();
         formData.append('file', wavBlob, 'recording.wav');
@@ -595,21 +530,37 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   };
 
   const sendMessage = async () => {
-    console.log("🚨🚨🚨 SEND MESSAGE TRIGGERED 🚨🚨🚨");
-    console.log("🚨 currentThreadId is:", currentThreadId);
-    console.log("🚨 input is:", input);
-    
+    console.log("SEND MESSAGE TRIGGERED");
+    console.log("currentThreadId is:", currentThreadId);
+    console.log("input is:", input);
+
     if (!input.trim() || isLoading) return;
     if (!currentThreadId) {
       showToast('Error: No active chat thread');
       return;
     }
 
-    // DEBUG LOG: Prove what we are sending
     console.log("📤 SENDING MESSAGE with thread_id:", currentThreadId);
 
     abortControllerRef.current = new AbortController();
     const extractedFilename = extractFilename(input);
+
+    let fileBase64 = null;
+    if (selectedFile) {
+      try {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(selectedFile);
+        });
+        fileBase64 = dataUrl.split(',')[1];
+        console.log(`📎 File loaded: ${selectedFile.name} (${selectedFile.size} bytes)`);
+      } catch (err) {
+        console.error('Failed to read file:', err);
+        showToast('Failed to read file: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      }
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -620,15 +571,14 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       timestamp: Date.now(),
     };
 
-    // 1. Update local state immediately for UI responsiveness
     setThreads(prev => prev.map(t =>
       t.id === currentThreadId
         ? {
-            ...t,
-            messages: [...t.messages, userMsg],
-            lastUpdated: Date.now(),
-            title: t.messages.length === 0 ? input.slice(0, 30) : t.title,
-          }
+          ...t,
+          messages: [...t.messages, userMsg],
+          lastUpdated: Date.now(),
+          title: t.messages.length === 0 ? input.slice(0, 30) : t.title,
+        }
         : t
     ));
 
@@ -637,10 +587,21 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     setIsLoading(true);
 
     try {
-      // 2. Send to backend. The backend handles ALL database saving now.
-      const payload = extractedFilename
-        ? { query: currentInput, filename: extractedFilename, model: selectedModel, thread_id: currentThreadId }
-        : { query: currentInput, model: selectedModel, thread_id: currentThreadId };
+      const payload: any = {
+        query: currentInput,
+        thread_id: currentThreadId,
+        model: selectedModel,
+        ltm_enabled: ltmEnabled,
+      };
+
+      if (extractedFilename) {
+        payload.filename = extractedFilename;
+      }
+
+      if (selectedFile && fileBase64) {
+        payload.file_content = fileBase64;
+        payload.file_name = selectedFile.name;
+      }
 
       const response = await apiClient.post('/api/chat', payload, {
         signal: abortControllerRef.current.signal,
@@ -648,7 +609,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       });
 
       const content = response.data?.content || response.data?.message || response.data?.response || '';
-      
+
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         from: 'ai',
@@ -657,12 +618,14 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         timestamp: Date.now(),
       };
 
-      // 3. Update local state with AI response
       setThreads(prev => prev.map(t =>
-        t.id === currentThreadId 
-          ? { ...t, messages: [...t.messages, aiMsg], lastUpdated: Date.now() } 
+        t.id === currentThreadId
+          ? { ...t, messages: [...t.messages, aiMsg], lastUpdated: Date.now() }
           : t
       ));
+
+      setSelectedFile(null);
+      setFilename('');
 
     } catch (error: any) {
       console.error('[CHAT] Request failed:', error);
@@ -940,10 +903,10 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
             </select>
 
             {protectedModelsWarning && (
-              <div style={{ 
-                fontSize: '0.75rem', 
-                color: '#f59e0b', 
-                marginTop: '4px', 
+              <div style={{
+                fontSize: '0.75rem',
+                color: '#f59e0b',
+                marginTop: '4px',
                 padding: '6px 10px',
                 background: 'rgba(245, 158, 11, 0.1)',
                 borderRadius: '6px',
@@ -972,27 +935,26 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
                 <div style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: '12px', background: msg.from === 'user' ? 'var(--accent)' : 'rgba(255,255,255,0.08)', color: msg.from === 'user' ? '#000' : 'var(--text)', wordBreak: 'break-word', lineHeight: 1.5, position: 'relative' }}>
                   <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
                   <div style={{ fontSize: '0.65rem', opacity: 0.6, marginTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span>
-                    {(() => {
-                      const msgDate = new Date(msg.timestamp);
-                      const now = new Date();
-                      const isToday = msgDate.getUTCFullYear() === now.getUTCFullYear() &&
-                                      msgDate.getUTCMonth() === now.getUTCMonth() &&
-                                      msgDate.getUTCDate() === now.getUTCDate();
-                      if (isToday) {
-                        return msgDate.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }) + ' UTC';
-                      } else {
-                        return msgDate.toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' UTC';
-                      }
-                    })()}
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>
+                      {(() => {
+                        const msgDate = new Date(msg.timestamp);
+                        const now = new Date();
+                        const isToday = msgDate.getUTCFullYear() === now.getUTCFullYear() &&
+                                        msgDate.getUTCMonth() === now.getUTCMonth() &&
+                                        msgDate.getUTCDate() === now.getUTCDate();
+                        if (isToday) {
+                          return msgDate.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }) + ' UTC';
+                        } else {
+                          return msgDate.toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' UTC';
+                        }
+                      })()}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {msg.from === 'ai' && msg.model && msg.model !== 'system' && (
                         <span style={{ fontFamily: 'monospace', fontSize: '0.6rem', opacity: 0.8, background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '4px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {msg.model}
                         </span>
                       )}
-                      {/* Copy Button */}
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(msg.text).then(() => {
@@ -1041,35 +1003,74 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
 
           <div style={{ padding: isMobile ? '8px 10px' : '10px 16px', borderTop: '1px solid var(--line)', background: 'rgba(0,0,0,0.1)', flexShrink: 0, zIndex: 10 }}>
             {!isMobile && (
-              <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }} role="group" aria-label="File attachment">
+              <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }} role="group" aria-label="File attachment and LTM toggle">
                 <label htmlFor="fileUpload" className="chip" style={{ fontSize: '0.8rem', color: 'var(--text)', cursor: 'pointer', padding: '4px 10px', borderRadius: '6px', border: '1px dashed var(--line)', background: 'rgba(255,255,255,0.02)', height: '26px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-                  Attach file
-                </label>
-                <input
-                  id="fileUpload"
-                  type="file"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setFilename(file.name);
-                      showToast(`Selected: ${file.name}`);
-                    }
-                  }}
-                  style={{ display: 'none' }}
-                  aria-label="Upload file"
-                />
-                {filename && (
-                  <span style={{ fontSize: '0.8rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--line)', height: '26px', maxWidth: '300px' }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filename}</span>
-                    <button onClick={() => setFilename('')} aria-label="Remove file" title="Remove file" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }}>
-                      ×
-                    </button>
-                  </span>
-                )}
+				  Attach file
+				</label>
+				<input
+				  id="fileUpload"
+				  type="file"
+				  onChange={e => {
+					const file = e.target.files?.[0];
+					if (file) {
+					  setSelectedFile(file);
+					  setFilename(file.name);
+					  showToast(`Selected: ${file.name}`);
+					}
+				  }}
+				  style={{ display: 'none' }}
+				  aria-label="Upload file"
+				/>
+
+				{/* Slim LTM Button – Red/Green state */}
+				<button
+				  onClick={() => setLtmEnabled(!ltmEnabled)}
+				  style={{
+					height: '26px',
+					padding: '0 12px',
+					borderRadius: '6px',
+					border: '1px solid transparent',
+					background: ltmEnabled ? '#238636' : '#da3633', // green/red
+					color: '#fff',
+					fontSize: '0.8rem',
+					fontWeight: 500,
+					cursor: 'pointer',
+					transition: 'background 0.2s, transform 0.1s, box-shadow 0.2s',
+					whiteSpace: 'nowrap',
+					display: 'flex',
+					alignItems: 'center',
+					boxShadow: ltmEnabled ? '0 0 10px rgba(35, 134, 54, 0.3)' : '0 0 8px rgba(218, 54, 51, 0.2)',
+				  }}
+				  onMouseEnter={e => {
+					e.currentTarget.style.background = ltmEnabled ? '#2ea043' : '#f85149';
+					e.currentTarget.style.transform = 'scale(1.02)';
+					e.currentTarget.style.boxShadow = ltmEnabled
+					  ? '0 0 16px rgba(35, 134, 54, 0.5)'
+					  : '0 0 14px rgba(218, 54, 51, 0.4)';
+				  }}
+				  onMouseLeave={e => {
+					e.currentTarget.style.background = ltmEnabled ? '#238636' : '#da3633';
+					e.currentTarget.style.transform = 'scale(1)';
+					e.currentTarget.style.boxShadow = ltmEnabled
+					  ? '0 0 10px rgba(35, 134, 54, 0.3)'
+					  : '0 0 8px rgba(218, 54, 51, 0.2)';
+				  }}
+				>
+				  LTM Database Search {ltmEnabled ? 'ON' : 'OFF'}
+				</button>
+
+				{filename && (
+				  <span style={{ fontSize: '0.8rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--line)', height: '26px', maxWidth: '300px' }}>
+					<span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filename}</span>
+					<button onClick={() => { setSelectedFile(null); setFilename(''); }} aria-label="Remove file" title="Remove file" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }}>
+					  ×
+					</button>
+				  </span>
+				)}
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px', alignItems: 'flex-end' }} role="group" aria-label="Message input">
+            <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px', alignItems: 'flex-end' }}>
               <textarea
                 ref={textareaRef}
                 placeholder={filename ? 'Describe file content...' : 'Ask MAi-RAG-PA...'}
