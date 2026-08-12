@@ -509,7 +509,7 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image:
+  background-image: 
     linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
     linear-gradient(150deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
     linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
@@ -575,7 +575,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   /* Hexagonal grid pattern */
-  background-image:
+  background-image: 
     linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
     linear-gradient(150deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
     linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
@@ -1069,11 +1069,11 @@ h1, h2, h3 {
 }
 
 @keyframes activePulse {
-  0%, 100% {
+  0%, 100% { 
     box-shadow: 0 0 12px var(--accent);
     transform: scale(1);
   }
-  50% {
+  50% { 
     box-shadow: 0 0 20px var(--accent);
     transform: scale(1.1);
   }
@@ -1387,11 +1387,11 @@ h1, h2, h3 {
   .architecture-cards {
     grid-template-columns: 1fr;
   }
-
+  
   .hero-left h2 {
     font-size: 2rem;
   }
-
+  
   .circuit-background {
     opacity: 0.2;
   }
@@ -1401,23 +1401,23 @@ h1, h2, h3 {
   .hero {
     padding: 2rem 1rem;
   }
-
+  
   .hero-left h2 {
     font-size: 1.75rem;
   }
-
+  
   .architecture-title {
     font-size: 1.5rem;
   }
-
+  
   .workflow-visual {
     flex-wrap: wrap;
   }
-
+  
   .workflow-connector {
     display: none;
   }
-
+  
   .circuit-background {
     opacity: 0.15;
   }
@@ -1555,6 +1555,10 @@ textarea {
   min-width: 110px;
   height: 52px;
   border-radius: 16px;
+}
+
+.ltm-toggle .toggle-track:hover {
+  box-shadow: 0 0 8px rgba(124, 246, 211, 0.3);
 }
 
 /* =============================================================================
@@ -1831,7 +1835,7 @@ select {
 }
 
 .file-upload-panel {
-  padding: 20px 24px;
+  padding: 20px 24px; 
   border-radius: var(--radius);
   border: 2px solid var(--accent);
   background: rgba(15, 20, 29, 0.9);
@@ -2274,11 +2278,11 @@ header {
   .grid {
     grid-template-columns: 1fr !important;
   }
-
+  
   .memory-upload-container {
     flex-direction: column !important;
   }
-
+  
   .memory-upload-container > div {
     width: 100% !important;
     flex: 1 1 auto !important;
@@ -2291,88 +2295,88 @@ header {
     width: calc(100% - 16px) !important;
     padding: 0 8px !important;
   }
-
+  
   .section-head {
     grid-template-columns: 1fr !important;
     gap: 8px !important;
   }
-
+  
   .section-head h2 {
     font-size: clamp(1.5rem, 5vw, 2rem) !important;
   }
-
+  
   h1 {
     font-size: clamp(2.5rem, 10vw, 4rem) !important;
   }
-
+  
   .panel {
     border-radius: 12px !important;
   }
-
+  
   .panel-inner {
     padding: 12px !important;
   }
-
+  
   .split-form {
     grid-template-columns: 1fr !important;
   }
-
+  
   .field input,
   .field textarea,
   .field select {
     padding: 10px !important;
     font-size: 0.9rem !important;
   }
-
+  
   .btn,
   .chip {
     min-height: 44px !important;
     padding: 10px 16px !important;
     font-size: 0.85rem !important;
   }
-
+  
   .calendar-shell {
     padding: 0 8px !important;
   }
-
+  
   .calendar-grid.month-grid {
     gap: 4px !important;
   }
-
+  
   .day-cell {
     min-height: 60px !important;
     padding: 4px !important;
   }
-
+  
   .day-number {
     font-size: 0.8rem !important;
   }
-
+  
   .day-meta {
     font-size: 0.65rem !important;
   }
-
+  
   .weekday-header {
     font-size: 0.7rem !important;
   }
-
+  
   .calendar-footer {
     flex-direction: column !important;
     padding: 12px !important;
   }
-
+  
   .center-tools {
     width: 100%;
     justify-content: center;
   }
-
+  
   .toast {
     max-width: calc(100% - 32px) !important;
     left: 16px !important;
     right: 16px !important;
     bottom: 16px !important;
   }
-
+  
   .modal {
     width: 95% !important;
     max-width: 95% !important;
@@ -2386,35 +2390,35 @@ header {
     width: 100% !important;
     padding: 0 4px !important;
   }
-
+  
   h1 {
     font-size: clamp(2rem, 12vw, 3rem) !important;
   }
-
+  
   h2 {
     font-size: clamp(1.3rem, 6vw, 1.8rem) !important;
   }
-
+  
   .panel-inner {
     padding: 8px !important;
   }
-
+  
   .btn,
   .chip {
     padding: 8px 12px !important;
     font-size: 0.8rem !important;
   }
-
+  
   textarea {
     font-size: 0.9rem !important;
     min-height: 80px !important;
   }
-
+  
   .day-cell {
     min-height: 50px !important;
     padding: 2px !important;
   }
-
+  
   .day-number {
     font-size: 0.7rem !important;
   }
@@ -2425,7 +2429,7 @@ header {
   body {
     min-height: -webkit-fill-available !important;
   }
-
+  
   html {
     height: -webkit-fill-available !important;
   }
@@ -2440,12 +2444,12 @@ header {
     min-height: 44px !important;
     min-width: 44px !important;
   }
-
+  
   .btn:hover,
   .chip:hover {
     transform: none !important;
   }
-
+  
   button:focus-visible,
   input:focus-visible,
   textarea:focus-visible {
@@ -2509,6 +2513,7 @@ html {
   box-shadow: 0 2px 4px rgba(255, 105, 180, 0.3);
   white-space: nowrap;
   margin-left: 0.10rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
 }
 
 .donate-button:hover {
@@ -2526,16 +2531,16 @@ html {
 Spinning button for System Resources Button
    ============================================================================= */
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(0.95); }
+  @keyframes pulse { 
+    0%, 100% { opacity: 1; transform: scale(1); } 
+    50% { opacity: 0.7; transform: scale(0.95); } 
   }
-
+  
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
-
+  
   .file-indicator {
     display: inline-flex;
     align-items: center;
@@ -2556,3 +2561,4 @@ Short-Term Memory Toast
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+
