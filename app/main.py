@@ -649,6 +649,9 @@ class AgentRequest(BaseModel):
     model: Optional[str] = None
     hardware_tier: Optional[str] = None
     thread_id: Optional[str] = None
+    file_content: Optional[str] = None   # base64 encoded
+    file_name: Optional[str] = None
+    ltm_enabled: bool = False  
     
     @field_validator('query')
     @classmethod
@@ -671,7 +674,7 @@ class AgentRequest(BaseModel):
     def validate_model(cls, v):
         if v is None:
             return v
-        if not re.match(r'^[a-zA-Z0-9._:-]+$', v):
+        if not re.match(r'^[a-zA-Z0-9./:_-]+$', v):
             raise ValueError('Invalid model name format')
         return v[:100]
 
@@ -1520,14 +1523,17 @@ async def get_default_model_setting():
         return {"model": get_default_model()}
 
 @app.post("/api/settings/default-model")
-async def save_default_model_setting(request: dict, api_key: str = Depends(verify_api_key)):
+async def save_default_model_setting(request: Request, api_key: str = Depends(verify_api_key)):
     """Save the default model preference."""
     try:
-        model = request.get("model", "").strip()
+        # Explicitly parse JSON body to prevent FastAPI dict parsing quirks
+        body = await request.json()
+        model = str(body.get("model", "")).strip()
+        
         if not model:
             raise HTTPException(status_code=400, detail="Model name is required")
         
-        # Direct SQLite write to guarantee it saves, bypassing any mgr.set() quirks
+        # Direct SQLite write to guarantee it saves
         import sqlite3
         db_path = PROJECT_ROOT / "memory" / "memory_store.db"
         try:
@@ -1541,12 +1547,11 @@ async def save_default_model_setting(request: dict, api_key: str = Depends(verif
                 conn.commit()
         except Exception as db_err:
             logger.error(f"Direct SQLite save failed: {db_err}")
-            raise RuntimeError(f"Database save failed: {db_err}")
-
+            raise HTTPException(status_code=500, detail=f"Database save failed: {db_err}")
+        
         clear_model_cache()
         logger.info(f"Default model saved: {model}")
         return {"status": "saved", "model": model}
-        
     except HTTPException:
         raise
     except Exception as e:
@@ -2015,28 +2020,67 @@ def detect_repetition(text: str, threshold: int = 5) -> bool:
 
 @app.post("/api/chat")
 async def chat_endpoint(request: Request, chat_request: AgentRequest):
+	    # TEMPORARY DEBUG – PRINT THE ENTIRE REQUEST DICT
+    print("🔍 RECEIVED CHAT REQUEST:")
+    print(chat_request.model_dump())   # or .dict() if using older Pydantic
     """Chat endpoint with file creation support and STM context injection."""
     incoming_thread_id = getattr(chat_request, 'thread_id', None)
     logger.info(f"🚨🚨🚨 CHAT ENDPOINT RECEIVED: thread_id={incoming_thread_id}, query={chat_request.query[:50]}")
 
-    print("\n" + "="*50)
-    print("🚨 CHAT ENDPOINT HIT! Query:", chat_request.query[:50] if chat_request.query else "EMPTY")
-    print("="*50 + "\n")
-    
     try:
         import time as _time
         import uuid
         _model_start = _time.time()
         loop = asyncio.get_event_loop()
 
+        # Resolve model first (used later)
+        requested_model = chat_request.model or get_default_model()
+
+        # =================================================================
+        # FILE UPLOAD HANDLING (outside run_chat to avoid nesting issues)
+        # =================================================================
+        file_context = None
+        if chat_request.file_content and chat_request.file_name:
+            import base64
+            import tempfile
+            import os
+            from app.documents.parser import parse_file
+
+            try:
+                # Decode base64
+                file_bytes = base64.b64decode(chat_request.file_content)
+                suffix = Path(chat_request.file_name).suffix
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    tmp.write(file_bytes)
+                    tmp_path = tmp.name
+
+                # Parse using your existing parser (already supports .epub)
+                text_chunks, structured_records = parse_file(Path(tmp_path))
+                file_text = ""
+                if text_chunks:
+                    file_text = "\n".join(text_chunks)
+                if structured_records:
+                    for rec in structured_records:
+                        file_text += "\n" + " ".join(str(v) for v in rec.values() if isinstance(v, (str, int, float)))
+
+                # Cleanup
+                os.unlink(tmp_path)
+
+                # Truncate to safe size (adjust based on your model's context)
+                max_file_chars = 50000
+                if len(file_text) > max_file_chars:
+                    file_text = file_text[:max_file_chars] + "\n...[TRUNCATED]"
+
+                file_context = f"### User uploaded file: {chat_request.file_name}\n\n{file_text}"
+
+            except Exception as e:
+                logger.error(f"File processing error: {e}", exc_info=True)
+                file_context = f"Error processing file: {str(e)}"
+
         def run_chat():
-            print("👉 ENTERED run_chat() executor thread")
             t0 = _time.time()
             
-            print("👉 Calling get_default_model()...")
-            requested_model = chat_request.model or get_default_model()
-            print(f"✅ Resolved model: {requested_model}")
-            
+            # Note: requested_model is already resolved outside, we use it here
             # =================================================================
             # FILE CREATION DETECTION - Check for [FILE] prefix
             # =================================================================
@@ -2055,7 +2099,8 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                         result = process_request(
                             user_query=query_text,
                             filename=extracted_filename,
-                            model=requested_model
+                            model=requested_model,
+                            file_context=file_context  # pass file context if any
                         )
                         if "content" not in result or not result["content"]:
                             result["content"] = result.get("message", "File creation completed.")
@@ -2071,35 +2116,22 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             # =================================================================
             # DYNAMIC CONTEXT & MODEL RESOLUTION
             # =================================================================
-            print("👉 Getting hardware tier and context config...")
             hardware_tier = chat_request.hardware_tier or "medium"
             context_config = {"num_ctx": Config.CONTEXT_WINDOW, "rag_limit": Config.RAG_TOP_K}
-            print(f"Context config retrieved: {context_config}")
             
-            print("👉 Resolving model via model_manager...")
             try:
                 resolved_model = model_manager.resolve_model(requested_model)
             except RuntimeError:
                 resolved_model = get_default_model()
-            print(f"Final resolved model: {resolved_model}")
             
-            print("👉 Instantiating LLM...")
             llm = _get_llm(resolved_model, num_ctx=context_config["num_ctx"])
-            print("LLM instantiated")
 
-            print("👉 Fetching RAG context...")
             rag_context, rag_used = fetch_rag_context(query_text, top_k=context_config["rag_limit"])
-            print(f"RAG done (used={rag_used}, len={len(rag_context)})")
             
-            print("👉 Building STM context...")
             stm_context = _build_stm_context(query_text)
-            print("STM context built")
             
-            print("👉 Getting system prompt...")
             base_prompt = get_system_prompt()
-            print(f"System prompt loaded ({len(base_prompt)} chars)")
             
-            print("👉 Assembling full prompt...")
             t1 = _time.time()
             logger.info(f"[CHAT] Model resolved in {t1-t0:.3f}s: {resolved_model}")
             
@@ -2112,46 +2144,41 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             # FOOLPROOF BYPASS FOR REASONING MODELS (DeepSeek R1, QwQ)
             # =================================================================
             if "deepseek-r1" in resolved_model.lower() or "qwq" in resolved_model.lower():
-                print("⚡ Reasoning model detected. Bypassing ReAct loop entirely for direct chat.")
                 
-                # 1. Create a high-budget LLM instance (16k context, 8k output, 10 min timeout)
-                high_budget_llm = _get_llm(resolved_model, num_ctx=16384, num_predict=8192, timeout=1800)
+                # 1. Create a high-budget LLM instance (16k context, 8k output, no timeout)
+                high_budget_llm = _get_llm(resolved_model, num_ctx=16384, num_predict=8192, timeout=None)
                 
                 # 2. Build the prompt exactly as the agent would
                 system_prompt = get_system_prompt(resolved_model)
                 user_profile_context = get_user_profile_context()
                 full_prompt = f"{system_prompt}{user_profile_context}\n\n"
-                
+                # Merge file_context and rag_context
+                combined_context = ""
+                if file_context:
+                    combined_context += file_context + "\n\n"
                 if rag_context:
+                    combined_context += rag_context
+                if combined_context:
                     full_prompt += (
-                        "## KNOWLEDGE BASE CONTEXT (PRIMARY SOURCE)\n"
-                        "The following text excerpts are provided from the user's private knowledge base (documents, articles, datasets, notes). "
-                        "Use them as your primary reference. You may supplement with your training data when it adds valuable context or alternative perspectives to provide a comprehensive response.\n"
-                        "DO NOT state that you lack access to the source material – treat these excerpts as authoritative.\n\n"
-                        "FOOTNOTE CITATION RULES (MANDATORY):\n"
-                        "1. Place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific source.\n"
-                        "2. At the VERY END of your response, include a '### References' section that lists each source with its number and full details (filename with its exact extension like .pdf, .epub, .txt, .doc, etc., collection, chapter, page) exactly as they appear in the context.\n"
-                        "3. If you supplement with training data, clearly indicate when information comes from your training vs. the knowledge base.\n\n"
-                        f"=== KNOWLEDGE BASE CONTEXT ===\n{rag_context}\n=== END OF CONTEXT ===\n\n"
-                        f"Now, provide a comprehensive answer to the user's question, using the knowledge base as your primary source:\n{query_text}"
+                        "## KNOWLEDGE BASE CONTEXT (PRIVATE DATABASE)\n"
+                        "The following text excerpts are provided from the user's private knowledge base. "
+                        "You DO NOT need to have read the full source material in your training data. "
+                        "You MUST use ONLY these excerpts to construct your answer. Do not state that you lack access to the book or document; "
+                        "treat these excerpts as the complete authoritative source for this response.\n\n"
+                        f"{combined_context}\n\n"
                     )
-
-                else:
-                    full_prompt += f"User: {query_text}\n\nAssistant:"
+                full_prompt += f"User: {query_text}\n\nAssistant:"
                 
-                print("Invoking DeepSeek R1 directly with high token budget...")
-                try:  # <-- MUST BE AT 16 SPACES
+                try:
                     response = high_budget_llm.invoke(full_prompt)
                     ai_content = response.content.strip() if response and hasattr(response, "content") and response.content else ""
                     
-                    # 3. Fallback to reasoning content if main content is empty (common with R1)
                     if not ai_content:
                         ai_content = getattr(response, "additional_kwargs", {}).get("reasoning_content", "") or \
                                      getattr(response, "response_metadata", {}).get("reasoning_content", "") or \
                                      "I apologize, but I couldn't generate a response."
                         ai_content = ai_content.strip()
                         
-                    print(f"Direct invocation successful. Response length: {len(ai_content)} chars")
                     
                     return {
                         "content": ai_content,
@@ -2159,7 +2186,6 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                         "tool_calls": []
                     }
                 except Exception as e:
-                    print(f"❌ Direct invocation failed: {e}")
                     import traceback
                     traceback.print_exc()
                     return {
@@ -2171,16 +2197,14 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
             # =================================================================
             # NORMAL AGENT LOOP (For all other tool-capable models)
             # =================================================================
-            print("Delegating to agent_loop for tool-calling support...")
             
+            # Pass file_context to process_request
             result = process_request(
                 user_query=query_text, 
-                model=resolved_model
+                model=resolved_model,
+                file_context=file_context
             )
             
-            print("agent_loop COMPLETED")
-            print(f"Response length: {len(result.get('content', ''))} chars")
-            print(f"🛠️ Tool calls made: {len(result.get('tool_calls', []))}")
             
             # Return in the format the rest of main.py expects
             return {
@@ -2189,16 +2213,13 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                 "tool_calls": result.get("tool_calls", [])
             }
             
-        print("👉 About to call loop.run_in_executor...")
         result = await loop.run_in_executor(executor, run_chat)
-        print("run_in_executor FINISHED")
 
         _model_duration = _time.time() - _model_start
         resolved = result.get("model", get_default_model())
         MODEL_REQUEST_COUNT.labels(model=resolved, endpoint="chat").inc()
         MODEL_DURATION.labels(model=resolved).observe(_model_duration)
-        REQUEST_LATENCY.labels(endpoint="chat", model=resolved).observe(_model_duration)
-        
+
         # =====================================================================
         # AUTO-SAVE CHAT MESSAGES TO DATABASE
         # =====================================================================
@@ -2243,7 +2264,6 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         return result
 
     except Exception as e:
-        print(f"❌ FATAL ERROR IN /api/chat: {e}")
         import traceback
         traceback.print_exc()
         logger.error(f"Chat error: {e}", exc_info=True)
