@@ -1207,6 +1207,15 @@ def get_user_profile_context() -> str:
     context += "Guideline: Use this context to build rapport naturally."
     return context
 
+def run_agent(user_query: str, prompt: str, model: Optional[str], rag_used: bool) -> Dict[str, Any]:
+    """Execute the agent loop with a pre‑built prompt."""
+    # This bypasses the normal RAG fetch and uses the provided prompt as the context.
+    # We'll call agent_loop with the prompt as rag_context.
+    # But agent_loop expects a query and rag_context separately.
+    # We'll create a dummy query and pass the prompt as the context.
+    result = agent_loop(user_query, prompt, model)
+    # ... rest of the logic (same as process_request's final return)
+
 # =============================================================================
 # Chat-Only Fallback
 # =============================================================================
@@ -1217,15 +1226,15 @@ def _simple_chat_fallback(
     rag_context: str,
     model_name: str,
 ) -> Dict[str, Any]:
-    """Simple chat mode with adequate generation budget."""
+    """Simple chat mode with adequate generation budget for reasoning models."""
     logger.info("Using simple chat mode for %s", model_name)
-    
+
     limited_llm = _get_llm(
         model_name=model_name,
         temperature=0.7,
         repeat_penalty=1.1,
         num_predict=8192,
-        timeout=1800
+        timeout=None
     )
 
     # Build system prompt (needs_tools=False for pure chat fallback)
@@ -1235,28 +1244,46 @@ def _simple_chat_fallback(
 
     # Build the final user message with context if available
     if rag_context:
-        user_content = f"""CRITICAL INSTRUCTION – OVERRIDES ALL OTHER GUIDELINES:
-You are an Analytical Engine. You MUST answer the user's question using the provided Knowledge Base Context as your primary source.
-The knowledge base excerpts are authoritative sources from the user's documents, articles, datasets, and notes.
-You may supplement with your training data when it adds valuable context, alternative perspectives, or additional relevant information to provide a comprehensive, detailed response.
-DO NOT say you lack access to the book/document – the excerpts ARE the source material.
+        user_message = f"""🚨🚨🚨 CRITICAL CITATION INSTRUCTIONS - OVERRIDES ALL OTHER RULES 🚨🚨🚨
 
-FOOTNOTE CITATION RULES (MANDATORY):
-1. Place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific KB source.
-2. At the VERY END of your response, include a "### References" section that lists each source with its number and full details (filename with its exact extension like .pdf, .epub, .txt, .doc, etc., collection, chapter, page) exactly as they appear in the context.
-3. If you supplement with training data, clearly indicate when information comes from your training vs. the knowledge base.
+You are an Analytical Engine. Answer the user's question using the Knowledge Base Context as your PRIMARY source.
+You MAY supplement with training data for additional context, but you MUST follow these EXACT citation rules:
 
-=== KNOWLEDGE BASE CONTEXT (PRIMARY SOURCE) ===
+=== CITATION FORMAT (MANDATORY - NO EXCEPTIONS) ===
+
+❌ WRONG (DO NOT DO THIS):
+- "According to Dr. Smith's 2023 study on the topic..."
+- "As mentioned in the 'Annual Report' document..."
+- Any author names, report titles, or conversational attributions in the body text.
+
+✅ CORRECT (DO THIS INSTEAD):
+- End each sentence or paragraph that uses source information with a number in brackets: [1], [2], [3].
+- **Group all citations from the same source into a single footnote number.**
+- At the VERY END of your response, include a compact "### References" section.
+- Each reference entry should include: **Author(s). Title. Filename, Page numbers** (e.g., p. 35, p. 45, p. 64). **Do NOT include paragraphs.**
+
+=== EXAMPLE OUTPUT ===
+
+The implementation of the new system requires a phased approach to ensure stability [1]. Initial testing showed a significant improvement in processing speed, though memory usage increased slightly [1]. Long-term maintenance will depend on regular updates to the core modules to prevent degradation [2].
+
+### References
+[1] J. Smith. System Architecture Report. system_architecture.pdf, p. 35, p. 45, p. 64
+[2] M. Lee. Performance Metrics Q3. performance_metrics.xlsx, p. 12, p. 18
+
+=== KNOWLEDGE BASE CONTEXT ===
 {rag_context}
-=== END OF CONTEXT ===
+=== END CONTEXT ===
 
-Now, provide a comprehensive answer to the user's question, using the knowledge base as your primary source and supplementing with your training data where it adds value:
-{query}"""
+Now provide a comprehensive answer following the EXACT citation format above. Remember:
+1. Use [1], [2], [3] markers in the body – NOT author names or titles.
+2. Group all citations from the same source into one footnote number.
+3. Include the ### References section at the very end with FULL source details (author, title, filename, page numbers) – but keep it compact by grouping pages per source.
+
+User's question: {query}"""
     else:
-        user_content = query
+        user_message = query
 
-    # FIXED: Changed user_message to user_content
-    full_prompt += f"User: {user_content}\n\nAssistant:"
+    full_prompt += f"User: {user_message}\n\nAssistant:"
 
     try:
         response = limited_llm.invoke(full_prompt)
@@ -1266,7 +1293,6 @@ Now, provide a comprehensive answer to the user's question, using the knowledge 
             else ""
         )
 
-        # Handle DeepSeek R1 <think> tags if standard content is empty
         if not final_content:
             reasoning = getattr(response, "additional_kwargs", {}).get("reasoning_content") or \
                         getattr(response, "response_metadata", {}).get("reasoning_content", "")
@@ -1342,7 +1368,7 @@ def agent_loop(
     supports_tools = _model_tool_support.get(model_name)
     if supports_tools is False:
         return _simple_chat_fallback(llm, query, rag_context, model_name)
-    
+
     print(f"🔧 Attempting to bind tools for: {model_name}")
     try:
         llm_with_tools = llm.bind_tools(TOOLS)
@@ -1351,38 +1377,59 @@ def agent_loop(
         print(f"❌ TOOL BINDING FAILED: {e}")
         _model_tool_support[model_name] = False
         return _simple_chat_fallback(llm, query, rag_context, model_name)
-        
+
     # Pass model_name to get_system_prompt for capability-based prompt injection
     system_prompt = get_system_prompt(model_name, needs_tools=True)
     user_profile_context = get_user_profile_context()
-    
+
     messages: List[Any] = [
         SystemMessage(content=system_prompt + user_profile_context)
     ]
 
+    # ---- Correctly indented if rag_context block ----
     if rag_context:
-        user_content = f"""CRITICAL INSTRUCTION – OVERRIDES ALL OTHER GUIDELINES:
-You are an Analytical Engine. You MUST answer the user's question using the provided Knowledge Base Context as your primary source.
-The knowledge base excerpts are authoritative sources from the user's documents, articles, datasets, and notes.
-You may supplement with your training data when it adds valuable context, alternative perspectives, or additional relevant information to provide a comprehensive, detailed response.
-DO NOT say you lack access to the book/document – the excerpts ARE the source material.
+        user_content = f"""🚨🚨🚨 CRITICAL CITATION INSTRUCTIONS - OVERRIDES ALL OTHER RULES 🚨🚨🚨
 
-FOOTNOTE CITATION RULES (MANDATORY):
-1. Place a numbered reference marker (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a specific KB source.
-2. At the VERY END of your response, include a "### References" section that lists each source with its number and full details (filename with its exact extension like .pdf, .epub, .txt, .doc, etc., collection, chapter, page) exactly as they appear in the context.
-3. If you supplement with training data, clearly indicate when information comes from your training vs. the knowledge base.
+You are an Analytical Engine. Answer the user's question using the Knowledge Base Context as your PRIMARY source.
+You MAY supplement with training data for additional context, but you MUST follow these EXACT citation rules:
 
-=== KNOWLEDGE BASE CONTEXT (PRIMARY SOURCE) ===
+=== CITATION FORMAT (MANDATORY - NO EXCEPTIONS) ===
+
+❌ WRONG (DO NOT DO THIS):
+- "According to Dr. Smith's 2023 study on the topic..."
+- "As mentioned in the 'Annual Report' document..."
+- Any author names, report titles, or conversational attributions in the body text.
+
+✅ CORRECT (DO THIS INSTEAD):
+- End each sentence or paragraph that uses source information with a number in brackets: [1], [2], [3].
+- **Group all citations from the same source into a single footnote number.**
+- At the VERY END of your response, include a compact "### References" section.
+- Each reference entry should include: **Author(s). Title. Filename, Page numbers** (e.g., p. 35, p. 45, p. 64). **Do NOT include paragraphs.**
+
+=== EXAMPLE OUTPUT ===
+
+The implementation of the new system requires a phased approach to ensure stability [1]. Initial testing showed a significant improvement in processing speed, though memory usage increased slightly [1]. Long-term maintenance will depend on regular updates to the core modules to prevent degradation [2].
+
+### References
+[1] J. Smith. System Architecture Report. system_architecture.pdf, p. 35, p. 45, p. 64
+[2] M. Lee. Performance Metrics Q3. performance_metrics.xlsx, p. 12, p. 18
+
+=== KNOWLEDGE BASE CONTEXT ===
 {rag_context}
-=== END OF CONTEXT ===
+=== END CONTEXT ===
 
-Now, provide a comprehensive answer to the user's question, using the knowledge base as your primary source and supplementing with your training data where it adds value:
-{query}"""
+Now provide a comprehensive answer following the EXACT citation format above. Remember:
+1. Use [1], [2], [3] markers in the body – NOT author names or titles.
+2. Group all citations from the same source into one footnote number.
+3. Include the ### References section at the very end with FULL source details (author, title, filename, page numbers) – but keep it compact by grouping pages per source.
+
+User's question: {query}"""
     else:
         user_content = query
 
     messages.append(HumanMessage(content=user_content))
-    
+    # ---- End of if rag_context ----
+
     tool_calls_history: List[Dict[str, Any]] = []
 
     for iteration in range(1, max_iterations + 1):
@@ -1419,12 +1466,11 @@ Now, provide a comprehensive answer to the user's question, using the knowledge 
                 messages.append(
                     ToolMessage(content=result, tool_call_id=tc["id"])
                 )
-                
+
         elif response.content:
-            # SELF-HEALING FALLBACK: Intercept JSON tool calls outputted as plain text
             clean_content = _strip_markdown_fences(response.content.strip())
             is_json_tool_call = False
-            
+
             try:
                 import json
                 parsed = json.loads(clean_content)
@@ -1432,23 +1478,17 @@ Now, provide a comprehensive answer to the user's question, using the knowledge 
                     tool_name = parsed["name"]
                     tool_args = parsed["arguments"]
                     logger.info(f"🔧 INTERCEPTED JSON TOOL CALL: {tool_name}")
-                    
-                    # Execute the tool manually
                     result = execute_tool_call(tool_name, tool_args)
-                    
-                    # Add to message history and continue the loop
                     messages.append(AIMessage(content=response.content))
                     messages.append(ToolMessage(content=str(result), tool_call_id="json_fallback_1"))
-                    
                     is_json_tool_call = True
-                    continue  # Loop again to get the final synthesized answer
+                    continue
             except json.JSONDecodeError:
-                pass  # Not a JSON tool call, proceed to final response logic
-            
-            # CRITICAL FIX: If it was NOT a JSON tool call, return the response immediately!
+                pass
+
             if not is_json_tool_call:
                 final_response = clean_content
-                
+
                 if not final_response:
                     reasoning = getattr(response, "additional_kwargs", {}).get("reasoning_content") or \
                                 getattr(response, "response_metadata", {}).get("reasoning_content", "")
@@ -1470,9 +1510,8 @@ Now, provide a comprehensive answer to the user's question, using the knowledge 
                     "model": model_name,
                     "tools_available": True,
                 }
-                
+
         else:
-            # Fallback for when response.content is completely empty/null
             _model_tool_support[model_name] = True
             final_response = response.content.strip() if response.content else ""
 
@@ -1660,23 +1699,99 @@ def process_request(
     user_query: str,
     filename: Optional[str] = None,
     model: Optional[str] = None,
+    file_context: Optional[str] = None,
+    ltm_enabled: bool = False,
+    ltm_collection: Optional[str] = None,   # <-- ensure this is present
 ) -> Dict[str, Any]:
-    """Main agent entry point."""
+    """Main agent entry point with mode routing."""
     logger.info(
-        "process_request called with filename='%s', model='%s'",
+        "process_request called: filename='%s', file_context=%s, ltm_enabled=%s, ltm_collection=%s",
         filename,
-        model,
+        bool(file_context),
+        ltm_enabled,
+        ltm_collection,
     )
 
-    rag_context, rag_used = fetch_rag_context(user_query, top_k=5)
+    # ------------------------------------------------------------
+    # MODE 1: FILE MODE (highest priority)
+    # ------------------------------------------------------------
+    if file_context:
+        parts = file_context.split("\n\n", 1)
+        file_text = parts[1] if len(parts) > 1 else file_context
+        rag_context = f"""
+You have an attached file. This file is the **only** source of information for your response.
 
+**RULES – STRICTLY FOLLOW:**
+1. The attached file is the definitive authority. Treat it as the primary and only source.
+2. DO NOT add a "References", "Bibliography", or any list of external sources at the end.
+3. If you use information from the file, simply present it as fact. No inline citations or footnotes.
+4. If the user asks a general question not answered in the file, you may use your training, but you MUST clearly state: "The file does not cover this. Based on my training: ..."
+5. NEVER invent or fabricate any information.
+
+--- FILE CONTENT START ---
+{file_text}
+--- FILE CONTENT END ---
+
+User query: {user_query}
+Provide a clear, factual answer based ONLY on the file content. Do not add external references.
+"""
+        rag_used = True
+
+    # ------------------------------------------------------------
+    # MODE 2: RAG MODE (LTM enabled) – Research Synthesis
+    # ------------------------------------------------------------
+    elif ltm_enabled:
+        rag_context, rag_used = fetch_rag_context(
+            user_query,
+            top_k=12,
+            collection_name=ltm_collection  # pass the collection name
+        )
+        if rag_context:
+            rag_context = f"""
+**CRITICAL INSTRUCTION – OVERRIDES SYSTEM PROMPT CITATION RULES**
+
+You are a research assistant synthesising information from multiple documents in the collection "{ltm_collection}".
+
+**OUTPUT FORMAT – STRICTLY FOLLOW:**
+1. In the body of your response, place a **numeric footnote marker** (e.g., [1], [2]) at the end of each sentence or paragraph that uses information from a source.
+2. **DO NOT** put any source details (filenames, pages) inside the body text.
+3. **Group all citations from the same source into a single footnote number.** (e.g., if you use information from the same document in multiple places, reuse the same number).
+4. At the very end of your response, include a compact **"### References"** section.
+   - Each reference entry should be formatted as:  
+     `[1] Author(s). Title. Filename, p. X, p. Y, p. Z`  
+     (list all page numbers you cited from that source, separated by commas).
+   - **Do NOT include chapter, section, or paragraph details** – only author, title, filename, and page numbers.
+5. If the context does **not** contain the answer, say: "The knowledge base does not have information on this." Do not invent sources.
+
+--- RETRIEVED CONTEXT (multiple sources) ---
+{rag_context}
+--- END CONTEXT ---
+
+User query: {user_query}
+Provide a well‑structured, footnoted answer with grouped references at the bottom.
+"""
+        else:
+            # No RAG results – fall through to chat mode
+            logger.info("RAG enabled but no results – falling back to chat mode.")
+            rag_context = None
+            rag_used = False
+
+    # ------------------------------------------------------------
+    # MODE 3: CHAT MODE (default – no file, no LTM)
+    # ------------------------------------------------------------
+    else:
+        rag_context = None
+        rag_used = False
+
+    # Handle file creation if requested (separate from modes)
     if filename:
         result = agentic_create_file(filename, user_query, model)
         result["rag_used"] = rag_used
         return result
 
+    # Run the agent with the appropriate context
     try:
-        result = agent_loop(user_query, rag_context, model)
+        result = agent_loop(user_query, rag_context or "", model)
 
         if result["status"] == "success":
             final_content = (
@@ -1693,13 +1808,15 @@ def process_request(
                 "rag_used": rag_used,
                 "tools_available": result.get("tools_available", True),
             }
-        return {
-            "status": "failed",
-            "message": result.get("message", "Unknown error"),
-            "tool_calls": result.get("tool_calls", []),
-            "model": model or get_default_model(),
-            "rag_used": rag_used,
-        }
+        else:
+            return {
+                "status": "failed",
+                "message": result.get("message", "Unknown error"),
+                "tool_calls": result.get("tool_calls", []),
+                "model": model or get_default_model(),
+                "rag_used": rag_used,
+            }
+
     except Exception as e:
         logger.error("Agent loop failed: %s", e, exc_info=True)
         return {
