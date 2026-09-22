@@ -41,7 +41,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 ## What is MAi-RAG-PA?
 
 **MAi-RAG-PA is a complete AI-powered productivity suite that runs 100% locally on your machine:**
-- Chat Console - Multi-threaded conversations with any Ollama model
+- Chat Console - Multi-threaded conversations with any Ollama model, And set up Roles for different Use Cases
 - Text Editor - Multi-format editor with AI assistance
 - Long-Term Memory - Ingest 17 document formats (PDF, EPUB, DOCX, PPTX, XLSX, etc.) into a vector database
 - Calendar & Planner - Full-featured scheduling with smart reminders
