@@ -9,23 +9,30 @@
   <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
 </p>
 
-<p align="center">
-  <img src="assets/intro.png" alt="MAi-RAG-PA Overview" width="900">
-</p>
+**SUPER EASY ONE-LINE Installer for ALL Mainstream Operating Systems:**
+
+```bash
+curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
+```
+
+(See <a href="MAi-INSTALLATION.md">Installation</a> Documentation for complete information for troublshooting or dependency issues.)
 
 <p align="center">
-  <a href="README.md">Home</a> •
-  <a href="MAi-README.md">Full Documentation</a> •
-  <a href="MAi-INSTALLATION.md">Installation</a> •
-  <a href="MAi-OLLAMA-MODELS.md">Models</a> •
-  <a href="MAi-SSH-SETUP.md">SSH & LAN</a> •
-  <a href="SELF-HEALING-SYSTEM-USER-WORKFLOW.md">Self-Healing System</a> •
-  <a href="CHANGELOG.md">Changelog</a> •
-  <a href="MAi-LICENCE-LEGAL-NOTICE.md">License</a>
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/README.md">🏠 Home</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md">📚 Full Docs</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md">⚙️ Installation</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-OLLAMA-MODELS.md">🤖 Models</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-SSH-SETUP.md">🌐 SSH & LAN</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/SELF-HEALING-SYSTEM-USER-WORKFLOW.md">🩺 Self-Healing</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md">📝 Changelog</a> •
+  <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-LICENCE-LEGAL-NOTICE.md">⚖️ License</a>
 </p>
 
+---
+
+
 <p align="center">
-  <strong>Version 1.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 1.4 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -43,7 +50,13 @@
 - 100% Private - No data ever leaves your machine
 
 ### System Requirements
-- **OS**: Linux (Ubuntu 22.04+, Fedora 38+, Arch), macOS 12+, Windows (WSL2), and others
+- **OS**: Linux (Ubuntu 22.04+, Fedora 38+, Arch), macOS 12+, Windows (WSL2), and others.
+
+- **We have a SUPER EASY ONE-LINE Installer for ALL Mainstream Operating Systems, and other Unix Varients:**
+
+```bash
+curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
+```
 
 ### Minimum Hardware
 - **CPU**: Intel i3 / AMD Ryzen 3 or better
@@ -226,7 +239,7 @@ If required system models are missing, a warning appears under the model selecto
 ### 3. Text Editor (Notes & Code)
 
 <p align="center">
-  <img src="assets/text-Editor.png" alt="MAi-RAG-PA Text Editor" width="900">
+  <img src="assets/Text-Editor.png" alt="MAi-RAG-PA Text Editor" width="900">
 </p>
 
 **Multi-format editor supporting 16 file types:**
@@ -566,13 +579,13 @@ When creating a file that already exists:
 
 ## Documentation
 
-<a href="MAi-README.md">Full Documentation</a> Complete feature overview and usage guide<br />
-<a href="MAi-INSTALLATION.md">Installation</a> Step-by-step setup for all platforms, System requirements, starting/stopping<br />
-<a href="MAi-OLLAMA-MODELS.md">Model Recommendations</a> Choosing the right AI model for your needs<br />
-<a href="SELF-HEALING-SYSTEM-USER-WORKFLOW.md">Self-Healing System</a> Guide on the Self-Healing System Initiation Process<br />
-<a href="MAi-SSH-SETUP.md">SSH & LAN</a> Access the system remotely from other devices via SSH or on the same network<br />
-<a href="CHANGELOG.md">Changelog</a><br />
-<a href="MAi-LICENCE-LEGAL-NOTICE.md">Terms of use and commercial licensing</a>
+- [Full Documentation](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md) - Complete feature overview and usage guide
+- [Installation](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md) - Step-by-step setup for all platforms, system requirements, starting/stopping
+- [Model Recommendations](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-OLLAMA-MODELS.md) - Choosing the right AI model for your hardware
+- [Self-Healing System](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/SELF-HEALING-SYSTEM-USER-WORKFLOW.md) - Guide on the Self-Healing System Initiation Process
+- [SSH & LAN](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-SSH-SETUP.md) - Access the system remotely from other devices
+- [Changelog](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md) - Version history and updates
+- [License & Legal](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-LICENCE-LEGAL-NOTICE.md) - Terms of use and commercial licensing
 
 ## Support & Contact
 

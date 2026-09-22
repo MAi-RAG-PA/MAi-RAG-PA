@@ -46,6 +46,14 @@ DATABASE_SIZE_BYTES = Gauge(
     "SQLite database file size in bytes",
 )
 
+REQUEST_LATENCY = Histogram(
+    "mai_request_latency_seconds", "Request latency in seconds", ["endpoint", "model"]
+)
+
+TOKEN_USAGE = Counter(
+    "mai_tokens_generated_total", "Total tokens generated", ["model", "endpoint"]
+)
+
 
 def _normalize_endpoint(path: str) -> str:
     parts = []

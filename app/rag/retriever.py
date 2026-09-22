@@ -129,18 +129,14 @@ class AdvancedRetriever:
         top_k: int = 5,
         filters: Dict[str, Any] = None,
         min_score: float = 0.0,
+        collection_name: Optional[str] = None,  # <-- must exist
     ) -> List[Dict]:
-        """
-        Hybrid search with query expansion and deduplication.
-        Gracefully handles Qdrant being unavailable.
-        """
         if not self.qdrant_available:
-            logger.debug("Qdrant not available, returning empty results")
             return []
 
-        collection = self.get_best_collection()
+        collection = collection_name or self.get_best_collection()
         if not collection:
-            logger.warning("No collections available in Qdrant")
+            logger.warning("No collection specified and no default available")
             return []
 
         queries = self.expand_query(query)

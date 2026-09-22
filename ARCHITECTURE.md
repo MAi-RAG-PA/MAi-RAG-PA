@@ -16,100 +16,42 @@ MAi-RAG-PA is a privacy-focused, offline personal AI assistant with:
 ## Directory Structure & File Purposes
 
 ~/MAi-RAG-PA/
+├── alembic/                      # Database migrations
+│   └── versions/                 # Migration scripts
 ├── app/                          # Backend Python application
+│   ├── agents/                   # LLM interaction, system prompts, self-healing
+│   ├── api/                      # API routing (v1)
+│   ├── documents/                # File parsing, chunking, and processing
+│   ├── rag/                      # RAG retrieval, context, and model management
+│   ├── security/                 # Auth, encryption, validation, rate limiting
+│   ├── utils/                    # Logging and utilities
+│   ├── voice/                    # Voice recognition
 │   ├── main.py                   # FastAPI app, ALL endpoints, Pydantic models
-│   │                             # - Routes: /api/* endpoints
-│   │                             # - Models: Request/response validation
-│   │                             # - Orchestration: Connects all components
-│   │
-│   ├── agents/
-│   │   ├── agent_core.py         # LLM interaction layer
-│   │   │                         # - get_llm(): Model instantiation & caching
-│   │   │                         # - get_system_prompt(): System instructions
-│   │   │                         # - process_request(): Main agent loop
-│   │   │                         # - Tool definitions for file operations
-│   │   │
-│   │   └── verifier.py           # Code validation (ast.parse for Python)
-│   │
-│   ├── memory/
-│   │   ├── sqlite_memory.py      # SQLite database operations
-│   │   │                         # - SQLiteMemoryManager class
-│   │   │                         # - Tables: chat_threads, chat_messages, reminders,
-│   │   │                         #           events, todos, user_profile, notes
-│   │   │                         # - Methods: get, save_, delete_*
-│   │   │
-│   │   └── qdrant_manager.py     # Qdrant vector database operations
-│   │                             # - QdrantMemoryManager class
-│   │                             # - Collections: One per document category
-│   │                             # - Methods: ingest_documents(), search(), etc.
-│   │
-│   ├── rag/
-│   │   ├── retriever.py          # RAG retrieval logic
-│   │   │                         # - AdvancedRetriever class
-│   │   │                         # - Query expansion, deduplication
-│   │   │
-│   │   ├── rag_server.py         # RAG-specific endpoints (/api/rag/*)
-│   │   │
-│   │   ├── rag_core.py           # Core RAG operations
-│   │   │
-│   │   ├── context_manager.py    # Context window management
-│   │   │                         # - Token counting, truncation
-│   │   │
-│   │   └── model_manager.py      # Model selection & fallback logic
-│   │
-│   ├── security/
-│   │   ├── auth.py               # API key authentication
-│   │   │                         # - verify_api_key() dependency
-│   │   │
-│   │   ├── encryption.py         # Field-level encryption
-│   │   │                         # - FieldEncryptor class
-│   │   │
-│   │   ├── input_validation.py   # Input sanitization
-│   │   │                         # - sanitize_string(), validate_path()
-│   │   │
-│   │   └── rate_limiter.py       # API rate limiting
-│   │
-│   ├── utils/
-│   │   └── structured_logging.py # Logging configuration
-│   │
-│   ├── websocket_manager.py      # WebSocket connections
-│   │                             # - ConnectionManager class
-│   │                             # - Broadcasts: heartbeat, notifications
-│   │
-│   └── metrics.py                # Prometheus metrics
-│                                 # - REQUEST_COUNT, MODEL_DURATION, etc.
-│
+│   ├── metrics.py                # Prometheus metrics
+│   └── websocket_manager.py      # WebSocket connections
 ├── dev-sandbox/                  # Self-healing workspace (DYNAMICALLY CREATED)
-│   └── MAi-RAG-DEV/              # Staging environment (created on-demand)
-│
+│   └── MAi-RAG-DEV/              # Staging environment (mirrors app/ and frontend/src/)
 ├── frontend/                     # React frontend
-│   ├── src/
-│   │   ├── api/                  # API client modules
-│   │   │   ├── client.ts         # Axios instance with auth
-│   │   │   ├── websocket.ts      # WebSocket client
-│   │   │   └── voice.ts          # Voice transcription
-│   │   │
-│   │   ├── components/           # React components
-│   │   │   ├── ChatConsoleApp.tsx
-│   │   │   ├── ShortTermMemoryApp.tsx
-│   │   │   ├── LongTermMemoryApp.tsx
-│   │   │   ├── CalendarPlannerApp.tsx
-│   │   │   └── ...
-│   │   │
-│   │   ├── hooks/                # Custom React hooks
-│   │   │   └── useChat.ts        # Chat state management
-│   │   │
-│   │   └── App.tsx               # Main app component
-│   │
-│   └── dist/                     # Built frontend (DO NOT MODIFY)
-│
-├── memory/
-│   └── memory_store.db           # SQLite database file
-│
-├── models/                       # Local ML models
-│   └── all-MiniLM-L6-v2/         # Embedding model
-│
-└── workspace/                    # User files & AI workspace
+│   ├── public/                   # Static assets (fonts, sounds, manifest, sw.js)
+│   └── src/                      # Source code
+│       ├── api/                  # API clients (Axios, WebSocket, Voice)
+│       ├── components/           # React components (e.g., chat/ChatConsoleApp.tsx)
+│       ├── contexts/             # React Context API
+│       ├── hooks/                # Custom React hooks
+│       ├── i18n/                 # Internationalization
+│       ├── store/                # State management
+│       ├── styles/               # CSS/Tailwind styles
+│       ├── utils/                # Frontend utilities
+│       ├── App.tsx               # Main app component
+│       └── main.tsx              # Entry point
+├── workspace/                    # User files & AI-generated content
+├── alembic.ini                   # Alembic configuration
+├── ARCHITECTURE.md               # System architecture documentation
+├── first_launch.py               # Initial setup script
+├── install.sh                    # Installation script
+├── requirements.txt              # Python dependencies
+├── start.sh / stop.sh            # Service management scripts
+└── ... (other documentation: README.md, CHANGELOG.md, etc.)
 
 -----------------------------------------------------------------------------------
 
@@ -390,36 +332,30 @@ When fixing errors:
 
 ### Critical Safety Rules (NON-NEGOTIABLE)
 
-1. **WORKING DIRECTORY**: You are STRICTLY CONFINED to ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/
-   - NEVER read, write, or reference files outside this directory
-   - NEVER create subdirectories containing "dev-sandbox" or "MAi-RAG-DEV"
+1. **READ ANYWHERE, WRITE TO SANDBOX**: You CAN read from ANY file under `~/MAi-RAG-PA/` (except forbidden directories) to analyze the live code. You MUST write all fixes and the `SELF_HEALING_LOG.md` ONLY to `~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/` or `~/MAi-RAG-PA/workspace/`.
 
-2. **INFINITE LOOP PREVENTION**:
-   - NEVER recursively copy or move directories
-   - NEVER create symbolic links
-   - Maximum directory depth: 10 levels
-   - Maximum files per operation: 50 files
-   - If you need to process more than 50 files, ask for explicit approval
+2. **MIRROR DIRECTORY STRUCTURE**: When writing a fix to the sandbox, preserve the original path structure relative to the project root (e.g., if you read `~/MAi-RAG-PA/app/main.py`, write the fix to `~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/app/main.py`). NEVER create subdirectories containing "dev-sandbox" or "MAi-RAG-DEV" inside the sandbox.
 
-3. **FORBIDDEN PATHS** (NEVER access these):
-   - ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/dev-sandbox/
-   - ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/venv/
-   - ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/node_modules/
-   - ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/.git/
-   - ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/__pycache__/
-   - Any path containing "dev-sandbox/dev-sandbox"
+3. **INFINITE LOOP PREVENTION**:
+   - NEVER recursively copy or move directories.
+   - NEVER create symbolic links.
+   - Maximum directory depth: 10 levels.
+   - Maximum files per operation: 50 files.
+   - If you need to process more than 50 files, ask for explicit approval.
 
-4. **FILESYSTEM TRAVERSAL LIMITS**:
-   - Maximum recursive depth: 5 levels
-   - Maximum files to read in single operation: 20 files
-   - Maximum files to write in single operation: 10 files
-   - If you exceed these limits, STOP and request approval
+4. **FORBIDDEN PATHS** (NEVER access, read, or write to these):
+   - `venv/`, `env/`, `.venv/`
+   - `node_modules/`
+   - `.git/`
+   - `__pycache__/`
+   - `memory/`, `storage/`, `models/`
+   - `logs/`, `alembic/`, `tests/`, `scripts/`
 
 5. **OPERATION VALIDATION**:
-   - Before any file operation, verify the target path is within allowed boundaries
-   - Use `pathlib.Path.resolve()` to get absolute paths
-   - Verify path starts with ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/
-   - Verify path does NOT contain forbidden patterns
+   - Before any file operation, verify the target path is within allowed boundaries.
+   - Use `pathlib.Path.resolve()` to get absolute paths.
+   - Verify write paths start with `~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/` or `~/MAi-RAG-PA/workspace/`.
+   - Verify paths do NOT contain forbidden patterns.
 
 ### Path Validation Example
 

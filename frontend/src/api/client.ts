@@ -12,7 +12,7 @@ const getBaseUrl = () => {
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: getBaseUrl(),
-  timeout: 120000,
+  timeout: 1800000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -89,19 +89,22 @@ keyReady = (async () => {
 // Request interceptor
 apiClient.interceptors.request.use(
   async (config) => {
-    // Ensure key is ready before sending the request
     await keyReady;
 
     const apiKey = localStorage.getItem(API_KEY_STORAGE_NAME);
+
     if (apiKey) {
       config.headers['X-API-Key'] = apiKey;
     } else {
-      console.warn('[apikey] Sending request WITHOUT API key because it is still null!');
+      console.warn('[apikey] Sending request WITHOUT API key!');
     }
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error("❌ INTERCEPTOR REQUEST ERROR:", error);
+    return Promise.reject(error);
+  }
 );
 
 // Response interceptor: Auto-retry once if we get a 401 (key might have just been generated)
@@ -116,7 +119,6 @@ apiClient.interceptors.response.use(
     // If we get a 401 and haven't retried yet, try fetching the key and retrying
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      console.log('[apikey] Got 401, attempting to fetch API key and retry...');
 
       try {
         await fetchApiKey();

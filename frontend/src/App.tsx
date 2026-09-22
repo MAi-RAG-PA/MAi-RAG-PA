@@ -75,7 +75,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsub = wsClient.on("heartbeat", (data) => {
-      console.log("Heartbeat:", data.status, data.message);
     });
     return unsub;
   }, []);

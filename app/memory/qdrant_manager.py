@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class QdrantMemoryManager:
     def __init__(
         self,
-        host: str = "localhost",
+        host: str = "127.0.0.1",
         port: int = 6333,
         model_name: str = "all-MiniLM-L6-v2",
     ):

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MAi-RAG Personal Assistant</title>
+  <link rel="preload" as="image" href="/mai-rag-logo.png" />
+  <link rel="icon" type="image/svg+xml" href="/mai-rag-logo.png" />
+  <link rel="apple-touch-icon" href="/mai-rag-logo.png" />
+
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0c0f14" />
+  <script>
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+  <style>
+    @font-face {
+      font-family: 'Ubuntu';
+      src: url('/fonts/ubuntu-font-family/Ubuntu-R.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Ubuntu';
+      src: url('/fonts/ubuntu-font-family/Ubuntu-B.ttf') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+    }
+    body, html {
+      font-family: 'Ubuntu', sans-serif;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-10328462.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/vendor-40df999f.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-c2284d6e.js">
+  <link rel="modulepreload" crossorigin href="/assets/utils-dd76482f.js">
+  <link rel="stylesheet" href="/assets/index-66498f0b.css">
+</head>
+<body>
+  <div id="root"></div>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-Fdatabase# Core dependencies
+# Core dependencies
 aiosqlite==0.22.1
 fastapi==0.136.1
 uvicorn==0.22.0

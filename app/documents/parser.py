@@ -105,6 +105,26 @@ def _get_bs4():
 # ---------------------------------------------------------------------------
 
 
+def extract_epub_text(epub_path: Path) -> List[str]:
+    """Extract text from an EPUB file using ebooklib."""
+    try:
+        import ebooklib
+        from bs4 import BeautifulSoup
+        from ebooklib import epub
+    except ImportError:
+        raise ImportError(
+            "Install ebooklib and beautifulsoup4 for EPUB support: pip install ebooklib beautifulsoup4"
+        )
+
+    book = epub.read_epub(str(epub_path))
+    text_parts = []
+    for item in book.get_items():
+        if item.get_type() == ebooklib.ITEM_DOCUMENT:
+            soup = BeautifulSoup(item.get_content(), "html.parser")
+            text_parts.append(soup.get_text())
+    return text_parts
+
+
 def parse_file(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
     """Parse any supported file into (text_chunks, structured_records).
 
@@ -114,6 +134,9 @@ def parse_file(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
     """
     ext = file_path.suffix.lower()
     parser = PARSERS.get(ext)
+
+    if ext == ".epub":
+        return extract_epub_text(file_path), []
 
     if parser is None:
         try:
@@ -168,19 +191,60 @@ def _parse_html(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
 
 
 def _parse_pdf(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:
-    """Extract text page-by-page via PyMuPDF."""
+    """Extract text page-by-page via PyMuPDF. Falls back to OCR if no text found."""
     fitz = _get_pymupdf()
     doc = fitz.open(str(file_path))
     pages: List[str] = []
+
     try:
+        # First pass: try embedded text extraction
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             text = page.get_text("text")
             if text.strip():
                 pages.append(text.strip())
+
+        # If no text found, try OCR on the whole document
+        if not pages:
+            logger.info("No embedded text in %s — attempting OCR", file_path.name)
+            pages = _ocr_pdf(file_path, doc)
+
     finally:
         doc.close()
+
     return pages, []
+
+
+def _ocr_pdf(file_path: Path, doc) -> List[str]:
+    """OCR fallback for scanned PDFs."""
+    try:
+        import io
+
+        import pytesseract
+        from PIL import Image
+    except ImportError:
+        logger.error(
+            "OCR fallback requested but pytesseract/Pillow not installed. "
+            "Install with: pip install pytesseract pillow && sudo apt install tesseract-ocr"
+        )
+        return []
+
+    ocr_pages = []
+    for page_num in range(len(doc)):
+        try:
+            page = doc.load_page(page_num)
+            pix = page.get_pixmap(dpi=200)
+            img_bytes = pix.tobytes("png")
+            img = Image.open(io.BytesIO(img_bytes))
+            text = pytesseract.image_to_string(img)
+            if text.strip():
+                ocr_pages.append(text.strip())
+                logger.debug("OCR page %s: %s chars", page_num + 1, len(text))
+        except Exception as e:
+            logger.warning("OCR failed for page %s: %s", page_num + 1, e)
+
+    logger.info("OCR extracted %s page(s) from %s", len(ocr_pages), file_path.name)
+    return ocr_pages
 
 
 def _parse_docx(file_path: Path) -> Tuple[List[str], List[Dict[str, Any]]]:

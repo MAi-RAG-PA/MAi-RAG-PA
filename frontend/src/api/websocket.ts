@@ -28,7 +28,6 @@ class WSClient {
       this.ws = new WebSocket(this.url);
 
       this.ws.onopen = () => {
-        console.log('[WS] Connected');
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
       };
@@ -51,7 +50,6 @@ class WSClient {
       };
 
       this.ws.onclose = () => {
-        console.log('[WS] Disconnected');
         if (!this.intentionalClose) {
           this.scheduleReconnect();
         }
@@ -74,7 +72,6 @@ class WSClient {
 
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000);
-    console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => this.connect(), delay);
   }

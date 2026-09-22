@@ -11,7 +11,8 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly INSTALL_DIR="$HOME/MAi-RAG-PA"
 readonly GITHUB_REPO="https://github.com/MAi-RAG-PA/MAi-RAG-PA.git"
-readonly MIN_PYTHON_VERSION="3.12"
+readonly MIN_PYTHON_VERSION="3.10"
+readonly MAX_PYTHON_VERSION="3.12"
 readonly MIN_NODE_VERSION="20"
 readonly MIN_OLLAMA_VERSION="0.30"
 readonly MIN_QDRANT_VERSION="1.17"
@@ -183,37 +184,42 @@ check_disk_space() {
 check_python_version() {
     info "Checking Python version..."
 
-    # Prefer python3.12 if available (common on macOS via Homebrew)
-    local python_cmd="python3"
-    if command -v python3.12 &> /dev/null; then
-        python_cmd="python3.12"
-    elif command -v python3 &> /dev/null; then
-        python_cmd="python3"
-    else
-        return 1
-    fi
+    # Try to find a compatible python command (3.12, 3.11, 3.10, or default python3)
+    local python_cmd=""
+    local version=""
 
-    local version
-    version=$("$python_cmd" --version 2>&1 | awk '{print $2}')
-    local major minor
-    major=$(echo "$version" | cut -d. -f1)
-    minor=$(echo "$version" | cut -d. -f2)
+    for cmd in python3.12 python3.11 python3.10 python3; do
+        if command -v "$cmd" &> /dev/null; then
+            local ver=$("$cmd" --version 2>&1 | awk '{print $2}')
+            local maj=$(echo "$ver" | cut -d. -f1)
+            local min=$(echo "$ver" | cut -d. -f2)
 
-    local req_major req_minor
-    req_major=$(echo "$MIN_PYTHON_VERSION" | cut -d. -f1)
-    req_minor=$(echo "$MIN_PYTHON_VERSION" | cut -d. -f2)
+            local req_min_maj=$(echo "$MIN_PYTHON_VERSION" | cut -d. -f1)
+            local req_min_min=$(echo "$MIN_PYTHON_VERSION" | cut -d. -f2)
+            local req_max_maj=$(echo "$MAX_PYTHON_VERSION" | cut -d. -f1)
+            local req_max_min=$(echo "$MAX_PYTHON_VERSION" | cut -d. -f2)
 
-    if [ "$major" -lt "$req_major" ] || ([ "$major" -eq "$req_major" ] && [ "$minor" -lt "$req_minor" ]); then
-        warn "Python $version found via $python_cmd, but $MIN_PYTHON_VERSION+ required"
-
-        if [[ "$OS" == "macos" ]]; then
-            echo -e "${YELLOW}Tip: Run 'brew install python@3.12' and ensure it's in your PATH.${NC}"
+            # Check if version is within acceptable range [MIN, MAX]
+            if [ "$maj" -ge "$req_min_maj" ] && [ "$maj" -le "$req_max_maj" ]; then
+                if [ "$maj" -eq "$req_min_maj" ] && [ "$min" -lt "$req_min_min" ]; then
+                    continue # Too old
+                fi
+                if [ "$maj" -eq "$req_max_maj" ] && [ "$min" -gt "$req_max_min" ]; then
+                    continue # Too new (e.g., Python 3.13/3.14)
+                fi
+                python_cmd="$cmd"
+                version="$ver"
+                break
+            fi
         fi
+    done
+
+    if [ -z "$python_cmd" ]; then
+        warn "No compatible Python version found (Requires $MIN_PYTHON_VERSION - $MAX_PYTHON_VERSION)."
         return 1
     fi
 
-    success "Python $version detected"
-    # Export the detected command so the rest of the script uses the correct one
+    success "Python $version detected via $python_cmd"
     export DETECTED_PYTHON="$python_cmd"
     return 0
 }
@@ -332,8 +338,8 @@ install_dependencies() {
     step "Installing System Dependencies"
 
     case $OS in
-        "ubuntu"|"debian"|"linuxmint"|"pop"|"elementary"|"zorin")
-            info "Installing dependencies for Debian/Ubuntu..."
+        "ubuntu"|"debian"|"linuxmint"|"pop"|"elementary"|"zorin"|"rhinolinux")
+            info "Installing dependencies for Debian/Ubuntu/Rhino..."
 
             # Update package lists
             sudo apt update || error "Failed to update package lists"
@@ -353,6 +359,18 @@ install_dependencies() {
             fi
 
             sudo apt install -y python3 python3-pip python3-venv nodejs npm git curl || error "Failed to install dependencies"
+
+            # Bleeding-edge distro fallback: If default python3 is too new (e.g., 3.13+), try to grab 3.12
+            if ! check_python_version; then
+                info "System Python is outside the supported range ($MIN_PYTHON_VERSION - $MAX_PYTHON_VERSION)."
+                info "Attempting to install python3.12 explicitly..."
+                if sudo apt install -y python3.12 python3.12-venv python3.12-dev; then
+                    success "Python 3.12 installed successfully."
+                else
+                    warn "Failed to install python3.12 via apt."
+                    warn "Your distribution may be too new (bleeding edge). You may need to install Python $MAX_PYTHON_VERSION manually."
+                fi
+            fi
             ;;
 
         "fedora"|"rhel"|"centos"|"rocky"|"alma")
@@ -947,6 +965,14 @@ main() {
         ollama pull codeqwen:7b || warn "Failed to pull codeqwen:7b - STM parsing may not work"
     else
         success "codeqwen:7b already installed"
+    fi
+
+    # Pull embedding model (REQUIRED for RAG)
+    if ! ollama list 2>/dev/null | grep -q "nomic-embed-text"; then
+        info "Pulling nomic-embed-text (RAG embedding model)..."
+        ollama pull nomic-embed-text:latest || error "Failed to pull nomic-embed-text - RAG will not work"
+    else
+        success "nomic-embed-text already installed"
     fi
 
     success "AI models ready"

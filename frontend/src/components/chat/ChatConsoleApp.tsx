@@ -1,6 +1,7 @@
 // frontend/src/components/chat/ChatConsoleApp.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import apiClient from '../../api/client';
+import RolesModal, { Role } from './RolesModal';
 
 interface Message {
   id: string;
@@ -8,6 +9,7 @@ interface Message {
   text: string;
   filename?: string;
   model?: string;
+  roleId?: string;   // ← NEW
   timestamp: number;
 }
 
@@ -17,6 +19,7 @@ interface ChatThread {
   messages: Message[];
   createdAt: number;
   lastUpdated: number;
+  roleId?: string;
 }
 
 const useIsMobile = () => {
@@ -40,6 +43,7 @@ const cleanAIResponse = (text: string): string => {
   cleaned = cleaned.replace(/<\|start\|>.*?<\|channel\|>/g, '');
   cleaned = cleaned.replace(/<\|.*?\|>/g, '');
   cleaned = cleaned.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '');
   cleaned = cleaned.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '');
   cleaned = cleaned.replace(/```thinking[\s\S]*?```/gi, '');
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
@@ -48,16 +52,23 @@ const cleanAIResponse = (text: string): string => {
 
 const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showToast }) => {
   const isMobile = useIsMobile();
+  const [citationsEnabled, setCitationsEnabled] = useState(true);
+  const [loadingHint, setLoadingHint] = useState<string>('');
 
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string>('');
   const [input, setInput] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filename, setFilename] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [isLoadingThreads, setIsLoadingThreads] = useState(true);
   const [isRefreshingResources, setIsRefreshingResources] = useState(false);
+  const [ltmEnabled, setLtmEnabled] = useState(false);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [activeRoleId, setActiveRoleId] = useState<string>('');
+  const [rolesModalOpen, setRolesModalOpen] = useState(false);
 
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -82,14 +93,86 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const currentThread = threads.find(t => t.id === currentThreadId);
   const messages = currentThread?.messages || [];
+
+  const connectWebSocket = () => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    const wsUrl = `ws://${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+      console.log('✅ WebSocket connected to', wsUrl);
+      heartbeatIntervalRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30000);
+    };
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'ingest_progress') {
+          console.log('📡 Ingest Progress:', data);
+        } else if (data.type === 'ingest_complete') {
+          console.log('✅ Ingest complete:', data);
+          showToast(`✓ ${data.total_chunks} chunks from ${data.files_processed} file(s)`);
+        } else if (data.type === 'notification') {
+          showToast(`${data.title}: ${data.message}`);
+        } else if (data.type === 'heartbeat') {
+          console.log('💓 Heartbeat:', data.status);
+        } else if (data.type === 'pong') {
+          // Backend acknowledged ping
+        }
+      } catch (err) {
+        console.error('Failed to parse WebSocket message:', err);
+      }
+    };
+    ws.onclose = () => {
+      console.log('⚠️ WebSocket disconnected, reconnecting in 5s...');
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
+    };
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+    wsRef.current = ws;
+  };
 
   useEffect(() => {
     if (chatLogContainerRef.current) {
       chatLogContainerRef.current.scrollTop = chatLogContainerRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  // Show escalating hints while a request is in flight
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingHint('');
+      return;
+    }
+
+    const t5 = setTimeout(() => {
+      setLoadingHint('Model is loading. First request may take 1–2 minutes.');
+    }, 5000);
+
+    const t30 = setTimeout(() => {
+      setLoadingHint('Still working — large models on CPU can take several minutes.');
+    }, 30000);
+
+    const t120 = setTimeout(() => {
+      setLoadingHint('Almost there — still generating.');
+    }, 120000);
+
+    return () => {
+      clearTimeout(t5);
+      clearTimeout(t30);
+      clearTimeout(t120);
+    };
+  }, [isLoading]);
 
   useEffect(() => {
     if (isMobile) setIsSidebarOpen(false);
@@ -98,6 +181,16 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   useEffect(() => {
     loadThreadsFromBackend();
     fetchModels();
+    loadRoles();
+  }, []);
+
+  useEffect(() => {
+    connectWebSocket();
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -105,7 +198,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       try {
         const response = await apiClient.get('/api/system/protected-models');
         const missingModels = response.data.protected_models.filter((m: any) => !m.installed);
-
         if (missingModels.length > 0) {
           const warnings = missingModels.map((m: any) => m.warning).join('\n');
           setProtectedModelsWarning(warnings);
@@ -115,7 +207,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         console.error('Failed to check protected models:', err);
       }
     };
-
     checkProtectedModels();
   }, []);
 
@@ -129,11 +220,8 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         setSwapUsed(res.data.swap_used || 0);
         setSwapTotal(res.data.swap_total || 0);
         setSwapPercent(res.data.swap_percent || 0);
-
         const cpuRes = await apiClient.get('/api/system/cpu');
         setCpuPercent(cpuRes.data.percent || 0);
-
-        // GPU Fetch integrated here
         const gpuRes = await apiClient.get('/api/system/gpu');
         if (gpuRes.data.available) {
           setGpuAvailable(true);
@@ -146,10 +234,18 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         console.error('Failed to fetch system resources:', err);
       }
     };
-
     fetchSystemResources();
     const interval = setInterval(fetchSystemResources, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    connectWebSocket();
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+    };
   }, []);
 
   const refreshSystemResources = async () => {
@@ -159,7 +255,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       const ramResponse = await apiClient.get('/api/system/ram');
       const cpuResponse = await apiClient.get('/api/system/cpu');
       const gpuResponse = await apiClient.get('/api/system/gpu');
-
       setRamUsed(Number(ramResponse.data.used) || 0);
       setRamTotal(Number(ramResponse.data.total) || 0);
       setRamPercent(Number(ramResponse.data.percent) || 0);
@@ -167,7 +262,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       setSwapTotal(Number(ramResponse.data.swap_total) || 0);
       setSwapPercent(Number(ramResponse.data.swap_percent) || 0);
       setCpuPercent(Number(cpuResponse.data.percent) || 0);
-
       if (gpuResponse.data.available) {
         setGpuAvailable(true);
         setGpuPercent(gpuResponse.data.utilization_percent || 0);
@@ -175,7 +269,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       } else {
         setGpuAvailable(false);
       }
-
       showToast('System resources updated');
     } catch (err: any) {
       console.error('Failed to refresh system resources:', err);
@@ -198,12 +291,9 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         const chatModels = response.data.models.filter((model: string) =>
           !embeddingPatterns.some(p => model.toLowerCase().includes(p))
         );
-
         setAvailableModels(chatModels);
-
         const savedCurrent = localStorage.getItem('mai-rag-current-model');
         const savedDefault = localStorage.getItem('mai-rag-default-model');
-
         if (savedCurrent && chatModels.includes(savedCurrent)) {
           setSelectedModel(savedCurrent);
         } else if (savedDefault && chatModels.includes(savedDefault)) {
@@ -218,85 +308,138 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     }
   };
 
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newModel = e.target.value;
-    const makeDefault = window.confirm(`Set "${newModel}" as your default model?`);
-    setSelectedModel(newModel);
-    localStorage.setItem('mai-rag-current-model', newModel);
-    if (makeDefault) {
-      localStorage.setItem('mai-rag-default-model', newModel);
-      apiClient
-        .post('/api/settings/default-model', { model: newModel })
-        .then(() => showToast('Default model updated'))
-        .catch(() => showToast('Failed to save default model'));
+const loadRoles = async () => {
+  try {
+    const [rolesRes, activeRes] = await Promise.all([
+      apiClient.get('/api/v1/roles'),
+      apiClient.get('/api/v1/roles/active'),
+    ]);
+    setRoles(rolesRes.data || []);
+    const active = activeRes.data;
+    // active may be null OR { id, name, ... } depending on your response shape
+    const activeId = active?.id || active?.active_role_id || '';
+    setActiveRoleId(activeId);
+    if (activeId) {
+      localStorage.setItem('mai-rag-active-role', activeId);
+    } else {
+      localStorage.removeItem('mai-rag-active-role');
     }
-  };
+  } catch (err) {
+    console.error('Failed to load roles:', err);
+  }
+};
+
+const handleRoleChange = async (newRoleId: string) => {
+  try {
+    if (newRoleId) {
+      await apiClient.post(`/api/v1/roles/${newRoleId}/activate`);
+      setActiveRoleId(newRoleId);
+      localStorage.setItem('mai-rag-active-role', newRoleId);
+      const role = roles.find(r => r.id === newRoleId);
+      showToast(`Role activated: ${role?.name || newRoleId}`);
+    } else {
+      // Deactivate — call activate with empty id, or pick 'default'
+      await apiClient.post(`/api/v1/roles/default/activate`);
+      setActiveRoleId('default');
+      localStorage.setItem('mai-rag-active-role', 'default');
+      showToast('Switched to Default role');
+    }
+  } catch (err: any) {
+    console.error('Failed to switch role:', err);
+    showToast(`Role switch failed: ${err.response?.data?.detail || err.message}`);
+  }
+};
+
+const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const newModel = e.target.value;
+  setSelectedModel(newModel);
+  localStorage.setItem('mai-rag-current-model', newModel);
+
+  // Fire a warmup request in the background. Non-blocking; ignore failures.
+  apiClient
+    .post('/api/models/warmup', { model: newModel }, { timeout: 240000 })
+    .then(() => console.log(`🔥 Model warmed: ${newModel}`))
+    .catch((err: any) => console.warn(`🔥 Warmup failed (non-fatal):`, err?.message));
+
+  const makeDefault = window.confirm(`Set "${newModel}" as your default model?`);
+  if (makeDefault) {
+    localStorage.setItem('mai-rag-default-model', newModel);
+    apiClient
+      .post('/api/settings/default-model', { model: newModel }, { timeout: 30000 })
+      .then(() => showToast('Default model updated successfully'))
+      .catch((err: any) => {
+        console.error('Failed to save default model:', err);
+        const errorMsg =
+          err.response?.data?.detail || err.message || 'Unknown error';
+        showToast(`Failed to save default model: ${errorMsg}`);
+      });
+  }
+};
 
   const loadThreadsFromBackend = async () => {
     setIsLoadingThreads(true);
     try {
       const threadsRes = await apiClient.get('/api/memory/sqlite/chat/threads');
       const threadsData = threadsRes.data.threads || [];
-
-      console.log(`[CHAT] Loaded ${threadsData.length} threads from backend`);
-
-      if (threadsData.length === 0) {
-        console.log('[CHAT] No threads found, creating new thread');
-        await createNewThread();
-        setIsLoadingThreads(false);
-        return;
-      }
-
       const threadsWithMessages = await Promise.all(
         threadsData.map(async (thread: any) => {
           try {
             const messagesRes = await apiClient.get(`/api/memory/sqlite/chat/messages/${thread.id}`);
             const msgs = messagesRes.data.messages || [];
-
-            console.log(`[CHAT] Thread ${thread.id}: ${msgs.length} messages`);
-
-            const mappedMessages = msgs.map((msg: any) => ({
-              id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              from: msg.from === 'user' ? 'user' : 'ai',
-              text: msg.text || msg.content || '',
-              filename: msg.filename || undefined,
-              model: msg.model && msg.model !== 'default' && msg.model !== 'unknown'
-                ? msg.model
-                : localStorage.getItem('mai-rag-current-model') || selectedModel,
-              timestamp: msg.timestamp && msg.timestamp > 1e12 ? msg.timestamp : Date.now(),
-            }));
-
+            const mappedMessages = msgs.map((msg: any) => {
+              let parsedTimestamp = Date.now();
+              if (msg.timestamp && msg.timestamp > 0) {
+                const ts = new Date(msg.timestamp).getTime();
+                if (!isNaN(ts) && ts > 0) parsedTimestamp = ts;
+              }
+              return {
+                id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                from: msg.from === 'user' || msg.role === 'user' ? 'user' : 'ai',
+                text: msg.text || msg.content || '',
+                filename: msg.filename || undefined,
+                model: msg.model && msg.model !== 'default' && msg.model !== 'unknown'
+                  ? msg.model
+                  : localStorage.getItem('mai-rag-current-model') || selectedModel,
+                roleId: msg.role_id || undefined,   // ← NEW
+                timestamp: parsedTimestamp,
+              };
+            });
             return {
               id: thread.id,
               title: thread.title,
               messages: mappedMessages,
               createdAt: new Date(thread.created_at).getTime(),
               lastUpdated: new Date(thread.last_message_at || thread.created_at).getTime(),
+              roleId: thread.role_id || undefined,
             };
           } catch (err) {
             console.error(`[CHAT] Failed to load messages for thread ${thread.id}:`, err);
-            return {
-              id: thread.id,
-              title: thread.title,
-              messages: [],
-              createdAt: new Date(thread.created_at).getTime(),
-              lastUpdated: new Date(thread.last_message_at || thread.created_at).getTime(),
-            };
+            return { id: thread.id, title: thread.title, messages: [], createdAt: Date.now(), lastUpdated: Date.now() };
           }
         })
       );
-
       setThreads(threadsWithMessages);
-      const firstThread = threadsWithMessages[0];
-      if (firstThread) {
-        setCurrentThreadId(firstThread.id);
-        console.log(`[CHAT] Set current thread to ${firstThread.id}`);
+      const savedThreadId = localStorage.getItem('mai-rag-current-thread-id');
+      if (savedThreadId && threadsWithMessages.some(t => t.id === savedThreadId)) {
+        console.log("✅ Restored active thread from localStorage:", savedThreadId);
+        setCurrentThreadId(savedThreadId);
+      } else if (threadsWithMessages.length > 0) {
+        console.log("⚠️ Saved thread not found, falling back to first available:", threadsWithMessages[0].id);
+        setCurrentThreadId(threadsWithMessages[0].id);
+        localStorage.setItem('mai-rag-current-thread-id', threadsWithMessages[0].id);
+      } else {
+        console.log("🆕 No threads exist, creating new one.");
+        await createNewThread();
       }
     } catch (err) {
       console.error('[CHAT] Failed to load threads from backend:', err);
       showToast('Failed to load chat history from database');
-      if (threads.length === 0) {
+      const savedThreadId = localStorage.getItem('mai-rag-current-thread-id');
+      if (!savedThreadId) {
         await createNewThread();
+      } else {
+        console.log("🔄 Backend fetch failed, but trusting localStorage ID:", savedThreadId);
+        setCurrentThreadId(savedThreadId);
       }
     } finally {
       setIsLoadingThreads(false);
@@ -305,6 +448,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
 
   const createNewThread = async () => {
     const newThreadId = Date.now().toString();
+    localStorage.setItem('mai-rag-current-thread-id', newThreadId);
     const newThread: ChatThread = {
       id: newThreadId,
       title: 'New Chat',
@@ -318,13 +462,15 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       createdAt: Date.now(),
       lastUpdated: Date.now()
     };
-
     try {
-      await apiClient.post('/api/memory/sqlite/chat/thread', { id: newThreadId, title: 'New Chat' });
+      await apiClient.post('/api/memory/sqlite/chat/thread', {
+        id: newThreadId,
+        title: 'New Chat',
+        role_id: activeRoleId || null,
+      });
     } catch (err) {
       console.error('Failed to create thread in database:', err);
     }
-
     setThreads(prev => [newThread, ...prev]);
     setCurrentThreadId(newThreadId);
     setIsSidebarOpen(false);
@@ -334,20 +480,19 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const deleteThread = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Delete this chat thread?')) return;
-
     try {
-      // DEBUG: Check exactly what is in localStorage right now
-      const debugKey = localStorage.getItem('mai-rag-api-key');
-      console.log('🚨 DEBUG DELETE: localStorage key is:', debugKey);
-
       await apiClient.delete(`/api/memory/sqlite/chat/thread/${id}`);
-
       setThreads(prev => prev.filter(t => t.id !== id));
-
       if (currentThreadId === id) {
         const remaining = threads.filter(t => t.id !== id);
-        setCurrentThreadId(remaining.length > 0 ? remaining[0].id : '');
-        if (remaining.length === 0) createNewThread();
+        const nextId = remaining.length > 0 ? remaining[0].id : '';
+        setCurrentThreadId(nextId);
+        if (nextId) {
+          localStorage.setItem('mai-rag-current-thread-id', nextId);
+        } else {
+          localStorage.removeItem('mai-rag-current-thread-id');
+          createNewThread();
+        }
       }
       showToast('Thread deleted permanently');
     } catch (err: any) {
@@ -364,21 +509,17 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       });
       streamRef.current = stream;
       audioChunksRef.current = [];
-
       const audioContext = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioContext;
-
       const source = audioContext.createMediaStreamSource(stream);
       const scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
       scriptProcessorRef.current = scriptProcessor;
-
       scriptProcessor.onaudioprocess = event => {
         const inputData = event.inputBuffer.getChannelData(0);
         const chunk = new Float32Array(inputData.length);
         chunk.set(inputData);
         audioChunksRef.current.push(chunk);
       };
-
       source.connect(scriptProcessor);
       scriptProcessor.connect(audioContext.destination);
       setIsRecording(true);
@@ -391,7 +532,6 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
 
   const stopRecording = async () => {
     if (!isRecording) return;
-
     try {
       if (scriptProcessorRef.current) {
         scriptProcessorRef.current.disconnect();
@@ -405,10 +545,8 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         await audioContextRef.current.close();
         audioContextRef.current = null;
       }
-
       setIsRecording(false);
       showToast('Processing audio...');
-
       const totalLength = audioChunksRef.current.reduce((acc, chunk) => acc + chunk.length, 0);
       const audioData = new Float32Array(totalLength);
       let offset = 0;
@@ -416,19 +554,16 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
         audioData.set(chunk, offset);
         offset += chunk.length;
       }
-
       const pcmData = new Int16Array(audioData.length);
       for (let i = 0; i < audioData.length; i++) {
         const s = Math.max(-1, Math.min(1, audioData[i]));
         pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
-
       const wavBuffer = new ArrayBuffer(44 + pcmData.length * 2);
       const view = new DataView(wavBuffer);
       const writeString = (offset: number, string: string) => {
         for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
       };
-
       writeString(0, 'RIFF');
       view.setUint32(4, 36 + pcmData.length * 2, true);
       writeString(8, 'WAVE');
@@ -442,9 +577,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       view.setUint16(34, 16, true);
       writeString(36, 'data');
       view.setUint32(40, pcmData.length * 2, true);
-
       const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
-
       try {
         const formData = new FormData();
         formData.append('file', wavBlob, 'recording.wav');
@@ -491,19 +624,37 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) {
-      console.warn('[CHAT] Send blocked:', { input: input.trim(), isLoading });
-      return;
-    }
+    console.log("SEND MESSAGE TRIGGERED");
+    console.log("currentThreadId is:", currentThreadId);
+    console.log("input is:", input);
 
+    if (!input.trim() || isLoading) return;
     if (!currentThreadId) {
-      console.error('[CHAT] No current thread ID!');
       showToast('Error: No active chat thread');
       return;
     }
 
+    console.log("📤 SENDING MESSAGE with thread_id:", currentThreadId);
+
     abortControllerRef.current = new AbortController();
     const extractedFilename = extractFilename(input);
+
+    let fileBase64 = null;
+    if (selectedFile) {
+      try {
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(selectedFile);
+        });
+        fileBase64 = dataUrl.split(',')[1];
+        console.log(`📎 File loaded: ${selectedFile.name} (${selectedFile.size} bytes)`);
+      } catch (err) {
+        console.error('Failed to read file:', err);
+        showToast('Failed to read file: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      }
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -511,125 +662,76 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       text: input,
       filename: extractedFilename || undefined,
       model: selectedModel,
+      roleId: activeRoleId || undefined,   // ← NEW
       timestamp: Date.now(),
     };
 
-    console.log('[CHAT] Adding user message to state:', userMsg);
-
-   // Update local state
-    setThreads(prev => {
-      const updated = prev.map(t =>
-        t.id === currentThreadId
-          ? {
-              ...t,
-              messages: [...t.messages, userMsg],
-              lastUpdated: Date.now(),
-              title: t.messages.length === 0 ? input.slice(0, 30) : t.title,
-            }
-          : t
-      );
-      console.log('[CHAT] Updated threads state:', updated);
-      return updated;
-    });
+    setThreads(prev => prev.map(t =>
+      t.id === currentThreadId
+        ? {
+          ...t,
+          messages: [...t.messages, userMsg],
+          lastUpdated: Date.now(),
+          title: t.messages.length === 0 ? input.slice(0, 30) : t.title,
+        }
+        : t
+    ));
 
     const currentInput = input;
     setInput('');
     setIsLoading(true);
 
     try {
-      // =================================================================
-      // SAVE THREAD AND USER MESSAGE TO DATABASE
-      // =================================================================
-      try {
-        console.log('[CHAT] Saving thread to database...');
-        await apiClient.post('/api/memory/sqlite/chat/thread', {
-          id: currentThreadId,
-          title: currentThread?.title || 'New Chat',
-        });
-
-        console.log('[CHAT] Saving user message to database...');
-        await apiClient.post('/api/memory/sqlite/chat/message', {
-          thread_id: currentThreadId,
-          role: 'user',
-          content: currentInput,
-          model: selectedModel,
-          timestamp: userMsg.timestamp,
-        });
-        console.log('[CHAT] ✓ User message saved to database');
-      } catch (saveErr: any) {
-        console.error('[CHAT] Failed to save user message:', saveErr);
-        showToast('Failed to save message to database');
+      const payload: any = {
+        query: currentInput,
+        thread_id: currentThreadId,
+        model: selectedModel,
+        ltm_enabled: ltmEnabled,
+        citations_enabled: citationsEnabled,
+        role_id: activeRoleId || undefined,   // ← NEW
+      };
+      if (activeRoleId) {
+        payload.role_id = activeRoleId;
       }
 
-      // =================================================================
-      // SEND TO LLM
-      // =================================================================
-      const payload = extractedFilename
-        ? { query: currentInput, filename: extractedFilename, model: selectedModel }
-        : { query: currentInput, model: selectedModel };
+      if (extractedFilename) {
+        payload.filename = extractedFilename;
+      }
 
-      console.log('[CHAT] Sending to /api/chat:', payload);
+      if (selectedFile && fileBase64) {
+        payload.file_content = fileBase64;
+        payload.file_name = selectedFile.name;
+      }
 
       const response = await apiClient.post('/api/chat', payload, {
         signal: abortControllerRef.current.signal,
-        timeout: 3600000,
+        timeout: 7200000,
       });
 
-      console.log('[CHAT] Received response:', response.data);
-
-      const content =
-        response.data?.content ||
-        response.data?.message ||
-        response.data?.response ||
-        response.data?.text ||
-        (typeof response.data === 'string' ? response.data : JSON.stringify(response.data));
+      const content = response.data?.content || response.data?.message || response.data?.response || '';
 
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         from: 'ai',
         text: cleanAIResponse(content),
         model: response.data?.model || selectedModel,
+        roleId: activeRoleId || undefined,   // ← NEW
         timestamp: Date.now(),
       };
 
-      console.log('[CHAT] Adding AI message to state:', aiMsg);
+      setThreads(prev => prev.map(t =>
+        t.id === currentThreadId
+          ? { ...t, messages: [...t.messages, aiMsg], lastUpdated: Date.now() }
+          : t
+      ));
 
-      // Update local state with AI response
-      setThreads(prev => {
-        const updated = prev.map(t =>
-          t.id === currentThreadId
-            ? { ...t, messages: [...t.messages, aiMsg], lastUpdated: Date.now() }
-            : t
-        );
-        console.log('[CHAT] Updated threads with AI response:', updated);
-        return updated;
-      });
-
-      // =================================================================
-      // SAVE AI MESSAGE TO DATABASE
-      // =================================================================
-      try {
-        console.log('[CHAT] Saving AI message to database...');
-        await apiClient.post('/api/memory/sqlite/chat/message', {
-          thread_id: currentThreadId,
-          role: 'assistant',
-          content: aiMsg.text,
-          model: aiMsg.model,
-          timestamp: aiMsg.timestamp,
-        });
-        console.log('[CHAT] ✓ AI message saved to database');
-      } catch (saveErr: any) {
-        console.error('[CHAT] Failed to save AI message:', saveErr);
-        showToast('Failed to save AI response to database');
-      }
-
-      if (filename) setFilename('');
+      setSelectedFile(null);
+      setFilename('');
 
     } catch (error: any) {
       console.error('[CHAT] Request failed:', error);
-      if (error.name !== 'AbortError' && error.code !== 'ERR_CANCELED') {
+      if (error.name !== 'AbortError') {
         const errorMsg = error.response?.data?.detail || error.message || 'Connection error';
-
         const errorMsgObj: Message = {
           id: (Date.now() + 1).toString(),
           from: 'ai',
@@ -637,15 +739,11 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           model: selectedModel,
           timestamp: Date.now(),
         };
-
-        setThreads(prev =>
-          prev.map(t =>
-            t.id === currentThreadId
-              ? { ...t, messages: [...t.messages, errorMsgObj], lastUpdated: Date.now() }
-              : t
-          )
-        );
-        showToast('Request failed');
+        setThreads(prev => prev.map(t =>
+          t.id === currentThreadId
+            ? { ...t, messages: [...t.messages, errorMsgObj], lastUpdated: Date.now() }
+            : t
+        ));
       }
     } finally {
       setIsLoading(false);
@@ -752,12 +850,20 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
                       onClick={() => {
                         setCurrentThreadId(thread.id);
                         if (isMobile) setIsSidebarOpen(false);
+                        // Auto-restore the thread's role
+                        if (thread.roleId && thread.roleId !== activeRoleId) {
+                          handleRoleChange(thread.roleId);
+                        }
                       }}
                       onKeyDown={e => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
                           setCurrentThreadId(thread.id);
                           if (isMobile) setIsSidebarOpen(false);
+                          // Auto-restore the thread's role
+                          if (thread.roleId && thread.roleId !== activeRoleId) {
+                            handleRoleChange(thread.roleId);
+                          }
                         }
                       }}
                       role="listitem"
@@ -905,6 +1011,52 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
               {availableModels.length > 0 ? availableModels.map(model => <option key={model} value={model}>{model}</option>) : <option value="" disabled>Loading models...</option>}
             </select>
 
+            <select
+              value={activeRoleId}
+              onChange={e => handleRoleChange(e.target.value)}
+              className="chip"
+              aria-label="Select role"
+              style={{
+                padding: isMobile ? '4px 8px' : '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--line)',
+                background: 'rgba(255,255,255,0.04)',
+                color: 'var(--text)',
+                fontSize: isMobile ? '0.8rem' : '0.9rem',
+                cursor: 'pointer',
+                outline: 'none',
+                minWidth: isMobile ? '110px' : '150px',
+                height: '28px',
+              }}
+            >
+              {roles.length === 0 && <option value="">No roles</option>}
+              {roles.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => setRolesModalOpen(true)}
+              className="chip"
+              aria-label="Manage roles"
+              title="Manage Roles"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--line)',
+                color: 'var(--text)',
+                borderRadius: '8px',
+                padding: isMobile ? '4px 10px' : '6px 12px',
+                cursor: 'pointer',
+                fontSize: isMobile ? '0.75rem' : '0.85rem',
+                fontWeight: 500,
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              ⚙ Roles
+            </button>
+
             {protectedModelsWarning && (
               <div style={{
                 fontSize: '0.75rem',
@@ -938,14 +1090,26 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
                 <div style={{ maxWidth: '75%', padding: '10px 14px', borderRadius: '12px', background: msg.from === 'user' ? 'var(--accent)' : 'rgba(255,255,255,0.08)', color: msg.from === 'user' ? '#000' : 'var(--text)', wordBreak: 'break-word', lineHeight: 1.5, position: 'relative' }}>
                   <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
                   <div style={{ fontSize: '0.65rem', opacity: 0.6, marginTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>
+                      {(() => {
+                        const msgDate = new Date(msg.timestamp);
+                        const now = new Date();
+                        const isToday = msgDate.getUTCFullYear() === now.getUTCFullYear() &&
+                                        msgDate.getUTCMonth() === now.getUTCMonth() &&
+                                        msgDate.getUTCDate() === now.getUTCDate();
+                        if (isToday) {
+                          return msgDate.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }) + ' UTC';
+                        } else {
+                          return msgDate.toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' UTC';
+                        }
+                      })()}
+                    </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {msg.from === 'ai' && msg.model && msg.model !== 'system' && (
                         <span style={{ fontFamily: 'monospace', fontSize: '0.6rem', opacity: 0.8, background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: '4px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {msg.model}
                         </span>
                       )}
-                      {/* Copy Button */}
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(msg.text).then(() => {
@@ -985,44 +1149,117 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
             ))}
 
             {isLoading && (
-              <div style={{ display: 'flex', justifyContent: 'flex-start', padding: '8px 14px', color: 'var(--accent)', fontSize: '0.85rem', alignItems: 'center', gap: '8px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 1.5s infinite' }} />
-                LLM is thinking...
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '8px 14px', color: 'var(--accent)', fontSize: '0.85rem', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 1.5s infinite' }} />
+                  {loadingHint || 'LLM is thinking...'}
+                </div>
+                {loadingHint && (
+                  <div style={{ fontSize: '0.75rem', opacity: 0.7, paddingLeft: '16px' }}>
+                    This is normal on first use after switching models.
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           <div style={{ padding: isMobile ? '8px 10px' : '10px 16px', borderTop: '1px solid var(--line)', background: 'rgba(0,0,0,0.1)', flexShrink: 0, zIndex: 10 }}>
             {!isMobile && (
-              <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }} role="group" aria-label="File attachment">
+              <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }} role="group" aria-label="File attachment and LTM toggle">
                 <label htmlFor="fileUpload" className="chip" style={{ fontSize: '0.8rem', color: 'var(--text)', cursor: 'pointer', padding: '4px 10px', borderRadius: '6px', border: '1px dashed var(--line)', background: 'rgba(255,255,255,0.02)', height: '26px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-                  Attach file
-                </label>
-                <input
-                  id="fileUpload"
-                  type="file"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setFilename(file.name);
-                      showToast(`Selected: ${file.name}`);
-                    }
+				  Attach file
+				</label>
+				<input
+				  id="fileUpload"
+				  type="file"
+				  onChange={e => {
+					const file = e.target.files?.[0];
+					if (file) {
+					  setSelectedFile(file);
+					  setFilename(file.name);
+					  showToast(`Selected: ${file.name}`);
+					}
+				  }}
+				  style={{ display: 'none' }}
+				  aria-label="Upload file"
+				/>
+
+				{/* Slim LTM Button – Red/Green state */}
+				<button
+				  onClick={() => setLtmEnabled(!ltmEnabled)}
+				  style={{
+					height: '26px',
+					padding: '0 12px',
+					borderRadius: '6px',
+					border: '1px solid transparent',
+					background: ltmEnabled ? '#238636' : '#da3633', // green/red
+					color: '#fff',
+					fontSize: '0.8rem',
+					fontWeight: 500,
+					cursor: 'pointer',
+					transition: 'background 0.2s, transform 0.1s, box-shadow 0.2s',
+					whiteSpace: 'nowrap',
+					display: 'flex',
+					alignItems: 'center',
+					boxShadow: ltmEnabled ? '0 0 10px rgba(35, 134, 54, 0.3)' : '0 0 8px rgba(218, 54, 51, 0.2)',
+				  }}
+				  onMouseEnter={e => {
+					e.currentTarget.style.background = ltmEnabled ? '#2ea043' : '#f85149';
+					e.currentTarget.style.transform = 'scale(1.02)';
+					e.currentTarget.style.boxShadow = ltmEnabled
+					  ? '0 0 16px rgba(35, 134, 54, 0.5)'
+					  : '0 0 14px rgba(218, 54, 51, 0.4)';
+				  }}
+				  onMouseLeave={e => {
+					e.currentTarget.style.background = ltmEnabled ? '#238636' : '#da3633';
+					e.currentTarget.style.transform = 'scale(1)';
+					e.currentTarget.style.boxShadow = ltmEnabled
+					  ? '0 0 10px rgba(35, 134, 54, 0.3)'
+					  : '0 0 8px rgba(218, 54, 51, 0.2)';
+				  }}
+				>
+				  LTM Database Search {ltmEnabled ? 'ON' : 'OFF'}
+				</button>
+
+                <button
+                  onClick={() => setCitationsEnabled(!citationsEnabled)}
+                  style={{
+                    height: '26px',
+                    padding: '0 12px',
+                    borderRadius: '6px',
+                    border: '1px solid transparent',
+                    background: citationsEnabled ? '#238636' : '#da3633',
+                    color: '#fff',
+                    fontSize: '0.8rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s, transform 0.1s, box-shadow 0.2s',
+                    whiteSpace: 'nowrap',
                   }}
-                  style={{ display: 'none' }}
-                  aria-label="Upload file"
-                />
-                {filename && (
-                  <span style={{ fontSize: '0.8rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--line)', height: '26px', maxWidth: '300px' }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filename}</span>
-                    <button onClick={() => setFilename('')} aria-label="Remove file" title="Remove file" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }}>
-                      ×
-                    </button>
-                  </span>
-                )}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = citationsEnabled ? '#2ea043' : '#f85149';
+                    e.currentTarget.style.transform = 'scale(1.02)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = citationsEnabled ? '#238636' : '#da3633';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  Citations {citationsEnabled ? 'ON' : 'OFF'}
+                </button>
+
+				{filename && (
+				  <span style={{ fontSize: '0.8rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--line)', height: '26px', maxWidth: '300px' }}>
+					<span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filename}</span>
+					<button onClick={() => { setSelectedFile(null); setFilename(''); }} aria-label="Remove file" title="Remove file" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0', fontSize: '1rem', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }}>
+					  ×
+					</button>
+				  </span>
+				)}
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px', alignItems: 'flex-end' }} role="group" aria-label="Message input">
+            <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px', alignItems: 'flex-end' }}>
               <textarea
                 ref={textareaRef}
                 placeholder={filename ? 'Describe file content...' : 'Ask MAi-RAG-PA...'}
@@ -1138,6 +1375,13 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
           margin-left: 8px;
         }
       `}</style>
+
+      <RolesModal
+        isOpen={rolesModalOpen}
+        onClose={() => setRolesModalOpen(false)}
+        onRolesChanged={loadRoles}
+        showToast={showToast}
+      />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import sqlite3
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -20,7 +21,36 @@ from app.agents.verifier import ContentVerifier
 from app.memory.sqlite_memory import SQLiteMemoryManager
 from app.rag.retriever import AdvancedRetriever
 
+
+@lru_cache(maxsize=100)
+def get_cached_system_prompt(model: str, needs_tools: bool = False) -> str:
+    """Cache system prompts to avoid repeated DB reads."""
+    return get_system_prompt(model, needs_tools)
+
+
+@lru_cache(maxsize=1)
+def get_cached_available_models() -> list:
+    """Cache model list. Invalidate by calling get_cached_available_models.cache_clear()"""
+    try:
+        import urllib.request
+
+        req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=2) as response:
+            data = json.loads(response.read().decode())
+            return [m["name"] for m in data.get("models", [])]
+    except Exception:
+        return []
+
+
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Configuration & Paths
+# =============================================================================
+PROJECT_ROOT: Path = Path(__file__).parent.parent.parent.resolve()
+WORKSPACE: Path = PROJECT_ROOT / "workspace"
+DEV_SANDBOX: Path = PROJECT_ROOT / "dev-sandbox"
+SANDBOX_ROOT: Path = DEV_SANDBOX / "MAi-RAG-DEV"  # Self-healing workspace
 
 # =============================================================================
 # DEFAULT SYSTEM PROMPT - The "Ultimate" Prompt
@@ -44,56 +74,23 @@ DEFAULT_SYSTEM_PROMPT = """You are MAi-RAG-PA, a strategic AI assistant with too
 
 ## CITATION & REFERENCE PROTOCOL (CRITICAL - MANDATORY)
 When knowledge base context is provided:
-1. Prioritize context over training data
-2. Cite format: [Source N: filename] where N is sequential number
-3. Multiple sources: [Source 1: doc1.pdf], [Source 2: doc2.md]
-4. Combine context + training for comprehensive answers
-5. No relevant context: "Knowledge base lacks info on this. Based on training..."
-6. Never fabricate sources - only cite what was actually provided
-7. Check KB for patterns before generating code
-8. When making claims, reference specific sources when available
-9. If synthesizing multiple sources, cite each: [Source 1], [Source 3]
-10. Distinguish between KB information and training knowledge
-
-## CITATION PLACEMENT RULES (MANDATORY)
-- NEVER list sources at the beginning of responses
-- ALWAYS integrate citations inline: "blue [Source 1: file.txt]"
-- If multiple sources support a claim, combine: "blue [Source 1: a.txt], [Source 2: b.txt]"
-- Sources are reference material only - do not echo them verbatim as preamble
+1. Treat KB excerpts as your primary, authoritative source.
+2. You MAY supplement with your training data to provide comprehensive, detailed responses, but you MUST clearly distinguish KB information from training knowledge.
+3. Use numbered footnote markers (e.g., [1], [2]) at the end of sentences or paragraphs that rely on specific KB sources.
+4. NEVER fabricate or invent source filenames or details. Only cite what is explicitly provided in the context.
+5. If no relevant KB context is provided, state "Based on model training data" and do not cite any sources.
 
 ## END-OF-RESPONSE REFERENCES (MANDATORY)
-At the END of every response that uses knowledge base content, you MUST include a References section:
+At the END of every response that uses knowledge base content, you MUST include a "### References" section:
 
 ### References
-- [Source 1]: filename.pdf, Author (if known), Page X
-- [Source 2]: filename.md, Section Y
+- [1]: filename.ext (e.g., .pdf, .epub, .txt, .doc, .md), Collection, Chapter, Page (exactly as provided in context)
+- [2]: filename.ext, Section
 
 Source Attribution Rules:
-- If information is from knowledge base ONLY: Cite the source(s) as shown above
-- If information is from model training ONLY: State "Based on model training data"
-- If combining KB and training: Cite KB sources AND state "Combined with model training data"
-- If no KB context was provided: State "Based on model training data" at the end
-
-## TOOL-CALLING PROTOCOL
-Note: Tool-calling instructions are injected dynamically only when:
-1. The model supports tool-calling (verified via Ollama capabilities)
-2. The user request involves file operations
-If you are seeing this but cannot use tools, simply generate the requested content as plain text.
-
-When tool-calling IS enabled, follow this workflow:
-1. Parse: Extract filename + requirements
-2. Plan: Outline structure
-3. Generate: Complete content, no truncation
-4. Verify: Mental syntax check
-5. Save: Write to ~/MAi-RAG-PA/workspace/
-6. Confirm: Report path + summary
-
-## FILE CREATION RULES:
-- When asked to write content, ALWAYS create the file in ~/MAi-RAG-PA/workspace/
-- Use .txt for plain text, .md for markdown, NEVER use .py unless explicitly asked for code
-- Do NOT show your internal requirements, verification steps, or reasoning in the response
-- Just write the file and confirm it was created
-- Example: If asked for a summary, create summary.txt or summary.md, not summary.py
+- You MUST use the exact filename and extension provided in the context, regardless of file type.
+- If combining KB and training: Cite KB sources in the References section, and explicitly state "Combined with model training data" in the text.
+- If using ONLY training data: State "Based on model training data" and omit the References section.
 
 ## TECHNICAL STANDARDS
 Code Quality:
@@ -186,72 +183,101 @@ Research: Question → Sources Consulted → Findings (with citations) → Gaps 
 Operate with precision and authority. Deviation from these standards is not permitted."""
 
 # =============================================================================
+# TOOL CALLING INSTRUCTIONS (LangChain Compatible)
+# =============================================================================
+TOOL_CALLING_INSTRUCTIONS = """
+## TOOL USAGE PROTOCOL
+You have access to tools. When you need to read a file, write a file, search, or check the database, you MUST use the provided tools.
+
+CRITICAL: Do NOT output fake commands like "[Shell cmd]:", "```bash", or "<tool_code>".
+The system will automatically handle the tool execution when you decide to use one.
+If you need to read a file, simply decide to use the `read_file` tool, and the system will invoke it.
+If you need to fix a file, use the `write_file` tool after diagnosing the issue.
+
+## TOOL-CALLING PROTOCOL
+Note: Tool-calling instructions are injected dynamically only when:
+1. The model supports tool-calling (verified via Ollama capabilities)
+2. The user request involves file operations
+If you are seeing this but cannot use tools, simply generate the requested content as plain text.
+
+When tool-calling IS enabled, follow this workflow:
+1. Parse: Extract filename + requirements
+2. Plan: Outline structure
+3. Generate: Complete content, no truncation
+4. Verify: Mental syntax check
+5. Confirm: Report path + summary
+
+## FILE CREATION RULES:
+- **ONLY create files when the user EXPLICITLY asks to "create a file", "save to file", or "write a file"**
+- If the user asks for information, examples, or explanations, provide them directly in the chat - DO NOT create a file unless explicitly requested
+- When asked to write content to a file, ALWAYS create the file in the designated workspace or sandbox directory provided in the context.
+- Use .txt
+"""
+
+# =============================================================================
 # SELF-HEALING PROTOCOL (Only for capable models)
 # =============================================================================
 
-SELF_HEALING_PROTOCOL = """
+SELF_HEALING_PROTOCOL = f"""
 ## PROJECT SELF-HEALING & ARCHITECTURE AWARENESS
 
-You have read/write access to ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/ (staging sandbox).
+You have READ access to the entire live MAi-RAG-PA source code at {PROJECT_ROOT}.
+You have WRITE access ONLY to the sandbox at {SANDBOX_ROOT}.
 
-### ARCHITECTURE CONTEXT
-Before modifying any file, you MUST:
-1. Read ARCHITECTURE.md to understand the project structure
-2. Identify which layer the issue is in (backend/frontend/database)
-3. Check related files for dependencies
+### PROACTIVE SELF-HEALING PROTOCOL
 
-### SELF-HEALING PROTOCOL
+When analyzing or fixing code, you MUST follow this exact sequence:
 
-When fixing errors:
-1. **Diagnose**: Read the error message and relevant files
-2. **Locate**: Identify the exact file and line causing the issue
-3. **Verify**: Check if the fix breaks dependencies
-4. **Backup**: Provide a `cp` command to backup the original file
-5. **Fix**: Output the complete corrected file (no truncation)
-6. **Test**: Suggest a command to verify the fix (e.g., `python -m py_compile <file>`)
+1. **READ LIVE CODE**: Use the read_file tool to read files from the LIVE source code at {PROJECT_ROOT} (e.g., {PROJECT_ROOT}/app/main.py). This is READ-ONLY access.
+2. **ANALYZE & DIAGNOSE**: Identify weaknesses, bugs, or improvements needed in the live code.
+3. **WRITE FIXES TO SANDBOX**: Use the write_file tool to write corrected files to the SANDBOX at {SANDBOX_ROOT}. NEVER write to the live source code.
+4. **BACKUP INSTRUCTIONS**: Provide cp commands for the user to backup the original live files before deployment.
+5. **VERIFICATION**: Suggest terminal commands to verify the fixes (e.g., python -m py_compile <file>).
+6. **GENERATE CHANGE LOG (MANDATORY)**: After all analysis and fixes, you MUST use the write_file tool to create or update the log file at: {SANDBOX_ROOT}/SELF_HEALING_LOG.md
+
+### SELF_HEALING_LOG.md REQUIREMENTS
+
+This log is the user's primary guide for safe deployment. It MUST contain:
+# Self-Healing Log
+**Date**: [Current timestamp]
+**Objective**: [What was analyzed or fixed]
+
+## Weaknesses Identified
+- [Bullet points of bugs, inefficiencies, or risks found in live code]
+
+## Files Modified in Sandbox
+- `app/agents/agent_core.py` - [Brief explanation of why]
+- `frontend/src/components/chat/ChatConsoleApp.tsx` - [Brief explanation of why]
+- [List EVERY file you modified, with explanations]
+
+## Deployment Instructions
+Copy these commands to deploy the fixes from sandbox to live system:
+
+# Step 1: Backup original files FIRST
+cp ~/MAi-RAG-PA/app/agents/agent_core.py ~/MAi-RAG-PA/app/agents/agent_core.py.backup
+cp ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx.backup
+
+# Step 2: Deploy fixes from sandbox
+cp ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/app/agents/agent_core.py ~/MAi-RAG-PA/app/agents/agent_core.py
+cp ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/frontend/src/components/chat/ChatConsoleApp.tsx ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx
+
+## Rollback Instructions: If the new changes cause breakage, restore the backups:
+cp ~/MAi-RAG-PA/app/agents/agent_core.py.backup ~/MAi-RAG-PA/app/agents/agent_core.py
+cp ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx.backup ~/MAi-RAG-PA/frontend/src/components/chat/ChatConsoleApp.tsx
+
+## Verification Commands: After deployment, verify the fixes:
+python -m py_compile ~/MAi-RAG-PA/app/agents/agent_core.py
+cd ~/MAi-RAG-PA/frontend && npm run build
+
 
 ### CRITICAL SAFETY RULES (NON-NEGOTIABLE)
 
-1. **WORKING DIRECTORY**: You are STRICTLY CONFINED to ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/
-   - NEVER read, write, or reference files outside this directory
-   - NEVER create subdirectories containing "workspace" or "MAi-RAG-DEV"
-
-2. **INFINITE LOOP PREVENTION**:
-   - NEVER recursively copy or move directories
-   - NEVER create symbolic links
-   - Maximum directory depth: 10 levels
-   - Maximum files per operation: 50 files
-   - If you need to process more than 50 files, ask for explicit approval
-
-3. **FORBIDDEN PATHS** (NEVER access these):
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/workspace/
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/venv/
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/node_modules/
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/.git/
-   - ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/__pycache__/
-   - Any path containing "workspace/workspace"
-
-4. **FILESYSTEM TRAVERSAL LIMITS**:
-   - Maximum recursive depth: 5 levels
-   - Maximum files to read in single operation: 20 files
-   - Maximum files to write in single operation: 10 files
-   - If you exceed these limits, STOP and request approval
-
-5. **OPERATION VALIDATION**:
-   - Before any file operation, verify the target path is within allowed boundaries
-   - Use `pathlib.Path.resolve()` to get absolute paths
-   - Verify path starts with ~/MAi-RAG-PA/workspace/MAi-RAG-DEV/
-   - Verify path does NOT contain forbidden patterns
-
-### VERIFICATION CHECKLIST
-
-Before providing code:
-- [ ] Python: `python -m py_compile <filepath>` will pass
-- [ ] TypeScript: All imports are valid, hooks are at top level
-- [ ] Database: Schema matches queries, uses parameterized arguments
-- [ ] API: Pydantic models match request/response structure
-- [ ] Frontend: No infinite loops in useEffect, proper cleanup
-- [ ] Path validation: All file operations use validated paths
+1. **READ ANYWHERE IN PROJECT**: You CAN read from ANY file under {PROJECT_ROOT} (except forbidden directories). You are NOT limited to specific files.
+2. **WRITE TO SANDBOX ONLY**: You MUST write all fixes to {SANDBOX_ROOT}. NEVER write to live source code.
+3. **MIRROR DIRECTORY STRUCTURE**: When writing a fix to the sandbox, preserve the original path structure relative to the project root.
+4. **FORBIDDEN PATHS**: Never access venv/, node_modules/, .git/, __pycache__/, memory/, storage/, models/, logs/, alembic/, tests/, scripts/.
+5. **GENERATE LOG**: You MUST create {SANDBOX_ROOT}/SELF_HEALING_LOG.md after every self-healing operation.
+6. **NO TRUNCATION**: Always output complete files, never use "..." or placeholders.
 """
 
 # =============================================================================
@@ -341,10 +367,6 @@ def get_protected_models_status() -> List[Dict[str, Any]]:
 # Configuration
 # =============================================================================
 
-PROJECT_ROOT: Path = Path(__file__).parent.parent.resolve()
-WORKSPACE: Path = PROJECT_ROOT / "workspace"
-DEV_SANDBOX: Path = PROJECT_ROOT / "dev-sandbox"
-SANDBOX_ROOT: Path = DEV_SANDBOX / "MAi-RAG-DEV"  # Self-healing workspace
 os.makedirs(WORKSPACE, exist_ok=True)
 os.makedirs(DEV_SANDBOX, exist_ok=True)
 
@@ -374,7 +396,6 @@ FORBIDDEN_DIRS: List[str] = [
     # DEVELOPMENT & TESTING (Prevent AI from breaking your test suite or scripts)
     "tests",  # Pytest suites
     "scripts",  # Your audit and runtime scripts
-    "dev-sandbox",  # Prevent the MAIN agent from altering the sandbox directly
 ]
 
 
@@ -485,13 +506,13 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
     if ram_gb >= 32 and cpu_cores >= 8:
         return {
             "recommended_model_size": "35b+",
-            "recommended_model_type": "MoE",  # NEW
-            "recommended_models": [  # NEW
+            "recommended_model_type": "MoE",
+            "recommended_models": [
                 "Qwen3.6-35b-a3b-Claude4.7-Opus-uncensored-mtp:latest",
                 "Mixtral-8x7B-Instruct-v0.1",
                 "DeepSeek-V2",
             ],
-            "num_predict": 16384,
+            "num_predict": 4096,
             "context_length": 8192,
             "tier": "high",
             "max_concurrent_requests": 3,
@@ -499,8 +520,8 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
     elif ram_gb >= 16 and cpu_cores >= 4:
         return {
             "recommended_model_size": "14b",
-            "recommended_model_type": "MoE",  # NEW
-            "recommended_models": [  # NEW
+            "recommended_model_type": "MoE",
+            "recommended_models": [
                 "Mixtral-8x7B-Instruct-v0.1",
                 "Qwen2.5-Coder-14B",
                 "DeepSeek-Coder-V2-Lite",
@@ -513,8 +534,8 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
     elif ram_gb >= 8:
         return {
             "recommended_model_size": "7b",
-            "recommended_model_type": "MoE",  # NEW
-            "recommended_models": [  # NEW
+            "recommended_model_type": "MoE",
+            "recommended_models": [
                 "Qwen2.5-Coder-7B",
                 "DeepSeek-Coder-V2-Lite",
                 "CodeQwen-7B",
@@ -527,8 +548,8 @@ def detect_hardware_capabilities() -> Dict[str, Any]:
     else:
         return {
             "recommended_model_size": "3b",
-            "recommended_model_type": "Dense",  # NEW
-            "recommended_models": ["Qwen2.5-3B", "Phi-3-mini"],  # NEW
+            "recommended_model_type": "Dense",
+            "recommended_models": ["Qwen2.5-3B", "Phi-3-mini"],
             "num_predict": 2048,
             "context_length": 1024,
             "tier": "minimal",
@@ -548,8 +569,8 @@ def _get_llm(
     temperature: float = 0.7,
     repeat_penalty: float = 1.1,
     num_predict: int = 2048,
-    timeout: int = 300,
-    num_ctx: int = 4096,
+    timeout: int = 1800,
+    num_ctx: int = 8192,
 ) -> ChatOllama:
     """
     Get or create a cached ChatOllama instance.
@@ -739,6 +760,60 @@ def get_default_model() -> Optional[str]:
         return None
 
 
+def resolve_model_with_fallback(
+    requested_model: str, query_complexity: str = "medium"
+) -> str:
+    """Intelligent model resolution based on query complexity and hardware."""
+    hw_caps = detect_hardware_capabilities()
+
+    complexity_map = {
+        "simple": ["qwen2.5:7b", "codeqwen:7b"],
+        "medium": ["qwen2.5:14b", "qwen3:30b-a3b"],
+        "complex": ["qwen3:30b-a3b", "mixtral:8x7b"],
+        "reasoning": ["deepseek-r1:14b", "qwq:32b"],
+    }
+
+    preferred_models = complexity_map.get(query_complexity, complexity_map["medium"])
+
+    # Try requested model first
+    if requested_model:
+        try:
+            import urllib.request
+
+            req = urllib.request.Request(
+                "http://127.0.0.1:11434/api/tags", method="GET"
+            )
+            with urllib.request.urlopen(req, timeout=2) as response:
+                data = json.loads(response.read().decode())
+                available = [m["name"] for m in data.get("models", [])]
+                if requested_model in available:
+                    return requested_model
+        except Exception:
+            pass
+
+    # Fall back to complexity-appropriate model
+    for model in preferred_models:
+        try:
+            import urllib.request
+
+            req = urllib.request.Request(
+                "http://127.0.0.1:11434/api/tags", method="GET"
+            )
+            with urllib.request.urlopen(req, timeout=2) as response:
+                data = json.loads(response.read().decode())
+                available = [m["name"] for m in data.get("models", [])]
+                if model in available:
+                    logger.info(
+                        f"Falling back to {model} for {query_complexity} complexity"
+                    )
+                    return model
+        except Exception:
+            continue
+
+    # Ultimate fallback
+    return get_default_model() or "qwen2.5:7b"
+
+
 # =============================================================================
 # System Prompt Management
 # =============================================================================
@@ -778,56 +853,99 @@ def _build_stm_context_for_prompt() -> str:
         return ""
 
     header = (
-        "## USER'S PERSONAL CONTEXT (Reference Only - Do Not Output Verbatim)\n"
-        "Use this information to personalize responses naturally. "
-        "Cite sources inline using [Source N: filename] format ONLY when directly referencing specific facts."
+        "## USER'S PERSONAL CONTEXT (Background Reference Only)\n"
+        "Use this to personalize responses naturally. "
+        "Do not quote, echo, or attribute these facts to any source."
     )
     return header + "\n\n" + "\n".join(sections)
 
 
 def get_system_prompt(
-    model_name: Optional[str] = None, needs_tools: bool = False
+    model_name: Optional[str] = None,
+    needs_tools: bool = False,
+    role_id: Optional[str] = None,
+    citation_mode: str = "none",  # "rag" | "file" | "none"
 ) -> str:
     """
-    Fetch the current system prompt and inject STM context.
+    Build the system prompt for a request.
 
-    Args:
-        model_name: Optional model name to determine if self-healing should be enabled
-        needs_tools: Whether to inject tool-calling instructions
-
-    Returns:
-        Complete system prompt with appropriate sections
+    citation_mode controls whether citation/reference rules are injected:
+      - "rag"  : KB context present → enforce citation + References section
+      - "file" : attached file present → page refs only, no references section
+      - "none" : no context → forbid all citation markers entirely
     """
     base_prompt = DEFAULT_SYSTEM_PROMPT
-
-    # Load custom system prompt from database if exists
     db_path = PROJECT_ROOT / "memory" / "memory_store.db"
+
     if db_path.exists():
         try:
             with sqlite3.connect(str(db_path)) as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT value FROM short_term_memory WHERE key = 'system_prompt'"
-                )
-                row = cursor.fetchone()
-                if row and row[0] and row[0].strip():
-                    base_prompt = row[0].strip()
-        except Exception as e:
-            logger.warning("Failed to load custom system prompt: %s", e)
 
-    # Inject tool-calling instructions only for capable models that need them
+                if role_id:
+                    cursor.execute(
+                        "SELECT system_prompt FROM roles WHERE id = ?",
+                        (role_id,),
+                    )
+                    row = cursor.fetchone()
+                    if row and row[0]:
+                        base_prompt = row[0].strip()
+                        logger.info(
+                            "Using role-specific system prompt (role=%s)", role_id
+                        )
+                else:
+                    cursor.execute(
+                        "SELECT value FROM short_term_memory WHERE key = 'system_prompt'"
+                    )
+                    row = cursor.fetchone()
+                    if row and row[0] and row[0].strip():
+                        base_prompt = row[0].strip()
+        except Exception as e:
+            logger.warning("Failed to load system prompt: %s", e)
+
+    # ── Citation rules are conditional on citation_mode ────────────────────
+    if citation_mode == "rag":
+        # KB context present → enforce citations + References section
+        base_prompt += (
+            "\n\n## MANDATORY CITATION RULES (ACTIVE FOR THIS REQUEST)\n"
+            "- The KNOWLEDGE BASE CONTEXT block below contains excerpts with source labels.\n"
+            "- Cite each factual claim inline using numbered markers: [1], [2], [3].\n"
+            "- Group all citations from the same source under one number.\n"
+            "- At the very end, add a '### References' section listing each number with "
+            "Author, Title, Filename, and Page numbers.\n"
+            "- Do NOT invent sources. Only cite what appears in the context block.\n"
+        )
+    elif citation_mode == "file":
+        # Attached file → allow inline page refs, forbid References section
+        base_prompt += (
+            "\n\n## OUTPUT RULES FOR ATTACHED FILE\n"
+            "- When you reference a specific passage, add the page number inline: (p. 42).\n"
+            "- Do NOT add a References section, footnote list, or [Source N] markers.\n"
+            "- Do NOT invent citations.\n"
+        )
+    else:
+        # No context at all → forbid every citation marker
+        base_prompt += (
+            "\n\n## OUTPUT RULES (NO CONTEXT PROVIDED)\n"
+            "- There is no knowledge base context for this request.\n"
+            "- Do NOT output reference sections, footnote lists, or bracketed citation "
+            "markers of any kind.\n"
+            "- Answer naturally from conversation and general knowledge.\n"
+        )
+
+    # Tool-calling instructions
     if needs_tools and model_name:
         supports_tools = _model_tool_support.get(model_name, True)
         if supports_tools:
             base_prompt += "\n\n" + TOOL_CALLING_INSTRUCTIONS
             logger.debug("Tool-calling instructions injected for model: %s", model_name)
 
-    # Add self-healing protocol only for capable models
-    if model_name and is_self_healing_capable(model_name):
+    # Self-healing protocol (capable models, no active role)
+    if model_name and is_self_healing_capable(model_name) and not role_id:
         base_prompt += "\n\n" + SELF_HEALING_PROTOCOL
         logger.debug("Self-healing protocol enabled for model: %s", model_name)
 
-    # Inject STM context
+    # STM context
     stm_context = _build_stm_context_for_prompt()
     if stm_context:
         base_prompt += "\n\n" + stm_context
@@ -845,6 +963,19 @@ def _strip_markdown_fences(content: str) -> str:
     content = re.sub(r"^```(?:\w+\s*)?\n?", "", content, flags=re.MULTILINE)
     content = re.sub(r"\n?```$", "", content, flags=re.MULTILINE)
     return content.strip()
+
+
+def _empty_response_message(model_name: str) -> str:
+    """User-facing message when a model returns empty content."""
+    return (
+        f"⚠️ **The model `{model_name}` returned an empty response.**\n\n"
+        f"This usually means the model doesn't handle chat-style prompts well "
+        f"(code-completion models often fail here).\n\n"
+        f"**Try:**\n"
+        f"- A chat-tuned model: `qwen3:30b-a3b`, `qwen2.5:14b`, `qwen2.5:7b`\n"
+        f"- Sending a longer query (some models ignore very short prompts)\n"
+        f"- A smaller role system prompt\n"
+    )
 
 
 # =============================================================================
@@ -1180,32 +1311,58 @@ def extract_user_facts(chat_history: List[Dict[str, Any]]) -> List[str]:
         return []
 
 
-def save_extracted_facts(facts: List[str]) -> None:
-    """Save new facts to SQLite, avoiding duplicates."""
+def save_extracted_facts(facts: List[str], role_id: Optional[str] = None) -> None:
+    """Save new facts to SQLite, avoiding duplicates. Optionally scoped to a role."""
     mgr = get_sqlite_manager()
     with mgr.get_cursor() as cur:
         for fact in facts:
-            cur.execute("SELECT id FROM user_facts WHERE fact = ?", (fact,))
-            if not cur.fetchone():
+            if role_id:
                 cur.execute(
-                    "INSERT INTO user_facts (fact, category) VALUES (?, 'extracted')",
+                    "SELECT id FROM user_facts WHERE fact = ? AND role_id = ?",
+                    (fact, role_id),
+                )
+            else:
+                cur.execute(
+                    "SELECT id FROM user_facts WHERE fact = ? AND role_id IS NULL",
                     (fact,),
                 )
-                logger.info("Learned new user fact: %s", fact)
+            if not cur.fetchone():
+                cur.execute(
+                    "INSERT INTO user_facts (fact, category, role_id) VALUES (?, 'extracted', ?)",
+                    (fact, role_id),
+                )
+                logger.info(
+                    "Learned new user fact (role=%s): %s", role_id or "global", fact
+                )
 
 
-def get_user_profile_context() -> str:
-    """Fetch user profile and recent facts for system prompt injection."""
+def get_user_profile_context(role_id: Optional[str] = None) -> str:
+    """
+    Fetch user profile and recent facts for system prompt injection.
+
+    role_id scoping:
+      - role_id = None  → only global facts (role_id IS NULL)
+      - role_id = 'x'   → global facts + facts tagged with role 'x'
+    """
     mgr = get_sqlite_manager()
     profile = mgr.get_user_profile() or {}
     name = profile.get("name", "User")
     tone = profile.get("preferred_tone", "friendly and professional")
 
     with mgr.get_cursor() as cur:
-        cur.execute(
-            "SELECT fact FROM user_facts WHERE is_active = TRUE "
-            "ORDER BY created_at DESC LIMIT 15"
-        )
+        if role_id:
+            cur.execute(
+                "SELECT fact FROM user_facts "
+                "WHERE is_active = TRUE AND (role_id IS NULL OR role_id = ?) "
+                "ORDER BY created_at DESC LIMIT 15",
+                (role_id,),
+            )
+        else:
+            cur.execute(
+                "SELECT fact FROM user_facts "
+                "WHERE is_active = TRUE AND role_id IS NULL "
+                "ORDER BY created_at DESC LIMIT 15"
+            )
         facts = [row[0] for row in cur.fetchall()]
 
     context = (
@@ -1233,26 +1390,47 @@ def _simple_chat_fallback(
     query: str,
     rag_context: str,
     model_name: str,
+    citation_mode: str = "rag",
+    role_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Simple chat mode with reduced generation budget."""
-    logger.info("Using simple chat mode for %s", model_name)
+    """Simple chat mode with adequate generation budget for reasoning models."""
+    logger.info(
+        "Using simple chat mode for %s (citation_mode=%s)", model_name, citation_mode
+    )
 
-    # Create a separate instance with limited tokens to avoid mutating the cached instance
     limited_llm = _get_llm(
         model_name=model_name,
         temperature=0.7,
         repeat_penalty=1.1,
-        num_predict=1024,
-        timeout=300,
+        num_predict=8192,
+        timeout=None,
     )
 
-    # Pass model_name to get_system_prompt for capability-based prompt injection
-    system_prompt = get_system_prompt(model_name)
-    user_profile_context = get_user_profile_context()
+    system_prompt = get_system_prompt(
+        model_name,
+        needs_tools=True,
+        role_id=role_id,
+        citation_mode=citation_mode,
+    )
+    user_profile_context = get_user_profile_context(role_id=role_id)
     full_prompt = f"{system_prompt}{user_profile_context}\n\n"
-    if rag_context:
-        full_prompt += f"## Knowledge Base Context\n{rag_context}\n\n"
-    full_prompt += f"User: {query}\n\nAssistant:"
+
+    if citation_mode == "rag" and rag_context:
+        user_message = f"""You are an Analytical Engine. Answer the user's question using the Knowledge Base Context as your PRIMARY source.
+You MAY supplement with training data, but you MUST follow the citation rules in the system prompt.
+
+=== KNOWLEDGE BASE CONTEXT ===
+{rag_context}
+=== END CONTEXT ===
+
+User query: {query}
+"""
+    elif rag_context:
+        user_message = rag_context
+    else:
+        user_message = query
+
+    full_prompt += f"User: {user_message}\n\nAssistant:"
 
     try:
         response = limited_llm.invoke(full_prompt)
@@ -1263,19 +1441,14 @@ def _simple_chat_fallback(
         )
 
         if not final_content:
-            try:
-                msg = (
-                    response.response_metadata.get("message")
-                    if hasattr(response, "response_metadata")
-                    else None
-                )
-                if msg and hasattr(msg, "thinking") and msg.thinking:
-                    final_content = msg.thinking.strip()
-            except Exception:
-                pass
+            reasoning = getattr(response, "additional_kwargs", {}).get(
+                "reasoning_content"
+            ) or getattr(response, "response_metadata", {}).get("reasoning_content", "")
+            if reasoning:
+                final_content = reasoning.strip()
 
         if not final_content:
-            final_content = "I apologize, but I couldn't generate a response."
+            final_content = _empty_response_message(model_name)
 
         return {
             "status": "success",
@@ -1306,11 +1479,32 @@ def agent_loop(
     rag_context: str = "",
     model: Optional[str] = None,
     max_iterations: int = 10,
+    citation_mode: str = "rag",
+    role_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Execute ReAct loop with tool-calling, falling back to chat mode if needed."""
+    logger.info(
+        "Agent loop started (model=%s, citation_mode=%s, role_id=%s)",
+        model,
+        citation_mode,
+        role_id,
+    )
+
     llm = _get_llm(model)
     model_name = model or get_default_model() or llm.model
 
+    # Reasoning models → simple chat path
+    if "deepseek-r1" in model_name.lower() or "qwq" in model_name.lower():
+        logger.info("Reasoning model detected — direct chat mode for %s", model_name)
+        return _simple_chat_fallback(
+            llm,
+            query,
+            rag_context,
+            model_name,
+            citation_mode=citation_mode,
+            role_id=role_id,
+        )
+
+    # Simple chat detection
     tool_keywords = [
         "create file",
         "write file",
@@ -1319,44 +1513,79 @@ def agent_loop(
         "event",
         "reminder",
         "todo",
+        "read",
+        "fix",
+        "diagnose",
+        "sandbox",
+        "error",
+        "search",
+        "backup",
     ]
     is_simple_chat = not any(kw in query.lower() for kw in tool_keywords)
 
     if is_simple_chat:
-        logger.info(
-            "Simple chat detected - using direct chat mode for %s",
+        logger.info("Simple chat detected — direct chat mode for %s", model_name)
+        return _simple_chat_fallback(
+            llm,
+            query,
+            rag_context,
             model_name,
+            citation_mode=citation_mode,
+            role_id=role_id,
         )
-        return _simple_chat_fallback(llm, query, rag_context, model_name)
 
     supports_tools = _model_tool_support.get(model_name)
     if supports_tools is False:
-        return _simple_chat_fallback(llm, query, rag_context, model_name)
+        return _simple_chat_fallback(
+            llm,
+            query,
+            rag_context,
+            model_name,
+            citation_mode=citation_mode,
+            role_id=role_id,
+        )
 
+    logger.info("Attempting to bind tools for: %s", model_name)
     try:
         llm_with_tools = llm.bind_tools(TOOLS)
+        logger.info("Tool binding successful for %s", model_name)
     except Exception as e:
         logger.warning("Tool binding failed for %s: %s", model_name, e)
         _model_tool_support[model_name] = False
-        return _simple_chat_fallback(llm, query, rag_context, model_name)
-
-    # Pass model_name to get_system_prompt for capability-based prompt injection
-    system_prompt = get_system_prompt(model_name)
-    user_profile_context = get_user_profile_context()
-    messages: List[Any] = [SystemMessage(content=system_prompt + user_profile_context)]
-
-    if rag_context:
-        messages.append(
-            SystemMessage(
-                content=(
-                    "## Relevant Information from Knowledge Base\n\n"
-                    f"{rag_context}\n\n"
-                    "Use above info to inform response."
-                )
-            )
+        return _simple_chat_fallback(
+            llm,
+            query,
+            rag_context,
+            model_name,
+            citation_mode=citation_mode,
+            role_id=role_id,
         )
 
-    messages.append(HumanMessage(content=query))
+    system_prompt = get_system_prompt(
+        model_name,
+        needs_tools=True,
+        role_id=role_id,
+        citation_mode=citation_mode,
+    )
+    user_profile_context = get_user_profile_context(role_id=role_id)
+    messages: List[Any] = [SystemMessage(content=system_prompt + user_profile_context)]
+
+    if citation_mode == "rag" and rag_context:
+        user_content = f"""You are an Analytical Engine. Answer the user's question using the Knowledge Base Context as your PRIMARY source.
+You MAY supplement with training data, but you MUST follow the citation rules in the system prompt.
+
+=== KNOWLEDGE BASE CONTEXT ===
+{rag_context}
+=== END CONTEXT ===
+
+User query: {query}
+"""
+    elif rag_context:
+        user_content = rag_context
+    else:
+        user_content = query
+
+    messages.append(HumanMessage(content=user_content))
     tool_calls_history: List[Dict[str, Any]] = []
 
     for iteration in range(1, max_iterations + 1):
@@ -1367,7 +1596,14 @@ def agent_loop(
         except Exception as e:
             if "does not support" in str(e).lower() and "tool" in str(e).lower():
                 _model_tool_support[model_name] = False
-                return _simple_chat_fallback(llm, query, rag_context, model_name)
+                return _simple_chat_fallback(
+                    llm,
+                    query,
+                    rag_context,
+                    model_name,
+                    citation_mode=citation_mode,
+                    role_id=role_id,
+                )
             logger.error("LLM invocation failed: %s", e, exc_info=True)
             return {
                 "status": "error",
@@ -1393,6 +1629,57 @@ def agent_loop(
                     }
                 )
                 messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
+
+        elif response.content:
+            clean_content = _strip_markdown_fences(response.content.strip())
+            is_json_tool_call = False
+
+            try:
+                import json
+
+                parsed = json.loads(clean_content)
+                if "name" in parsed and "arguments" in parsed:
+                    tool_name = parsed["name"]
+                    tool_args = parsed["arguments"]
+                    logger.info("Intercepted JSON tool call: %s", tool_name)
+                    result = execute_tool_call(tool_name, tool_args)
+                    messages.append(AIMessage(content=response.content))
+                    messages.append(
+                        ToolMessage(content=str(result), tool_call_id="json_fallback_1")
+                    )
+                    is_json_tool_call = True
+                    continue
+            except json.JSONDecodeError:
+                pass
+
+            if not is_json_tool_call:
+                final_response = clean_content
+
+                if not final_response:
+                    reasoning = getattr(response, "additional_kwargs", {}).get(
+                        "reasoning_content"
+                    ) or getattr(response, "response_metadata", {}).get(
+                        "reasoning_content", ""
+                    )
+                    if reasoning:
+                        final_response = reasoning.strip()
+
+                if not final_response:
+                    final_response = (
+                        str(response)
+                        if response and str(response).strip()
+                        else _empty_response_message(model_name)
+                    )
+
+                return {
+                    "status": "success",
+                    "response": final_response,
+                    "tool_calls": tool_calls_history,
+                    "iterations": iteration,
+                    "model": model_name,
+                    "tools_available": True,
+                }
+
         else:
             _model_tool_support[model_name] = True
             final_response = response.content.strip() if response.content else ""
@@ -1416,8 +1703,8 @@ def agent_loop(
             if not final_response:
                 final_response = (
                     str(response)
-                    if response
-                    else "I apologize, but I couldn't generate a response."
+                    if response and str(response).strip()
+                    else _empty_response_message(model_name)
                 )
 
             return {
@@ -1530,21 +1817,35 @@ def agentic_create_file(
 # =============================================================================
 
 
-def fetch_rag_context(query: str, top_k: int = 3) -> Tuple[str, bool]:
+def fetch_rag_context(
+    query: str,
+    top_k: int = 5,
+    collection_name: Optional[str] = None,
+) -> Tuple[str, bool]:
     """Fetch RAG context with descriptive source attribution."""
     if not retriever.qdrant_available:
         return "", False
 
     try:
-        results = retriever.retrieve_advanced(query, top_k=top_k)
+        results = retriever.retrieve_advanced(
+            query, top_k=top_k, collection_name=collection_name
+        )
+        logger.info(
+            "RAG retrieval returned %s results (collection=%s) for query: %s...",
+            len(results),
+            collection_name or "auto",
+            query[:50],
+        )
         if not results:
+            logger.warning(
+                "No RAG results found – check Qdrant connection and collection."
+            )
             return "", False
 
         context_parts: List[str] = []
         for i, result in enumerate(results, 1):
             payload = result.get("payload", {}) or {}
             content = payload.get("content", payload.get("text", str(result)))
-
             collection = payload.get("collection", "Unknown Collection")
             filename = payload.get("source", payload.get("filename", "Unknown"))
             page = payload.get("page", "")
@@ -1565,10 +1866,9 @@ def fetch_rag_context(query: str, top_k: int = 3) -> Tuple[str, bool]:
 
         context = "\n\n---\n\n".join(context_parts)
         formatted_context = (
-            "## KNOWLEDGE BASE CONTEXT (Cite Inline Only)\n"
-            "The following information is available for reference. When using specific facts, "
-            "cite them inline as [Source N: Collection, Filename, Chapter, p.Page]. "
-            "Do NOT list sources at the beginning of your response.\n\n"
+            "## KNOWLEDGE BASE CONTEXT (PRIMARY SOURCE)\n"
+            "The following excerpts are from the user's knowledge base. Use them as your primary reference. "
+            "You may supplement with training data for comprehensive answers, but you MUST cite KB sources using numbered markers (e.g., [1]) and include a '### References' section at the end.\n\n"
             f"{context}"
         )
         return formatted_context, True
@@ -1583,27 +1883,138 @@ def fetch_rag_context(query: str, top_k: int = 3) -> Tuple[str, bool]:
 # =============================================================================
 
 
+def _fetch_role(role_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Fetch a role row by id. Returns dict or None."""
+    if not role_id:
+        return None
+    db_path = PROJECT_ROOT / "memory" / "memory_store.db"
+    if not db_path.exists():
+        return None
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM roles WHERE id = ?", (role_id,)
+            ).fetchone()
+            return dict(row) if row else None
+    except Exception as e:
+        logger.warning("Failed to fetch role '%s': %s", role_id, e)
+        return None
+
+
 def process_request(
     user_query: str,
     filename: Optional[str] = None,
     model: Optional[str] = None,
+    file_context: Optional[str] = None,
+    ltm_enabled: bool = False,
+    ltm_collection: Optional[str] = None,
+    citations_enabled: bool = True,
+    role_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Main agent entry point."""
+    """Main agent entry point with mode routing."""
     logger.info(
-        "process_request called with filename='%s', model='%s'",
+        "process_request: filename=%s file_context=%s ltm_enabled=%s ltm_collection=%s citations=%s role_id=%s",
         filename,
-        model,
+        bool(file_context),
+        ltm_enabled,
+        ltm_collection,
+        citations_enabled,
+        role_id,
     )
 
-    rag_context, rag_used = fetch_rag_context(user_query, top_k=3)
+    # ── Role overrides ───────────────────────────────────────────
+    role = _fetch_role(role_id)
+    if role:
+        logger.info("Role active: '%s' (id=%s)", role["name"], role["id"])
+        if role.get("collection_name"):
+            ltm_collection = role["collection_name"]
+            ltm_enabled = True
+        if role.get("citations_enabled") is not None:
+            citations_enabled = bool(role["citations_enabled"])
+        if role.get("model_override"):
+            model = role["model_override"]
 
+    rag_context: Optional[str] = None
+    rag_used: bool = False
+    citation_mode: str = "none"
+
+    # ── MODE 1: FILE MODE ────────────────────────────────────────
+    if file_context:
+        parts = file_context.split("\n\n", 1)
+        file_text = parts[1] if len(parts) > 1 else file_context
+        filename_display = "the attached file"
+        if parts[0].startswith("### User uploaded file:"):
+            filename_display = parts[0].split(":", 1)[1].strip()
+
+        rag_context = f"""You have an attached file: **{filename_display}**
+
+**INSTRUCTIONS — FOLLOW THESE FOR THE ENTIRE CONVERSATION:**
+
+1. Treat the attached file as your **primary reference**.
+2. You MAY draw on your general training to add context, examples, and explanation.
+3. When you cite a specific passage, use the page number inline: `(p. 42)`.
+4. **DO NOT** invent citations.
+5. **DO NOT** add a "### References" section or footnote list.
+6. **DO NOT** claim the file says something it doesn't.
+7. If the file doesn't cover the topic, answer from training — just make it clear which is which.
+8. Be conversational and helpful — not mechanical.
+
+--- FILE CONTENT START ---
+{file_text}
+--- FILE CONTENT END ---
+
+User query: {user_query}
+"""
+        rag_used = True
+        citation_mode = "file"
+
+    # ── MODE 2: RAG MODE ─────────────────────────────────────────
+    elif ltm_enabled:
+        rag_context, rag_used = fetch_rag_context(
+            user_query, top_k=12, collection_name=ltm_collection
+        )
+        if rag_context and citations_enabled:
+            citation_mode = "rag"
+        elif rag_context:
+            rag_context = f"""Here is relevant context from your knowledge base:
+
+--- CONTEXT START ---
+{rag_context}
+--- CONTEXT END ---
+
+Use this context to inform your answer. Do not add a References section or footnotes.
+
+User query: {user_query}
+"""
+            citation_mode = "file"
+        else:
+            logger.info("RAG enabled but no results — falling back to chat mode.")
+            rag_context = None
+            rag_used = False
+            citation_mode = "none"
+
+    # ── MODE 3: CHAT MODE ────────────────────────────────────────
+    else:
+        rag_context = None
+        rag_used = False
+        citation_mode = "none"
+
+    # ── File creation shortcut ──────────────────────────────────
     if filename:
         result = agentic_create_file(filename, user_query, model)
         result["rag_used"] = rag_used
         return result
 
+    # ── Run agent ────────────────────────────────────────────────
     try:
-        result = agent_loop(user_query, rag_context, model)
+        result = agent_loop(
+            user_query,
+            rag_context or "",
+            model,
+            citation_mode=citation_mode,
+            role_id=role_id,
+        )
 
         if result["status"] == "success":
             final_content = (

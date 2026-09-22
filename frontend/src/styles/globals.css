@@ -1557,6 +1557,10 @@ textarea {
   border-radius: 16px;
 }
 
+.ltm-toggle .toggle-track:hover {
+  box-shadow: 0 0 8px rgba(124, 246, 211, 0.3);
+}
+
 /* =============================================================================
    DASHBOARD & SECTIONS
    ============================================================================= */
@@ -2509,6 +2513,7 @@ html {
   box-shadow: 0 2px 4px rgba(255, 105, 180, 0.3);
   white-space: nowrap;
   margin-left: 0.10rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
 }
 
 .donate-button:hover {

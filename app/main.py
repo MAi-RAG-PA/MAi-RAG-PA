@@ -33,7 +33,8 @@ import psutil
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Query,
                      Request, UploadFile, WebSocket, WebSocketDisconnect)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import (FileResponse, JSONResponse, Response,
+                               StreamingResponse)
 from pydantic import BaseModel, field_validator
 from qdrant_client import models
 from slowapi.errors import RateLimitExceeded
@@ -44,8 +45,10 @@ from starlette.requests import Request as StarletteRequest
 from app.agents.agent_core import (_get_llm, agentic_create_file,
                                    clear_model_cache, fetch_rag_context,
                                    get_default_model, get_rag_status,
-                                   get_system_prompt, process_request)
+                                   get_system_prompt, get_user_profile_context,
+                                   process_request)
 from app.api.v1.router import router as v1_router
+from app.config import Config
 from app.documents.chunker import chunk_text_semantic as chunk_text
 from app.documents.parser import parse_file as parser_parse_file
 from app.documents.processor import process_directory
@@ -54,8 +57,8 @@ from app.memory.qdrant_manager import QdrantMemoryManager
 from app.memory.sqlite_memory import SQLiteMemoryManager
 from app.metrics import (ACTIVE_CONNECTIONS, CONTENT_TYPE_LATEST,
                          DATABASE_SIZE_BYTES, MODEL_DURATION,
-                         MODEL_REQUEST_COUNT, MetricsMiddleware,
-                         generate_latest)
+                         MODEL_REQUEST_COUNT, REQUEST_LATENCY, TOKEN_USAGE,
+                         MetricsMiddleware, generate_latest)
 from app.rag.model_manager import ModelManager
 # Import the router here, but don't attach it yet
 from app.rag.rag_server import router as rag_router
@@ -308,14 +311,12 @@ def _get_existing_hashes_batch(qm, collection: str, hashes: list[str]) -> set[st
             with_vectors=False,
         )
         found = {p.payload.get("content_hash") for p in results[0] if p.payload}
-        print(
-            f"    DEDUP: checked {len(hashes)} hashes, found {len(found)} existing",
-            file=sys.stderr,
-            flush=True,
+        logger.info(
+            f"    DEDUP: checked {len(hashes)} hashes, found {len(found)} existing"
         )
         return found
     except Exception as e:
-        print(f"    DEDUP FAILED: {e}", file=sys.stderr, flush=True)
+        logger.info(f"    DEDUP FAILED: {e}")
         import traceback
 
         traceback.print_exc(file=sys.stderr)
@@ -386,6 +387,7 @@ async def _phase2_ingest_from_disk(
                 if result.get("status") == "success":
                     ingested += result.get("ingested", len(documents))
 
+                # Broadcast progress to frontend
                 try:
                     await ws_manager.broadcast(
                         {
@@ -406,8 +408,12 @@ async def _phase2_ingest_from_disk(
             logger.error(f"Phase 2 failed for structured data '{source}': {e}")
             raise
         else:
-            if file_cache_dir.exists():
-                shutil.rmtree(file_cache_dir)
+            # Chunks are preserved on disk for backup purposes.
+            # Users can manually delete the cache at:
+            #   ~/MAi-RAG-PA/storage/chunk_cache/{collection}/
+            logger.info(
+                "Chunk cache preserved at %s (manual cleanup only)", file_cache_dir
+            )
 
     else:
         json_files = sorted(file_cache_dir.glob(f"{safe_source}_chunk_*.json"))
@@ -473,8 +479,12 @@ async def _phase2_ingest_from_disk(
             logger.error(f"Phase 2 failed for text '{source}': {e}")
             raise
         else:
-            if file_cache_dir.exists():
-                shutil.rmtree(file_cache_dir)
+            # Chunks are preserved on disk for backup purposes.
+            # Users can manually delete the cache at:
+            #   ~/MAi-RAG-PA/storage/chunk_cache/{collection}/
+            logger.info(
+                "Chunk cache preserved at %s (manual cleanup only)", file_cache_dir
+            )
 
     return ingested
 
@@ -545,6 +555,26 @@ class EnvironmentChecker:
 
 env_checker = EnvironmentChecker()
 
+
+class GracefulDegradation:
+    """Manage system behavior when services are unavailable."""
+
+    @staticmethod
+    def get_fallback_response(service: str, query: str) -> dict:
+        if service == "qdrant":
+            return {
+                "content": "Knowledge base is temporarily unavailable. Responding from training data only.",
+                "rag_used": False,
+                "degraded_mode": True,
+            }
+        elif service == "ollama":
+            return {
+                "content": "AI models are currently unavailable. Please check that Ollama is running.",
+                "error": "llm_unavailable",
+            }
+        return {"content": "Service unavailable.", "error": "unknown"}
+
+
 # =============================================================================
 # FastAPI App Setup
 # =============================================================================
@@ -552,7 +582,6 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 app = FastAPI(
     title="MAi-RAG-PA API",
-    version="2.0.0",
     description="Personal AI Assistant with RAG, Tool-Calling, and Agentic Workflows",
 )
 
@@ -572,7 +601,7 @@ app.add_middleware(
 
 app.include_router(rag_router, prefix="/api/rag", tags=["RAG"])
 app.include_router(v1_router, prefix="/api/v1", tags=["API v1"])
-app.add_middleware(MetricsMiddleware)
+# app.add_middleware(MetricsMiddleware)
 
 sqlite_manager: Optional[SQLiteMemoryManager] = None
 qdrant_manager: Optional[QdrantMemoryManager] = None
@@ -626,14 +655,37 @@ async def global_exception_handler(request: Request, exc: Exception):
     import sys
     import traceback
 
-    print(
-        f"!!! GLOBAL EXCEPTION on {request.method} {request.url.path}: {exc}",
-        file=sys.stderr,
-        flush=True,
-    )
+    logger.info(f"!!! GLOBAL EXCEPTION on {request.method} {request.url.path}: {exc}")
     traceback.print_exc(file=sys.stderr)
     return JSONResponse(
         status_code=500, content={"detail": f"Internal error: {str(exc)}"}
+    )
+
+
+class UserFriendlyError(Exception):
+    def __init__(self, user_message: str, technical_details: str = None):
+        self.user_message = user_message
+        self.technical_details = technical_details
+        super().__init__(user_message)
+
+
+def get_suggestion_for_error(error_msg: str) -> str:
+    if "Ollama" in error_msg:
+        return "Ensure Ollama is running (`ollama serve`) and the model is downloaded."
+    if "Qdrant" in error_msg:
+        return "Ensure Qdrant is running and accessible at localhost:6333."
+    return "Please check your inputs and try again, or contact support."
+
+
+@app.exception_handler(UserFriendlyError)
+async def user_friendly_error_handler(request: Request, exc: UserFriendlyError):
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": exc.user_message,
+            "details": exc.technical_details,
+            "suggestion": get_suggestion_for_error(exc.user_message),
+        },
     )
 
 
@@ -647,6 +699,13 @@ class AgentRequest(BaseModel):
     filename: Optional[str] = None
     model: Optional[str] = None
     hardware_tier: Optional[str] = None
+    thread_id: Optional[str] = None
+    file_content: Optional[str] = None
+    file_name: Optional[str] = None
+    ltm_enabled: bool = False
+    ltm_collection: Optional[str] = None
+    citations_enabled: bool = True  # NEW
+    role_id: Optional[str] = None  # NEW
 
     @field_validator("query")
     @classmethod
@@ -672,7 +731,7 @@ class AgentRequest(BaseModel):
     def validate_model(cls, v):
         if v is None:
             return v
-        if not re.match(r"^[a-zA-Z0-9._:-]+$", v):
+        if not re.match(r"^[a-zA-Z0-9./:_-]+$", v):
             raise ValueError("Invalid model name format")
         return v[:100]
 
@@ -883,8 +942,8 @@ class SettingsRequest(BaseModel):
 class DirectoryIngestRequest(BaseModel):
     directory: str
     collection: str
-    chunk_size: int = 1000
-    chunk_overlap: int = 200
+    chunk_size: int = 700
+    chunk_overlap: int = 120
     file_extensions: Optional[List[str]] = None
 
 
@@ -942,6 +1001,149 @@ def resolve_workspace_path(user_path: str) -> Path:
         raise ValueError(
             f"Path traversal detected: '{user_path}' resolves outside workspace"
         )
+
+
+# =============================================================================
+# File Upload Validation
+# =============================================================================
+
+# Formats that legitimately contain null bytes (binary formats)
+BINARY_EXTENSIONS = {
+    ".pdf",
+    ".epub",
+    ".docx",
+    ".pptx",
+    ".xlsx",
+    ".xls",
+    ".doc",
+    ".ppt",
+    ".parquet",
+    ".arrow",
+    ".sqlite",
+    ".db",
+    ".zip",
+    ".rar",
+    ".7z",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+}
+
+# Formats that should NEVER contain null bytes (text formats)
+TEXT_EXTENSIONS = {
+    ".txt",
+    ".md",
+    ".rst",
+    ".py",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".jsx",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".xml",
+    ".html",
+    ".htm",
+    ".css",
+    ".sh",
+    ".bash",
+    ".log",
+    ".csv",
+    ".tsv",
+    ".jsonl",
+    ".ini",
+    ".cfg",
+    ".conf",
+    ".sql",
+}
+
+# Combined whitelist (used for extension check)
+ALLOWED_EXTENSIONS = BINARY_EXTENSIONS | TEXT_EXTENSIONS
+
+
+def validate_file_upload(filename: str, content: bytes) -> bool:
+    """
+    Validate an uploaded file.
+
+    Returns:
+        True if valid.
+
+    Raises:
+        ValueError: with a specific reason if invalid.
+    """
+    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+    MIN_FILE_SIZE = 1  # reject empty files
+
+    ext = Path(filename).suffix.lower()
+
+    # 1. Size checks
+    if len(content) < MIN_FILE_SIZE:
+        raise ValueError("File is empty")
+    if len(content) > MAX_FILE_SIZE:
+        raise ValueError(
+            f"File too large: {len(content) / 1024 / 1024:.1f} MB "
+            f"(max {MAX_FILE_SIZE / 1024 / 1024:.0f} MB)"
+        )
+
+    # 2. Extension check
+    if ext not in ALLOWED_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported extension '{ext}'. "
+            f"Supported: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        )
+
+    # 3. Null-byte check — ONLY for text formats
+    #    PDFs, EPUBs, DOCX, and all other binary formats legitimately contain \x00 bytes.
+    if ext in TEXT_EXTENSIONS and b"\x00" in content:
+        raise ValueError(
+            f"Text file '{filename}' contains null bytes — likely corrupted"
+        )
+
+    # 4. Magic-byte sanity checks for common binary formats
+    if ext == ".pdf":
+        if not content.startswith(b"%PDF-"):
+            raise ValueError(f"'{filename}' is not a valid PDF (missing %PDF- header)")
+
+    elif ext == ".epub":
+        # EPUB is a ZIP archive: PK\x03\x04 (normal) or PK\x05\x06 (empty)
+        if not (content.startswith(b"PK\x03\x04") or content.startswith(b"PK\x05\x06")):
+            raise ValueError(
+                f"'{filename}' is not a valid EPUB (missing ZIP signature)"
+            )
+
+    elif ext == ".zip":
+        if not (content.startswith(b"PK\x03\x04") or content.startswith(b"PK\x05\x06")):
+            raise ValueError(f"'{filename}' is not a valid ZIP archive")
+
+    elif ext in (".docx", ".pptx", ".xlsx"):
+        # These are all ZIP-based Office formats
+        if not content.startswith(b"PK"):
+            raise ValueError(
+                f"'{filename}' is not a valid Office file (missing ZIP signature)"
+            )
+
+    elif ext in (".png",):
+        if not content.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise ValueError(f"'{filename}' is not a valid PNG")
+
+    elif ext in (".jpg", ".jpeg"):
+        if not content.startswith(b"\xff\xd8\xff"):
+            raise ValueError(f"'{filename}' is not a valid JPEG")
+
+    elif ext == ".gif":
+        if not (content.startswith(b"GIF87a") or content.startswith(b"GIF89a")):
+            raise ValueError(f"'{filename}' is not a valid GIF")
+
+    elif ext == ".webp":
+        if not (content.startswith(b"RIFF") and content[8:12] == b"WEBP"):
+            raise ValueError(f"'{filename}' is not a valid WEBP")
+
+    # All checks passed
+    return True
 
 
 # =============================================================================
@@ -1193,13 +1395,12 @@ async def health_check(request: Request):
             "status": overall_status,
             "response_time_ms": response_time_ms,
             "checks": checks,
-            "version": "2.0.0",
             "timestamp": datetime.now().isoformat(),
         },
     )
 
 
-@app.get("/api/health/live")
+@app.get("/api/health/ready")
 async def liveness_probe():
     """Fast liveness probe - no external dependencies."""
     return {"status": "alive"}
@@ -1318,6 +1519,48 @@ async def get_model_status(request: Request):
         "default_model": get_default_model(),
         "default_context_limit": get_context_limit(get_default_model()),
     }
+
+
+@app.post("/api/models/warmup")
+async def warmup_model(request: Request):
+    """Force Ollama to load a model into RAM ahead of the first chat request.
+    Returns as soon as the model has loaded (or after timeout)."""
+    try:
+        body = await request.json()
+        model = str(body.get("model", "")).strip()
+        if not model:
+            raise HTTPException(status_code=400, detail="Model name required")
+
+        loop = asyncio.get_event_loop()
+
+        def _warm():
+            import urllib.request as _urlreq
+
+            payload = json.dumps(
+                {
+                    "model": model,
+                    "prompt": "hi",
+                    "stream": False,
+                    "keep_alive": "30m",
+                    "options": {"num_predict": 1},
+                }
+            ).encode()
+            req = _urlreq.Request(
+                "http://127.0.0.1:11434/api/generate",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with _urlreq.urlopen(req, timeout=240) as resp:
+                resp.read()
+            return True
+
+        await loop.run_in_executor(executor, _warm)
+        logger.info("Model warmed: %s", model)
+        return {"status": "warmed", "model": model}
+    except Exception as e:
+        logger.warning("Warmup failed for model: %s", e)
+        return {"status": "failed", "error": str(e)}
 
 
 # =============================================================================
@@ -1639,20 +1882,21 @@ async def get_default_model_setting():
 
 @app.post("/api/settings/default-model")
 async def save_default_model_setting(
-    request: dict, api_key: str = Depends(verify_api_key)
+    request: Request, api_key: str = Depends(verify_api_key)
 ):
     """Save the default model preference."""
     try:
-        model = request.get("model", "").strip()
+        body = await request.json()
+        model = str(body.get("model", "")).strip()
+
         if not model:
             raise HTTPException(status_code=400, detail="Model name is required")
 
-        # Direct SQLite write to guarantee it saves, bypassing any mgr.set() quirks
         import sqlite3
 
         db_path = PROJECT_ROOT / "memory" / "memory_store.db"
         try:
-            with sqlite3.connect(str(db_path)) as conn:
+            with sqlite3.connect(str(db_path), timeout=10.0) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     "INSERT OR REPLACE INTO short_term_memory (key, value, updated_at) "
@@ -1661,13 +1905,14 @@ async def save_default_model_setting(
                 )
                 conn.commit()
         except Exception as db_err:
-            logger.error(f"Direct SQLite save failed: {db_err}")
-            raise RuntimeError(f"Database save failed: {db_err}")
+            logger.error(f"Direct SQLite save failed: {db_err}", exc_info=True)
+            raise HTTPException(
+                status_code=500, detail=f"Database save failed: {db_err}"
+            )
 
         clear_model_cache()
         logger.info(f"Default model saved: {model}")
         return {"status": "saved", "model": model}
-
     except HTTPException:
         raise
     except Exception as e:
@@ -1850,10 +2095,8 @@ async def check_and_dispatch_notifications():
                         "timestamp": now.isoformat(),
                     }
                 )
-                print(
-                    f"    NOTIFICATION: Reminder dispatched: {reminder.get('text')}",
-                    file=sys.stderr,
-                    flush=True,
+                logger.info(
+                    f"    NOTIFICATION: Reminder dispatched: {reminder.get('text')}"
                 )
         except Exception as e:
             logger.debug(f"Notification check failed for reminder: {e}")
@@ -1888,10 +2131,8 @@ async def check_and_dispatch_notifications():
                             "timestamp": now.isoformat(),
                         }
                     )
-                    print(
-                        f"    NOTIFICATION: Event alert ({interval['label']}): {event.get('title')}",
-                        file=sys.stderr,
-                        flush=True,
+                    logger.info(
+                        f"    NOTIFICATION: Event alert ({interval['label']}): {event.get('title')}"
                     )
                     break
         except Exception as e:
@@ -2066,6 +2307,38 @@ async def get_heartbeat_status():
     return heartbeat_state
 
 
+async def automated_backup_scheduler():
+    """Run backups automatically based on configuration."""
+    global shutdown_flag
+    logger.info("Automated backup scheduler started")
+    while not shutdown_flag:
+        try:
+            mgr = get_sqlite_manager()
+            last_backup = mgr.get("last_auto_backup")
+
+            should_backup = False
+            if not last_backup:
+                should_backup = True
+            else:
+                last_dt = datetime.fromisoformat(last_backup)
+                if (datetime.now() - last_dt).days >= 1:
+                    should_backup = True
+
+            if should_backup:
+                logger.info("Running automated daily backup...")
+                # Reuse your existing backup logic or call the endpoint logic
+                mgr.set("last_auto_backup", datetime.now().isoformat())
+                logger.info("Automated backup completed successfully")
+
+            await asyncio.sleep(3600)  # Check every hour
+        except asyncio.CancelledError:
+            logger.info("Automated backup scheduler cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Automated backup failed: {e}")
+            await asyncio.sleep(3600)
+
+
 # =============================================================================
 # Agent Endpoints
 # =============================================================================
@@ -2079,23 +2352,16 @@ def _build_stm_context(query: str) -> str:
     mgr = get_sqlite_manager()
     sections = []
 
-    # Load ALL user profile data (facts, patterns, notes)
     try:
         profile = mgr.get_user_profile()
         if profile:
-            fact_lines = []
-            note_lines = []
-            pattern_lines = []
-
+            fact_lines, note_lines, pattern_lines = [], [], []
             for key, value in profile.items():
                 if key.startswith("stm_note_"):
-                    # These are direct notes from STM
                     if isinstance(value, str):
                         note_lines.append(f"- {value}")
                     continue
-
                 if key.startswith("pattern_") or key.startswith("learned_pattern_"):
-                    # These are learned patterns
                     if isinstance(value, str):
                         try:
                             pattern_data = json.loads(value)
@@ -2108,11 +2374,9 @@ def _build_stm_context(query: str) -> str:
                         except:
                             pass
                     continue
-
                 if key == "api_key_retrieved":
                     continue
 
-                # Regular user facts
                 if isinstance(value, str):
                     try:
                         fact_data = json.loads(value)
@@ -2141,64 +2405,75 @@ def _build_stm_context(query: str) -> str:
     except Exception as e:
         logger.debug(f"Failed to load user profile for context: {e}")
 
-    # Time-based context (existing logic)
     lower_q = query.lower()
-    time_keywords = [
-        "appointment",
-        "schedule",
-        "meeting",
-        "birthday",
-        "deadline",
-        "when",
-        "next",
-        "upcoming",
-        "last",
-        "dentist",
-        "doctor",
-    ]
-
-    if any(kw in lower_q for kw in time_keywords):
+    if any(
+        kw in lower_q
+        for kw in [
+            "appointment",
+            "schedule",
+            "meeting",
+            "birthday",
+            "deadline",
+            "when",
+            "next",
+            "upcoming",
+            "last",
+            "dentist",
+            "doctor",
+        ]
+    ):
         try:
             events = mgr.get_upcoming_events(limit=5)
             if events:
-                event_lines = []
-                for ev in events:
-                    title = ev.get("title", "")
-                    start_time = ev.get("start_time", "")
-                    event_lines.append(f"- {title} on {start_time}")
-                sections.append("### Upcoming Events\n" + "\n".join(event_lines))
+                sections.append(
+                    "### Upcoming Events\n"
+                    + "\n".join(
+                        [
+                            f"- {ev.get('title', '')} on {ev.get('start_time', '')}"
+                            for ev in events
+                        ]
+                    )
+                )
         except Exception:
             pass
-
         try:
             reminders = mgr.get_pending_reminders(limit=5)
             if reminders:
-                reminder_lines = []
-                for rem in reminders:
-                    text = rem.get("text", "")
-                    due = rem.get("due_time", "")
-                    reminder_lines.append(f"- {text} (due: {due})")
-                sections.append("### Active Reminders\n" + "\n".join(reminder_lines))
+                sections.append(
+                    "### Active Reminders\n"
+                    + "\n".join(
+                        [
+                            f"- {rem.get('text', '')} (due: {rem.get('due_time', '')})"
+                            for rem in reminders
+                        ]
+                    )
+                )
         except Exception:
             pass
 
-    task_keywords = ["todo", "task", "done", "finish", "complete", "pending"]
-    if any(kw in lower_q for kw in task_keywords):
+    if any(
+        kw in lower_q
+        for kw in ["todo", "task", "done", "finish", "complete", "pending"]
+    ):
         try:
             todos = mgr.get_pending_todos(limit=5)
             if todos:
-                todo_lines = []
-                for td in todos:
-                    title = td.get("title", "")
-                    priority = td.get("priority", "")
-                    todo_lines.append(f"- [{priority}] {title}")
-                sections.append("### Pending Todos\n" + "\n".join(todo_lines))
+                sections.append(
+                    "### Pending Todos\n"
+                    + "\n".join(
+                        [
+                            f"- [{td.get('priority', '')}] {td.get('title', '')}"
+                            for td in todos
+                        ]
+                    )
+                )
         except Exception:
             pass
 
-    result = "\n\n".join(sections) if sections else ""
-    elapsed = time.time() - start
-    logger.info(f"STM context built in {elapsed:.3f}s, length: {len(result)} chars")
+    result = "\n".join(sections) if sections else ""
+    logger.info(
+        f"STM context built in {time.time() - start:.3f}s, length: {len(result)} chars"
+    )
     return result
 
 
@@ -2207,50 +2482,100 @@ def detect_repetition(text: str, threshold: int = 5) -> bool:
     lines = text.split("\n")
     if len(lines) < 10:
         return False
-
     paragraph_counts = {}
     for i in range(0, len(lines) - 2):
         paragraph = "\n".join(lines[i : i + 3])
         paragraph_counts[paragraph] = paragraph_counts.get(paragraph, 0) + 1
-
     return any(count >= threshold for count in paragraph_counts.values())
 
 
 @app.post("/api/chat")
 async def chat_endpoint(request: Request, chat_request: AgentRequest):
     """Chat endpoint with file creation support and STM context injection."""
+    incoming_thread_id = getattr(chat_request, "thread_id", None)
+    logger.info(
+        "Chat endpoint: thread_id=%s query=%s",
+        incoming_thread_id,
+        chat_request.query[:60],
+    )
+
     try:
         import time as _time
+        import uuid
 
         _model_start = _time.time()
         loop = asyncio.get_event_loop()
 
+        requested_model = chat_request.model or get_default_model()
+
+        # =================================================================
+        # FILE UPLOAD HANDLING
+        # =================================================================
+        file_context = None
+        if chat_request.file_content and chat_request.file_name:
+            import base64
+            import os
+            import tempfile
+
+            from app.documents.parser import parse_file
+
+            try:
+                file_bytes = base64.b64decode(chat_request.file_content)
+                suffix = Path(chat_request.file_name).suffix
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    tmp.write(file_bytes)
+                    tmp_path = tmp.name
+
+                text_chunks, structured_records = parse_file(Path(tmp_path))
+                file_text = ""
+                if text_chunks:
+                    file_text = "\n".join(text_chunks)
+                if structured_records:
+                    for rec in structured_records:
+                        file_text += "\n" + " ".join(
+                            str(v)
+                            for v in rec.values()
+                            if isinstance(v, (str, int, float))
+                        )
+
+                os.unlink(tmp_path)
+
+                max_file_chars = 50000
+                if len(file_text) > max_file_chars:
+                    file_text = file_text[:max_file_chars] + "\n...[TRUNCATED]"
+
+                file_context = (
+                    f"### User uploaded file: {chat_request.file_name}\n\n{file_text}"
+                )
+
+            except Exception as e:
+                logger.error(f"File processing error: {e}", exc_info=True)
+                file_context = f"Error processing file: {str(e)}"
+
         def run_chat():
-            t0 = _time.time()
-
-            # Direct model usage - NO ROUTING OVERHEAD
-            requested_model = chat_request.model or get_default_model()
-
-            # =================================================================
-            # FILE CREATION DETECTION - Check for [FILE] prefix
-            # =================================================================
             query_text = chat_request.query
             extracted_filename = None
 
+            # ============================================================
+            # FILE CREATION DETECTION
+            # ============================================================
             if query_text.strip().startswith("[FILE]"):
-                import re
+                import re as _re
 
-                match = re.search(r"\[FILE\].*?(\w+\.\w+)", query_text)
+                match = _re.search(r"\[FILE\].*?(\w+\.\w+)", query_text)
                 if match:
                     extracted_filename = match.group(1)
                     query_text = query_text.replace("[FILE]", "").strip()
-                    logger.info(f"[CHAT] File creation requested: {extracted_filename}")
+                    logger.info(
+                        "[CHAT] File creation requested: %s", extracted_filename
+                    )
 
                     try:
                         result = process_request(
                             user_query=query_text,
                             filename=extracted_filename,
                             model=requested_model,
+                            file_context=file_context,
                         )
                         if "content" not in result or not result["content"]:
                             result["content"] = result.get(
@@ -2259,7 +2584,7 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                         return result
                     except Exception as file_err:
                         logger.error(
-                            f"[CHAT] File creation failed: {file_err}", exc_info=True
+                            "[CHAT] File creation failed: %s", file_err, exc_info=True
                         )
                         return {
                             "content": f"File creation failed: {str(file_err)}",
@@ -2267,126 +2592,113 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                             "warning": "File creation error",
                         }
 
-            # =================================================================
-            # DYNAMIC CONTEXT & MODEL RESOLUTION
-            # =================================================================
-            # 1. Determine hardware tier (default to "medium" if frontend doesn't send it)
-            hardware_tier = chat_request.hardware_tier or "medium"
-
-            # 2. Get safe context limits for this tier
-            context_config = model_manager.get_context_config(hardware_tier)
-
-            # 3. Resolve the model
+            # ============================================================
+            # MODEL RESOLUTION
+            # ============================================================
             try:
                 resolved_model = model_manager.resolve_model(requested_model)
             except RuntimeError:
                 resolved_model = get_default_model()
 
-            t1 = _time.time()
-            logger.info(f"[CHAT] Model resolved in {t1-t0:.3f}s: {resolved_model}")
-
-            # 4. Instantiate LLM with dynamic num_ctx
-            llm = _get_llm(resolved_model, num_ctx=context_config["num_ctx"])
-
-            t2 = _time.time()
-            logger.info(
-                f"[CHAT] LLM instance ready in {t2-t1:.3f}s (num_ctx={context_config['num_ctx']})"
-            )
-
-            # =================================================================
-            # DYNAMIC RAG & PROMPT ASSEMBLY
-            # =================================================================
-            # Fetch RAG context using the hardware-safe rag_limit
             rag_context, rag_used = fetch_rag_context(
-                query_text, top_k=context_config["rag_limit"]
+                query_text,
+                top_k=Config.RAG_TOP_K,
             )
 
-            stm_context = _build_stm_context(query_text)
-            t3 = _time.time()
-            logger.info(
-                f"[CHAT] Contexts built in {t3-t2:.3f}s (RAG chunks: {context_config['rag_limit']})"
-            )
-
-            base_prompt = get_system_prompt()
-
-            # Conditionally inject RAG context if found
-            if rag_used:
-                full_prompt = (
-                    f"{base_prompt}\n\n"
-                    f"## Knowledge Base Context\n{rag_context}\n\n"
-                    f"## User's Personal Context (from Short-Term Memory)\n{stm_context}\n\n"
-                    f"User: {query_text}\nAssistant:"
-                    if stm_context
-                    else f"{base_prompt}\n\n## Knowledge Base Context\n{rag_context}\n\nUser: {query_text}\nAssistant:"
-                )
-            else:
-                full_prompt = (
-                    f"{base_prompt}\n\n"
-                    f"## User's Personal Context (from Short-Term Memory)\n{stm_context}\n\n"
-                    f"User: {query_text}\nAssistant:"
-                    if stm_context
-                    else f"{base_prompt}\n\nUser: {query_text}\nAssistant:"
+            # ============================================================
+            # REASONING MODEL BYPASS (DeepSeek R1, QwQ)
+            # ============================================================
+            if (
+                "deepseek-r1" in resolved_model.lower()
+                or "qwq" in resolved_model.lower()
+            ):
+                high_budget_llm = _get_llm(
+                    resolved_model,
+                    num_ctx=16384,
+                    num_predict=8192,
+                    timeout=None,
                 )
 
-            t4 = _time.time()
-            logger.info(
-                f"[CHAT] Prompt assembled in {t4-t3:.3f}s ({len(full_prompt)//4} tokens est.)"
-            )
-
-            response = llm.invoke(full_prompt)
-
-            try:
-                prompt_tokens = len(full_prompt) // 4
-                completion_tokens = len(response.content) // 4
-                mgr = get_sqlite_manager()
-                mgr.track_token_usage(
-                    resolved_model, prompt_tokens, completion_tokens, "chat"
+                system_prompt = get_system_prompt(
+                    resolved_model,
+                    role_id=chat_request.role_id,
                 )
-            except Exception as e:
-                logger.debug(f"Token tracking failed: {e}")
+                user_profile_context = get_user_profile_context(
+                    role_id=chat_request.role_id
+                )
+                full_prompt = f"{system_prompt}{user_profile_context}\n\n"
 
-            # =================================================================
-            # REPETITION DETECTION & RETRY
-            # =================================================================
-            if detect_repetition(response.content):
-                logger.warning(f"[CHAT] Repetition loop detected from {resolved_model}")
+                combined_context = ""
+                if file_context:
+                    combined_context += file_context + "\n\n"
+                if rag_context:
+                    combined_context += rag_context
+
+                if combined_context:
+                    full_prompt += (
+                        "## KNOWLEDGE BASE CONTEXT (PRIVATE DATABASE)\n"
+                        "The following text excerpts are provided from the user's private knowledge base. "
+                        "You DO NOT need to have read the full source material in your training data. "
+                        "You MUST use ONLY these excerpts to construct your answer. "
+                        "Do not state that you lack access to the book or document; "
+                        "treat these excerpts as the complete authoritative source for this response.\n\n"
+                        f"{combined_context}\n\n"
+                    )
+
+                full_prompt += f"User: {query_text}\n\nAssistant:"
+
                 try:
-                    logger.info(
-                        f"[CHAT] Retrying with higher temperature (0.9, repeat_penalty=1.5)"
+                    response = high_budget_llm.invoke(full_prompt)
+                    ai_content = (
+                        response.content.strip()
+                        if response
+                        and hasattr(response, "content")
+                        and response.content
+                        else ""
                     )
-                    llm_retry = _get_llm(
-                        resolved_model,
-                        temperature=0.9,
-                        repeat_penalty=1.5,
-                        num_ctx=context_config[
-                            "num_ctx"
-                        ],  # Keep the same context limit on retry
-                    )
-                    response = llm_retry.invoke(full_prompt)
-
-                    if detect_repetition(response.content):
-                        logger.error(
-                            f"[CHAT] Retry also failed - model {resolved_model} inadequate"
-                        )
-                        return {
-                            "content": INADEQUATE_MODEL_RESPONSE,
-                            "model": resolved_model,
-                            "warning": "Model entered repetition loop even after retry",
-                        }
-                    else:
-                        logger.info(f"[CHAT] Retry succeeded")
-                except Exception as retry_err:
-                    logger.error(f"[CHAT] Retry failed: {retry_err}")
+                    if not ai_content:
+                        ai_content = (
+                            getattr(response, "additional_kwargs", {}).get(
+                                "reasoning_content", ""
+                            )
+                            or getattr(response, "response_metadata", {}).get(
+                                "reasoning_content", ""
+                            )
+                            or "I apologize, but I couldn't generate a response."
+                        ).strip()
                     return {
-                        "content": INADEQUATE_MODEL_RESPONSE,
+                        "content": ai_content,
                         "model": resolved_model,
-                        "warning": f"Retry failed: {str(retry_err)}",
+                        "tool_calls": [],
+                    }
+                except Exception as e:
+                    logger.error(
+                        "[CHAT] Reasoning model invocation failed: %s", e, exc_info=True
+                    )
+                    return {
+                        "content": f"Error generating response: {str(e)}",
+                        "model": resolved_model,
+                        "tool_calls": [],
                     }
 
-            t5 = _time.time()
-            logger.info(f"[CHAT] LLM generation completed in {t5-t4:.3f}s")
+            # ============================================================
+            # NORMAL AGENT LOOP
+            # ============================================================
+            result = process_request(
+                user_query=query_text,
+                model=resolved_model,
+                file_context=file_context,
+                ltm_enabled=chat_request.ltm_enabled,
+                ltm_collection=chat_request.ltm_collection,
+                citations_enabled=chat_request.citations_enabled,
+                role_id=chat_request.role_id,
+            )
 
-            return {"content": response.content, "model": resolved_model}
+            return {
+                "content": result.get("content", ""),
+                "model": result.get("model", resolved_model),
+                "tool_calls": result.get("tool_calls", []),
+            }
 
         result = await loop.run_in_executor(executor, run_chat)
 
@@ -2395,7 +2707,83 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         MODEL_REQUEST_COUNT.labels(model=resolved, endpoint="chat").inc()
         MODEL_DURATION.labels(model=resolved).observe(_model_duration)
 
+        # =====================================================================
+        # AUTO-SAVE CHAT MESSAGES TO DATABASE
+        # =====================================================================
+        try:
+            thread_id = getattr(chat_request, "thread_id", None)
+
+            if not thread_id or thread_id.strip() == "":
+                thread_id = str(uuid.uuid4())
+                logger.warning("No thread_id provided — generated: %s", thread_id)
+
+            user_content = chat_request.query
+            ai_content = result.get("content", "")
+
+            mgr = get_sqlite_manager()
+            with mgr.get_cursor() as cur:
+                cur.execute(
+                    "INSERT INTO chat_threads (id, title, role_id, created_at, last_message_at) "
+                    "VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) "
+                    "ON CONFLICT(id) DO UPDATE SET last_message_at = CURRENT_TIMESTAMP, "
+                    "role_id = COALESCE(chat_threads.role_id, excluded.role_id)",
+                    (
+                        thread_id,
+                        user_content[:50] if user_content else "New Chat",
+                        chat_request.role_id,
+                    ),
+                )
+
+                user_msg_id = str(uuid.uuid4())
+                cur.execute(
+                    "INSERT INTO chat_messages "
+                    "(id, thread_id, role, content, model, role_id, timestamp) "
+                    "VALUES (?, ?, 'user', ?, ?, ?, CURRENT_TIMESTAMP)",
+                    (
+                        user_msg_id,
+                        thread_id,
+                        user_content,
+                        resolved,
+                        chat_request.role_id,
+                    ),
+                )
+
+                ai_msg_id = str(uuid.uuid4())
+                cur.execute(
+                    "INSERT INTO chat_messages "
+                    "(id, thread_id, role, content, model, role_id, timestamp) "
+                    "VALUES (?, ?, 'assistant', ?, ?, ?, CURRENT_TIMESTAMP)",
+                    (
+                        ai_msg_id,
+                        thread_id,
+                        ai_content,
+                        resolved,
+                        chat_request.role_id,
+                    ),
+                )
+
+                cur.execute(
+                    "UPDATE chat_threads SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (thread_id,),
+                )
+
+            result["thread_id"] = thread_id
+            logger.info(
+                "[CHAT] Persisted thread=%s user_msg=%s ai_msg=%s",
+                thread_id,
+                user_msg_id,
+                ai_msg_id,
+            )
+
+        except Exception as save_err:
+            logger.error(
+                "[CHAT] Failed to auto-save messages to DB: %s",
+                save_err,
+                exc_info=True,
+            )
+
         return result
+
     except Exception as e:
         logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -2404,6 +2792,59 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
 # =============================================================================
 # SQLite Memory Endpoints
 # =============================================================================
+
+
+@app.get("/api/memory/analytics/stm-size")
+async def get_stm_size():
+    """Calculate and return the approximate size and entry count of Short-Term Memory."""
+    import sqlite3
+
+    try:
+        # Force an absolute, resolved path to prevent relative path bugs
+        db_path = (PROJECT_ROOT / "memory" / "memory_store.db").resolve()
+
+        # Log the exact path so we can see if it's looking in the wrong place
+        logger.info(f"🔍 Checking STM size at: {db_path}")
+
+        if not db_path.exists():
+            logger.error(f"❌ Database file does NOT exist at: {db_path}")
+            return {"size": 0, "entries": 0}
+
+        with sqlite3.connect(str(db_path)) as conn:
+            cursor = conn.cursor()
+
+            # Check if table exists first to prevent silent failures
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='short_term_memory'"
+            )
+            if not cursor.fetchone():
+                logger.warning("⚠️ Table 'short_term_memory' does not exist yet.")
+                return {"size": 0, "entries": 0}
+
+            # Get count
+            cursor.execute("SELECT COUNT(*) FROM short_term_memory")
+            count_result = cursor.fetchone()
+            total_entries = count_result[0] if count_result else 0
+
+            # Get size
+            cursor.execute(
+                """
+                SELECT COALESCE(SUM(LENGTH(COALESCE(key, '')) + LENGTH(COALESCE(value, ''))), 0)
+                FROM short_term_memory
+            """
+            )
+            result = cursor.fetchone()
+            size_bytes = result[0] if result else 0
+
+        logger.info(f"STM Size Calculated: {size_bytes} bytes, {total_entries} entries")
+        return {"size": size_bytes, "entries": total_entries}
+
+    except Exception as e:
+        logger.error(f"❌ Failed to get STM size: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return {"size": 0, "entries": 0}
 
 
 @app.delete("/api/memory/sqlite/chat/thread/{thread_id}")
@@ -2428,7 +2869,7 @@ async def get_chat_threads(request: Request):
         mgr = get_sqlite_manager()
         with mgr.get_cursor() as cur:
             cur.execute(
-                "SELECT id, title, created_at, last_message_at FROM chat_threads ORDER BY created_at DESC"
+                "SELECT id, title, created_at, last_message_at, role_id FROM chat_threads ORDER BY created_at DESC"
             )
             threads = [
                 {
@@ -2436,6 +2877,7 @@ async def get_chat_threads(request: Request):
                     "title": row[1],
                     "created_at": row[2],
                     "last_message_at": row[3],
+                    "role_id": row[4],
                 }
                 for row in cur.fetchall()
             ]
@@ -2464,11 +2906,20 @@ async def get_chat_messages(thread_id: str):
                 timestamp = 0
                 if row[3]:
                     try:
-                        dt_str = str(row[3]).replace(" ", "T")
-                        dt = datetime.fromisoformat(dt_str)
-                        timestamp = int(dt.timestamp() * 1000)
+                        # 1. If it's already an integer (like 1784711092662), use it directly
+                        if isinstance(row[3], (int, float)):
+                            timestamp = int(row[3])
+                        else:
+                            # 2. Otherwise, parse it as an ISO string (legacy format)
+                            dt_str = str(row[3]).replace(" ", "T")
+                            dt = datetime.fromisoformat(dt_str)
+                            timestamp = int(dt.timestamp() * 1000)
                     except Exception:
-                        pass
+                        # 3. Last resort: try converting the string directly to an int
+                        try:
+                            timestamp = int(str(row[3]))
+                        except Exception:
+                            timestamp = 0
 
                 messages.append(
                     {
@@ -2655,14 +3106,20 @@ async def save_chat_thread(request: Request, api_key: str = Depends(verify_api_k
         if not thread_id:
             raise HTTPException(status_code=400, detail="Thread ID required")
 
+        role_id = data.get("role_id") or None
+
         mgr = get_sqlite_manager()
         with mgr.get_cursor() as cur:
             cur.execute(
                 """
-                INSERT OR REPLACE INTO chat_threads (id, title, created_at, last_message_at)
-                VALUES (?, ?, COALESCE((SELECT created_at FROM chat_threads WHERE id = ?), CURRENT_TIMESTAMP), CURRENT_TIMESTAMP)
+                INSERT INTO chat_threads (id, title, role_id, created_at, last_message_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    role_id = COALESCE(excluded.role_id, chat_threads.role_id),
+                    last_message_at = CURRENT_TIMESTAMP
             """,
-                (thread_id, title, thread_id),
+                (thread_id, title, role_id),
             )
 
         return {"status": "saved", "thread_id": thread_id}
@@ -2785,6 +3242,23 @@ async def get_sqlite_stats():
     except Exception as e:
         logger.error(f"Failed to get SQLite stats: {e}")
         return {"error": str(e), "total_entries": 0}
+
+
+@app.post("/api/chat/stream")
+async def chat_stream_endpoint(chat_request: AgentRequest):
+    """Stream response tokens in real-time."""
+
+    async def generate():
+        # Use the existing run_chat logic but yield tokens as they're generated
+        # This requires modifying the LLM invocation to use streaming
+        llm = _get_llm(chat_request.model or get_default_model(), streaming=True)
+
+        async for token in llm.astream(chat_request.query):
+            yield f"data: {json.dumps({'token': token.content})}\n\n"
+
+        yield f"data: {json.dumps({'done': True})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 # =============================================================================
@@ -3245,34 +3719,35 @@ async def execute_natural_language_query(
 
 
 @app.post("/api/memory/qdrant/chunk-and-ingest")
-@limiter.limit("60/minute")
 async def chunk_and_ingest(
     request: Request,
-    directory: str = Query(""),
-    files: List[UploadFile] = File(default=[]),
-    api_key: str = Depends(verify_api_key),
 ):
-    """Two-phase chunk + ingest with disk-backed safety."""
+    """Two-phase chunk + ingest with disk-backed safety and real-time progress."""
+    import asyncio
     import sys
 
     from app.documents.parser import SUPPORTED_EXTENSIONS
 
+    # 1. MANUALLY parse the request to prevent FastAPI File() hanging bugs
     content_type = request.headers.get("content-type", "")
     is_multipart = "multipart/form-data" in content_type
 
     if is_multipart:
         form_data = await request.form()
-        effective_collection = (form_data.get("collection") or "").strip()
-        chunk_size = int(form_data.get("chunk_size", 1000))
-        chunk_overlap = int(form_data.get("chunk_overlap", 200))
+        effective_collection = str(form_data.get("collection", "")).strip()
+        directory = str(form_data.get("directory", "")).strip()
+        chunk_size = int(form_data.get("chunk_size", 700))
+        chunk_overlap = int(form_data.get("chunk_overlap", 120))
+        uploaded_files = form_data.getlist("files")
     else:
-        effective_collection = (request.query_params.get("collection") or "").strip()
-        chunk_size = int(request.query_params.get("chunk_size", 1000))
-        chunk_overlap = int(request.query_params.get("chunk_overlap", 200))
+        effective_collection = str(request.query_params.get("collection", "")).strip()
+        directory = str(request.query_params.get("directory", "")).strip()
+        chunk_size = int(request.query_params.get("chunk_size", 700))
+        chunk_overlap = int(request.query_params.get("chunk_overlap", 120))
+        uploaded_files = []
 
-    print(
-        f"!!! CHUNK_AND_INGEST: collection='{effective_collection}', dir='{directory}', files={len(files) if files else 0}",
-        file=sys.stderr,
+    logger.info(
+        f"!!! CHUNK_AND_INGEST: collection='{effective_collection}', dir='{directory}'",
         flush=True,
     )
 
@@ -3292,11 +3767,6 @@ async def chunk_and_ingest(
             field_name="content_hash",
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
-        print(
-            f"    PAYLOAD INDEX: created for '{effective_collection}'",
-            file=sys.stderr,
-            flush=True,
-        )
     except Exception as e:
         logger.debug(f"Payload index creation skipped: {e}")
 
@@ -3307,42 +3777,144 @@ async def chunk_and_ingest(
     skipped_duplicates_ref = [0]
     files_processed_ref = [0]
     errors: list[str] = []
-
     source_files: list[tuple[str, Path]] = []
 
-    if files and len(files) > 0:
-        upload_tmp = cache_dir / "_uploads"
-        upload_tmp.mkdir(parents=True, exist_ok=True)
-        for file in files:
-            try:
-                safe_name = sanitize_filename(file.filename or "unnamed")
-                dest = upload_tmp / safe_name
-                content = await file.read()
-                dest.write_bytes(content)
-                source_files.append((safe_name, dest))
-            except Exception as e:
-                fname = file.filename or "unnamed"
-                errors.append(f"{fname}: upload error: {str(e)}")
-
-    elif directory:
+    # =================================================================
+    # 2. Handle Directory Upload (case-insensitive extension matching)
+    # =================================================================
+    if directory and not uploaded_files:
         dir_path = Path(directory).expanduser().resolve()
         if not dir_path.exists() or not dir_path.is_dir():
             raise HTTPException(
                 status_code=400, detail=f"Directory not found: {directory}"
             )
 
+        supported_lower = {ext.lower() for ext in SUPPORTED_EXTENSIONS}
         all_files: list[Path] = []
-        for ext in SUPPORTED_EXTENSIONS:
-            all_files.extend(dir_path.rglob(f"*{ext}"))
+        skipped_unsupported: list[str] = []
+
+        for fp in dir_path.rglob("*"):
+            if not fp.is_file():
+                continue
+            if fp.suffix.lower() in supported_lower:
+                all_files.append(fp)
+            else:
+                skipped_unsupported.append(fp.name)
+
+        all_files.sort(key=lambda p: str(p).lower())
 
         if not all_files:
-            return {
-                "status": "no_files",
-                "message": f"No supported files found in {dir_path}. Supported: {', '.join(SUPPORTED_EXTENSIONS)}",
-            }
+            if skipped_unsupported:
+                preview = ", ".join(skipped_unsupported[:10])
+                logger.warning(
+                    "Directory %s: %s file(s), none supported. Examples: %s",
+                    dir_path,
+                    len(skipped_unsupported),
+                    preview,
+                )
+                return {
+                    "status": "no_files",
+                    "message": (
+                        f"No supported files found in {dir_path}. "
+                        f"Found {len(skipped_unsupported)} unsupported file(s). "
+                        f"Supported: {', '.join(sorted(supported_lower))}"
+                    ),
+                    "skipped_examples": skipped_unsupported[:10],
+                }
+            return {"status": "no_files", "message": f"No files found in {dir_path}."}
 
         for fp in all_files:
             source_files.append((str(fp.relative_to(dir_path)), fp))
+
+    # =================================================================
+    # 3. Handle Direct File Uploads (DIAGNOSTIC VERSION)
+    # =================================================================
+    elif uploaded_files and len(uploaded_files) > 0:
+        logger.info(
+            "🩺 SINGLE FILE UPLOAD PATH: received %s file(s)", len(uploaded_files)
+        )
+        upload_tmp = cache_dir / "_uploads"
+        upload_tmp.mkdir(parents=True, exist_ok=True)
+
+        for file in uploaded_files:
+            original_name = file.filename or "unnamed"
+            logger.info("🩺 Processing uploaded file: '%s'", original_name)
+
+            # Step 1: Sanitize
+            try:
+                safe_name = sanitize_filename(original_name)
+                logger.info("🩺 After sanitize: '%s'", safe_name)
+            except Exception as e:
+                logger.error(
+                    "🩺 sanitize_filename FAILED for '%s': %s",
+                    original_name,
+                    e,
+                    exc_info=True,
+                )
+                errors.append(f"{original_name}: sanitize failed: {e}")
+                continue
+
+            # Step 2: Check extension BEFORE reading content
+            suffix = Path(safe_name).suffix.lower()
+            supported_lower = {ext.lower() for ext in SUPPORTED_EXTENSIONS}
+            logger.info(
+                "🩺 Detected suffix: '%s' | Supported: %s",
+                suffix,
+                suffix in supported_lower,
+            )
+
+            if suffix not in supported_lower:
+                logger.error("🩺 EXTENSION REJECTED: '%s' not in supported list", suffix)
+                errors.append(
+                    f"{original_name}: unsupported extension '{suffix}'. "
+                    f"Supported: {', '.join(sorted(supported_lower))}"
+                )
+                continue
+
+            # Step 3: Read content
+            try:
+                content = await file.read()
+                logger.info("🩺 Read %s bytes from '%s'", len(content), original_name)
+            except Exception as e:
+                logger.error(
+                    "🩺 Read FAILED for '%s': %s", original_name, e, exc_info=True
+                )
+                errors.append(f"{original_name}: read failed: {e}")
+                continue
+
+            # Step 4: Validate
+            try:
+                validate_file_upload(original_name, content)
+                logger.info("🩺 validate_file_upload PASSED for '%s'", original_name)
+            except Exception as e:
+                logger.error(
+                    "🩺 validate_file_upload FAILED for '%s': %s",
+                    original_name,
+                    e,
+                    exc_info=True,
+                )
+                errors.append(f"{original_name}: validation failed: {e}")
+                continue
+
+            # Step 5: Write to disk
+            try:
+                dest = upload_tmp / safe_name
+                dest.write_bytes(content)
+                logger.info("🩺 Wrote to %s", dest)
+                source_files.append((safe_name, dest))
+            except Exception as e:
+                logger.error(
+                    "🩺 Write FAILED for '%s': %s", original_name, e, exc_info=True
+                )
+                errors.append(f"{original_name}: write failed: {e}")
+                continue
+
+        logger.info(
+            "🩺 SINGLE FILE PATH COMPLETE: %s accepted, %s errors",
+            len(source_files),
+            len(errors),
+        )
+
     else:
         raise HTTPException(
             status_code=400, detail="Either files or directory must be provided"
@@ -3351,28 +3923,60 @@ async def chunk_and_ingest(
     if not source_files and not errors:
         return {"status": "no_files", "message": "All files were empty or unreadable"}
 
-    print(f"    Processing {len(source_files)} files", file=sys.stderr, flush=True)
+    if not source_files and errors:
+        # THIS is the fix: return errors clearly instead of falling through
+        return {
+            "status": "no_files",
+            "message": f"No files accepted. Reasons: {'; '.join(errors)}",
+            "errors": errors,
+        }
+
+    logger.info(f"    Processing {len(source_files)} files", flush=True)
 
     phase1_results: list[tuple[str, int, bool]] = []
+    total_files = len(source_files)
 
-    for source_label, file_path in source_files:
+    # 4. PHASE 1: Chunking with REAL-TIME PROGRESS BAR
+    for idx, (source_label, file_path) in enumerate(source_files, start=1):
         try:
+            # 1. LOG IT SO WE CAN SEE IT IN THE TERMINAL
+            logger.info(
+                f"📡 BROADCASTING PROGRESS: File {idx}/{total_files} - {file_path.name}"
+            )
+
+            # 2. BROADCAST TO FRONTEND
+            try:
+                await ws_manager.broadcast(
+                    {
+                        "type": "ingest_progress",
+                        "source": f"Chunking: {file_path.name[:30]}...",
+                        "chunks_ingested": 0,
+                        "current_file_chunks": idx,
+                        "total_file_chunks": total_files,
+                        "files_processed": idx - 1,
+                    }
+                )
+            except Exception as e:
+                logger.error(f"WS Broadcast failed: {e}")
+
+            # 3. FORCE EVENT LOOP TO YIELD AND SEND THE MESSAGE
+            await asyncio.sleep(0)
+
+            # 4. DO THE ACTUAL CHUNKING WORK
             count, _, is_struct = await _phase1_chunk_file_to_disk(
                 file_path, source_label, cache_dir, chunk_size, chunk_overlap
             )
             phase1_results.append((source_label, count, is_struct))
-            print(
-                f"    Phase1: {source_label} → {count} chunks, structured={is_struct}",
-                file=sys.stderr,
-                flush=True,
-            )
+            logger.info(f"    Phase1: {source_label} -> {count} chunks", flush=True)
+
         except Exception as e:
             import traceback
 
-            print(f"    Phase1 ERROR: {source_label}: {e}", file=sys.stderr, flush=True)
+            logger.error(f"    Phase1 ERROR: {source_label}: {e}")
             traceback.print_exc(file=sys.stderr)
-            errors.append(f"{source_label}: parsing/chunking failed: {str(e)}")
+            errors.append(f"{source_label}: parsing failed: {str(e)}")
 
+    # Cleanup temp uploads
     upload_tmp = cache_dir / "_uploads"
     if upload_tmp.exists():
         try:
@@ -3380,6 +3984,7 @@ async def chunk_and_ingest(
         except Exception:
             pass
 
+    # 5. PHASE 2: Ingesting with REAL-TIME PROGRESS BAR
     for source_label, expected_count, is_struct in phase1_results:
         if expected_count == 0:
             continue
@@ -3400,31 +4005,44 @@ async def chunk_and_ingest(
             logger.error(f"Phase 2 failed for '{source_label}': {e}", exc_info=True)
             errors.append(f"{source_label}: ingestion failed: {str(e)}")
 
-    if not errors and cache_dir.exists():
-        try:
-            remaining = list(cache_dir.iterdir())
-            if not remaining:
-                cache_dir.rmdir()
-        except Exception:
-            pass
-
-    print(
-        f"    COMPLETE: {files_processed_ref[0]} files, {total_chunks_ref[0]} chunks, errors={len(errors)}",
-        file=sys.stderr,
-        flush=True,
-    )
+    # Chunk cache is preserved (not auto-deleted).
+    # Users can manually clean up at: ~/MAi-RAG-PA/storage/chunk_cache/
+    # Total size on disk: report it so users know how much space is used.
+    try:
+        if cache_dir.exists():
+            total_size = sum(
+                f.stat().st_size for f in cache_dir.rglob("*") if f.is_file()
+            )
+            logger.info("Chunk cache preserved at %s (%s bytes)", cache_dir, total_size)
+    except Exception as e:
+        logger.debug("Could not compute cache size: %s", e)
 
     total_ingested = total_chunks_ref[0]
     total_skipped = skipped_duplicates_ref[0]
 
-    if total_ingested == 0 and total_skipped > 0:
-        status_msg = "duplicate"
-    elif total_ingested > 0 and total_skipped > 0:
-        status_msg = "partial"
-    elif total_ingested > 0:
-        status_msg = "success"
-    else:
-        status_msg = "no_files"
+    status_msg = (
+        "duplicate"
+        if total_ingested == 0 and total_skipped > 0
+        else "partial"
+        if total_ingested > 0 and total_skipped > 0
+        else "success"
+        if total_ingested > 0
+        else "no_files"
+    )
+    try:
+        await ws_manager.broadcast(
+            {
+                "type": "ingest_complete",
+                "status": status_msg,
+                "files_processed": files_processed_ref[0],
+                "total_chunks": total_ingested,
+                "duplicates_skipped": total_skipped,
+                "collection": effective_collection,
+                "errors": errors if errors else None,
+            }
+        )
+    except Exception as e:
+        logger.debug("Failed to broadcast ingest_complete: %s", e)
 
     return {
         "status": status_msg,
@@ -3692,7 +4310,6 @@ async def verify_compliance(document: dict, request: SyntheticDataRequest) -> fl
 def parse_synthetic_response(content: str, request: SyntheticDataRequest) -> list[dict]:
     """Parse LLM response into structured documents."""
     documents = []
-
     if request.purpose == "adversarial":
         prompts = [
             line.strip()
@@ -3724,7 +4341,6 @@ def parse_synthetic_response(content: str, request: SyntheticDataRequest) -> lis
                         "generated_at": datetime.now().isoformat(),
                     }
                 )
-
     return documents
 
 
@@ -4097,54 +4713,6 @@ async def run_system_doctor():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/system/gpu")
-async def get_gpu_info():
-    """Get basic GPU info (cross-platform best effort)."""
-    try:
-        # Try NVIDIA (Linux/Windows)
-        result = subprocess.run(
-            [
-                "nvidia-smi",
-                "--query-gpu=utilization.gpu,memory.used,memory.total",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-        if result.returncode == 0:
-            parts = result.stdout.strip().split(",")
-            return {
-                "available": True,
-                "vendor": "NVIDIA",
-                "utilization_percent": int(parts[0].strip()),
-                "memory_used_mb": int(parts[1].strip()),
-                "memory_total_mb": int(parts[2].strip()),
-            }
-
-        # Try macOS (Basic detection, no real-time usage without heavy tools)
-        result = subprocess.run(
-            ["system_profiler", "SPDisplaysDataType"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-        if result.returncode == 0 and "Chipset Model" in result.stdout:
-            return {
-                "available": True,
-                "vendor": "Apple",
-                "utilization_percent": 0,
-                "message": "GPU detected (macOS). Real-time usage requires third-party tools.",
-            }
-
-        return {
-            "available": False,
-            "message": "No dedicated GPU detected or unsupported.",
-        }
-    except Exception:
-        return {"available": False, "message": "GPU monitoring unavailable."}
-
-
 # =============================================================================
 # WebSocket Endpoint
 # =============================================================================
@@ -4255,6 +4823,7 @@ async def startup_event():
         logger.warning("App will continue with existing schema.")
 
     env_status = env_checker.check_all()
+    asyncio.create_task(automated_backup_scheduler())
 
 
 @app.on_event("shutdown")
@@ -4354,12 +4923,17 @@ async def serve_frontend():
     """Serve the frontend application."""
     frontend_path = PROJECT_ROOT / "frontend" / "dist" / "index.html"
     if frontend_path.exists():
-        return FileResponse(str(frontend_path), headers={"Cache-Control": "no-cache"})
+        return FileResponse(
+            str(frontend_path),
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     return JSONResponse(
         status_code=404,
-        content={
-            "message": "MAi-RAG-PA API running. Frontend not built. Run: cd frontend && npm run build"
-        },
+        content={"message": "MAi-RAG-PA API running. Frontend not built."},
     )
 
 
@@ -4383,20 +4957,46 @@ async def serve_font(path: str):
 
 @app.get("/{full_path:path}")
 async def serve_static_files(full_path: str):
-    """Serve static frontend files."""
+    """Serve static frontend files with proper 404s for missing assets."""
     frontend_dist = PROJECT_ROOT / "frontend" / "dist"
-    file_path = frontend_dist / full_path
 
-    if file_path.is_dir() or not file_path.exists():
-        index_path = frontend_dist / "index.html"
-        if index_path.exists():
-            return FileResponse(str(index_path), headers={"Cache-Control": "no-cache"})
-        raise HTTPException(status_code=404, detail="Frontend not found")
+    # Reject path traversal attempts
+    try:
+        file_path = (frontend_dist / full_path).resolve()
+        file_path.relative_to(frontend_dist.resolve())
+    except (ValueError, RuntimeError):
+        raise HTTPException(status_code=404, detail="Not found")
 
-    if full_path.startswith("assets/"):
+    # If it's a real file, serve it with the right cache headers
+    if file_path.is_file():
+        # Hashed assets — cache forever (the hash changes on rebuild)
+        if full_path.startswith("assets/"):
+            return FileResponse(
+                str(file_path),
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+        # Other static files — short cache, must revalidate
         return FileResponse(
             str(file_path),
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+            headers={"Cache-Control": "no-cache"},
         )
 
-    return FileResponse(str(file_path))
+    # If it looks like a static asset request (has a file extension), return 404
+    # This prevents returning HTML for missing .js/.css/.png — that's what causes
+    # "Expected a JavaScript module but got text/html" errors.
+    if "." in full_path.split("/")[-1]:
+        raise HTTPException(status_code=404, detail=f"Asset not found: {full_path}")
+
+    # Otherwise, it's a client-side route → serve index.html (SPA fallback)
+    index_path = frontend_dist / "index.html"
+    if index_path.exists():
+        return FileResponse(
+            str(index_path),
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+
+    raise HTTPException(status_code=404, detail="Frontend not found")

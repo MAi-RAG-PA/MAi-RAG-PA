@@ -20,7 +20,6 @@ export const InputTargetProvider: React.FC<{ children: ReactNode }> = ({ childre
 
 export const useInputTarget = (): InputTargetContextType => {
   const context = useContext(InputTargetContext);
-  console.log('useInputTarget context:', context);
   if (!context) {
     console.error('useInputTarget called outside InputTargetProvider');
     throw new Error('useInputTarget must be used within an InputTargetProvider');

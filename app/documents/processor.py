@@ -191,51 +191,37 @@ def file_hash(filepath: Path) -> str:
 
 
 def extract_metadata(filepath: Path) -> DocumentMetadata:
-    """Extract rich metadata from any document format"""
-    stat = filepath.stat()
+    """Extract metadata from filename ONLY, ignoring internal file metadata."""
+    filename = filepath.name
+    stem = filepath.stem
+    parts = [p.strip() for p in stem.split(" - ")]
+
+    # Parse Title - Subtitle - Author format
+    if len(parts) >= 3:
+        title = parts[0]
+        subtitle = " - ".join(parts[1:-1])
+        author = parts[-1]
+    elif len(parts) == 2:
+        title = parts[0]
+        subtitle = ""
+        author = parts[1]
+    else:
+        title = stem
+        subtitle = ""
+        author = "Unknown Author"
+
+    # Get collection/genre from parent directory name
+    collection = filepath.parent.name
+
     meta = DocumentMetadata(
-        filename=filepath.name,
-        source_type=filepath.suffix[1:].lower(),
-        created=datetime.fromtimestamp(stat.st_ctime).isoformat(),
-        modified=datetime.fromtimestamp(stat.st_mtime).isoformat(),
+        title=title,
+        author=author,
+        subtitle=subtitle,
+        source_type=filepath.suffix.lstrip("."),
+        file_path=str(filepath),
         file_hash=file_hash(filepath),
+        collection=collection,  # ← Uses directory name as genre/collection
     )
-
-    ext = meta.source_type.lower()
-
-    try:
-        if ext == "pdf":
-            try:
-                import fitz
-
-                doc = fitz.open(filepath)
-                meta.title = doc.metadata.get("title", "")
-                meta.author = doc.metadata.get("author", "")
-                doc.close()
-            except ImportError:
-                pass
-
-        elif ext == "docx" and DOCX_AVAILABLE:
-            doc = Document(filepath)
-            meta.title = doc.core_properties.title or ""
-            meta.author = doc.core_properties.author or ""
-
-        elif ext == "md" and FRONTMATTER_AVAILABLE:
-            with open(filepath, "r", encoding="utf-8") as f:
-                fm = frontmatter.load(f)
-                meta.title = fm.get("title", "")
-                meta.author = fm.get("author", "")
-                meta.tags = fm.get("tags", [])
-
-        elif ext == "pptx" and PPTX_AVAILABLE:
-            prs = Presentation(filepath)
-            if prs.core_properties.title:
-                meta.title = prs.core_properties.title
-            if prs.core_properties.author:
-                meta.author = prs.core_properties.author
-
-    except Exception as e:
-        logger.warning("Failed to extract metadata from %s: %s", filepath, e)
 
     return meta
 

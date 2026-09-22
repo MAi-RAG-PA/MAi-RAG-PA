@@ -89,7 +89,7 @@ yarn-error.log*
 # ============================================================================
 # BUILD OUTPUTS
 # ============================================================================
-dist/
+/dist/
 build/
 *.egg-info/
 
@@ -171,3 +171,18 @@ scripts/
 !launch.vbs
 !update.sh
 !update-mac.command
+.aider*
+.env
+.env
+.env
+.env
+.env
+.env
+.env
+.env
+.env
+.env
+.env
+.env
+.env
+.env
