@@ -614,5 +614,5 @@ Every donation helps keep MAi-RAG-PA free and continuously improving.
 </p>
 
 <p align="center">
-  Version 1.0.0 | Released June 2026
+  Version 1.7.0 | Released June 2026
 </p>
