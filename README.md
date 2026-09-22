@@ -32,7 +32,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 
 
 <p align="center">
-  <strong>Version 1.4 | Effective Date: June 2026</strong><br />
+  <strong>Version 1.7.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
