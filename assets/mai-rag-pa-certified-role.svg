@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="MAi-RAG-PA Certified Role badge">
+  <defs>
+    <linearGradient id="mrpaRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a371f7"/>
+      <stop offset="55%" stop-color="#58a6ff"/>
+      <stop offset="100%" stop-color="#238636"/>
+    </linearGradient>
+    <linearGradient id="mrpaInner" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#161b22"/>
+      <stop offset="100%" stop-color="#0d1117"/>
+    </linearGradient>
+    <filter id="mrpaGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer hexagon -->
+  <polygon points="120,8 209,58 209,182 120,232 31,182 31,58"
+           fill="url(#mrpaRing)" filter="url(#mrpaGlow)"/>
+  <!-- Inner hexagon -->
+  <polygon points="120,24 195,66 195,174 120,216 45,174 45,66"
+           fill="url(#mrpaInner)" stroke="#30363d" stroke-width="1"/>
+
+  <!-- Top arc text: MAi-RAG-PA -->
+  <path id="topArc" d="M 60,95 A 65,65 0 0 1 180,95" fill="none"/>
+  <text font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="15" font-weight="700" letter-spacing="1.5"
+        fill="#f0f6fc">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">MAi-RAG-PA</textPath>
+  </text>
+
+  <!-- Bottom arc text: CERTIFIED ROLE -->
+  <path id="bottomArc" d="M 55,155 A 68,68 0 0 0 185,155" fill="none"/>
+  <text font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="11" font-weight="600" letter-spacing="2.5"
+        fill="#a371f7">
+    <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">CERTIFIED ROLE</textPath>
+  </text>
+
+  <!-- Center check-in-shield -->
+  <g transform="translate(120,120)">
+    <circle r="34" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5" opacity="0.7"/>
+    <!-- Shield -->
+    <path d="M 0,-22 L 18,-14 L 18,6 C 18,15 9,21 0,24 C -9,21 -18,15 -18,6 L -18,-14 Z"
+          fill="none" stroke="#58a6ff" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Check -->
+    <path d="M -8,-1 L -2,6 L 9,-7"
+          fill="none" stroke="#3fb950" stroke-width="3"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Version tag -->
+  <text x="120" y="205" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="9" font-weight="600" letter-spacing="1.5"
+        fill="#8b949e" text-anchor="middle">v1.7</text>
+</svg>
