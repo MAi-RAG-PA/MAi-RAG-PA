@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Block the post-purchase confirmation page from indexing
+Disallow: /success.html
+
+Sitemap: https://mai-rag-pa.github.io/MAi-RAG-PA/sitemap.xml
