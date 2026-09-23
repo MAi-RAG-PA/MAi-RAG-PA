@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    
     <!-- PRIMARY SEO META TAGS (enhanced) -->
     <title>MAi-RAG-PA | Offline RAG Knowledge Base Assistant · Local LLM · Self‑Healing · Research Synthesizer · No Cloud · No Subscriptions · Let AI Work for you, not the other way around.</title>
     <meta name="description" content="MAi-RAG-PA: 100% offline, privacy-focused AI personal assistant. Run local LLMs via Ollama, build a RAG knowledge database, get footnoted citations for verifiable research, self‑healing agentic workflows. No cloud, No subscriptions, No data mining, full local sovereignty.">
@@ -44,7 +44,7 @@
       },
       "url": "https://github.com/MAi-RAG-PA/MAi-RAG-PA",
       "screenshot": "https://mai-rag-pa.github.io/MAi-RAG-PA/assets/intro.png",
-      "softwareVersion": "1.6.0",
+      "softwareVersion": "1.7.0",
       "author": {
         "@type": "Organization",
         "name": "MAi-RAG-PA Community"
@@ -111,6 +111,7 @@
         .nav-links { display: flex; gap: 1.2rem; flex-wrap: wrap; }
         .nav-links a { color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; transition: color 0.2s; }
         .nav-links a:hover { color: var(--accent-blue); }
+        .nav-links a.active { color: var(--accent-blue); }
 
         /* ---- HERO ---- */
         .hero { text-align: center; padding: 4rem 1rem 2.5rem; }
@@ -274,6 +275,8 @@
                 <span>MAi-RAG-PA</span>
             </a>
             <nav class="nav-links" aria-label="Main navigation">
+                <a href="index.html" class="active">Home</a>
+                <a href="roles.html">Roles</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md">Docs</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md">Install</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md">Changelog</a>
@@ -286,15 +289,21 @@
         <div class="container">
             <!-- HERO -->
             <section class="hero">
-                <span class="hero-badge">✨ v1.6.0 • Open Source &amp; 100% Free</span>
+                <span class="hero-badge">✨ v1.7.0 • Open Source &amp; 100% Free</span>
                 <h1>An Offline Local AI Personal Assistant<br>that stays <span class="highlight">personal</span>.</h1>
                 <p class="subtitle">
-                    <strong>Your data, your rules.</strong>
+                    <strong>Your data, your rules.</strong> 
                     <br>A comprehensive, privacy‑first productivity suite that runs entirely on your local machine.
                     <br>Run local LLMs via <strong>Ollama</strong>, build a <strong>RAG knowledge base</strong>, and use <strong>self‑healing agentic workflows</strong>.
                     <br>No cloud. No subscriptions. No data mining.
                     <br><strong>Let AI work for you, not the other way around.</strong>
                 </p>
+
+                <div style="margin-bottom:1rem;">
+                    <a href="roles.html" style="display:inline-block; background:rgba(163,113,247,0.12); color:var(--accent-purple); border:1px solid rgba(163,113,247,0.3); padding:6px 18px; border-radius:30px; font-size:0.9rem; font-weight:600;">
+                        🆕 v1.7.0 — Meet the Roles System →
+                    </a>
+                </div>
 
                 <div class="installer-box">
                     <code>curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash</code>
@@ -405,6 +414,43 @@
                 </div>
             </div>
 
+            <!-- ROLES PROMO -->
+            <h2 class="section-title" style="margin-top: 4rem;">Your AI Just Became a Team.</h2>
+            <p class="section-subtitle">
+                MAi-RAG-PA v1.7.0 introduces <strong>Roles</strong> — self-contained AI specialists, each with its own private knowledge base,
+                learned memory, personality, and rules. One assistant, many experts. All local, all private.
+            </p>
+
+            <div class="grid-3">
+                <div class="card" style="border-color: var(--accent-purple);">
+                    <div class="card-icon">🎭</div>
+                    <h3>What Is a Role?</h3>
+                    <p>A Role bundles a system prompt, a private Qdrant collection, its own memory, a citation setting, and an optional model override. Switch Roles and the entire assistant transforms — knowledge, tone, and memory included.</p>
+                </div>
+                <div class="card" style="border-color: var(--accent-purple);">
+                    <div class="card-icon">🧩</div>
+                    <h3>Role-Scoped Isolation</h3>
+                    <p>Facts learned in "Tax Preparation" never leak into "Buddhist Study." Client A's contracts never surface in Client B's thread. This is a compliance feature, not just convenience.</p>
+                </div>
+                <div class="card" style="border-color: var(--accent-purple);">
+                    <div class="card-icon">🛠️</div>
+                    <h3>Role Creation Is a Craft</h3>
+                    <p>The framework is free. Building a <em>good</em> Role requires dataset engineering, prompt architecture, hallucination defense, and model matching. That's where we come in.</p>
+                </div>
+            </div>
+
+            <div class="card" style="margin: 2rem 0; border-color: var(--accent-purple); text-align:center;">
+                <h3 style="color: var(--accent-purple); font-size: 1.5rem; margin-bottom: 1rem;">Role Creation Services — Entry · Intermediate · Professional</h3>
+                <p style="max-width: 720px; margin: 0 auto 1.5rem; color: var(--text-secondary);">
+                    From a grade-school math tutor to a clinical literature reviewer — we engineer private Roles that run entirely on your machine.
+                    Fixed-price builds from <strong style="color: var(--text-primary);">$149</strong>. One-time fee. No cloud. No subscriptions. You own it forever.
+                </p>
+                <div class="btn-group">
+                    <a href="roles.html" class="btn btn-outline">Explore Roles &amp; Pricing</a>
+                    <a href="roles.html#usecases" class="btn btn-secondary">See Use Cases</a>
+                </div>
+            </div>
+
             <!-- SELF-HEALING WORKFLOW CARD -->
             <div class="card" style="margin: 3rem 0; text-align: center; border-color: var(--accent-purple);">
                 <h3 style="color: var(--accent-purple); font-size: 1.5rem; margin-bottom: 1rem;">🤖 Self‑Healing Agentic Workflow: Zero Broken Code</h3>
@@ -431,7 +477,7 @@
                     <div class="gallery-item">
                         <img src="assets/intro.png" alt="MAi-RAG-PA Overview Dashboard showing system status, chat, and memory panels">
                         <h4>Comprehensive Dashboard</h4>
-                        <p><strong style="color: var(--accent-blue);">A unified dashboard giving you instant access to local chat, memory, calendar, and system health.</strong></p>
+                        <p><strong style="color: var(--accent-blue);">A unified dashboard giving you instant access to local chat, memory, calendar, system health, and <a href="roles.html" style="color:var(--accent-purple);">Role-based specialists</a>.</strong></p>
                     </div>
                     <div class="gallery-item">
                         <img src="assets/ChatConsole.png" alt="MAi-RAG-PA multi-threaded chat console with model selector and system resource monitor">
@@ -509,6 +555,8 @@
     <footer>
         <div class="container">
             <div class="footer-links">
+                <a href="index.html">Home</a>
+                <a href="roles.html">Roles</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md">Documentation</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md">Installation</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-OLLAMA-MODELS.md">Models</a>
@@ -522,7 +570,7 @@
                 <!-- Add more social links if you have a Discord or Twitter -->
             </div>
             <p><strong>MAi‑RAG‑PA</strong> — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</p>
-            <p style="margin-top: 0.5rem; font-size: 0.8rem; opacity: 0.7;">Version 1.6.0 | Copyright © 2026 MAi‑RAG‑PA. All rights reserved.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem; opacity: 0.7;">Version 1.7.0 | Copyright © 2026 MAi‑RAG‑PA. All rights reserved.</p>
         </div>
     </footer>
 

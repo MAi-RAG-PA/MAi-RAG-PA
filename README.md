@@ -7,8 +7,8 @@
 
 <p align="center">
   <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
-</p>
-
+</p> 
+  
 **SUPER EASY ONE-LINE Installer for ALL Mainstream Operating Systems:**
 
 ```bash
@@ -32,7 +32,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 
 
 <p align="center">
-  <strong>Version 1.7.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 1.4 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -41,7 +41,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 ## What is MAi-RAG-PA?
 
 **MAi-RAG-PA is a complete AI-powered productivity suite that runs 100% locally on your machine:**
-- Chat Console - Multi-threaded conversations with any Ollama model, And set up Roles for different Use Cases
+- Chat Console - Multi-threaded conversations with any Ollama model, And set up Roles for different Use Cases.
 - Text Editor - Multi-format editor with AI assistance
 - Long-Term Memory - Ingest 17 document formats (PDF, EPUB, DOCX, PPTX, XLSX, etc.) into a vector database
 - Calendar & Planner - Full-featured scheduling with smart reminders
@@ -108,6 +108,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 - **No hidden functionality**
 
 ### Professional Productivity
+- **Roles: self-contained AI specialists, each with its own knowledge, memory, and rules.**
 - **Contract Drafting**: Generate legal documents with LLM assistance that understands context
 - **Spreadsheet Generation**: Create CSV and structured data files from natural language
 - **Email & Correspondence**: Draft professional communications with contextual awareness
@@ -168,6 +169,70 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 - Fallback to general knowledge when needed
 - Automatic citation tracking with page numbers and authors
 - No manual context management required
+
+-----------------------------------------------------------------------------------
+
+## 🎭 Roles — Your AI Just Became a Team
+
+**MAi-RAG-PA v1.7.0 introduces Roles: self-contained AI specialists, each with its own knowledge, memory, and rules.**
+
+A **Role** is a private agent configuration. Each one carries:
+
+| Component | Purpose |
+| :--- | :--- |
+| **System Prompt** | The Role's personality, expertise, and behavioral rules |
+| **LTM Collection** | Its own private Qdrant vector collection |
+| **Role-Scoped Memory** | Learned facts, habits, and preferences — isolated from other Roles |
+| **Citations Setting** | On/off, per Role, per purpose |
+| **Model Override** | Assign a specific local LLM to each Role (great for CPU-only rigs) |
+
+Switch Roles and the entire assistant transforms — not just the tone, but the **knowledge it can
+access** and the **memory it carries**.
+
+### Why It Matters
+
+- **Specialists, not generalists.** A legal analyst Role stops answering like a poet.
+- **Isolation as a feature.** Client A's contracts never leak into Client B's manuscripts.
+- **Compliance-ready.** Role-scoped memory is data separation — not just convenience.
+- **100% local.** Roles live in local SQLite. Knowledge lives in local Qdrant. Inference runs
+  on local Ollama models. Nothing goes to the cloud.
+
+### Example Roles You Can Build
+
+| Field | Role | Tier fit |
+| :--- | :--- | :--- |
+| Education | Grade-School Math Tutor, University Research Assistant, Thesis Advisor | Entry → Professional |
+| Business & Finance | Market Research Analyst, SEC Filing Analyst, Contract Risk Assessor | Intermediate → Professional |
+| Legal & Compliance | Policy Q&A, Contract Summarizer, Regulatory Compliance Officer | Entry → Professional |
+| Science & Research | Lab Protocol Assistant, Clinical Literature Reviewer, Grant Writer | Intermediate → Professional |
+| Creative & Writing | Style-Matched Ghostwriter, Tech Doc Assistant, Continuity Checker | Intermediate → Professional |
+| Health & Wellness | Personal Medical Journal, Nutrition Planner | Entry → Intermediate |
+
+### DIY vs. Done-For-You
+
+You *can* build Roles yourself. But fine-tuned dataset creation, chunking strategy, system-prompt
+architecture, hallucination defense, retrieval tuning, and model matching are **not** a
+walk in the park. Most users hit a wall within a week.
+
+**Role Creation is a data engineering and prompt architecture task. If you'd rather skip the
+trial-and-error, we build the Role for you.**
+
+| Tier | Included | Price (USD) | Turnaround |
+| :--- | :--- | :--- | :--- |
+| **General Entry Level** | 1–3 documents, basic prompt, single collection, model recommendation | **$149** | 1–2 days |
+| **Intermediate** | 5–20 documents, tuned chunking, citation rules, memory seeding, model comparison | **$449** | 3–5 days |
+| **Professional** | 20+ documents, multi-collection, advanced metadata, adversarial testing, 30-day support | **$1,499** | 7–14 days |
+
+**Add-ons:** additional document batch ($99/10 docs) · custom citation format ($149) ·
+multi-language ($199/language) · priority 48h build (+50%) · retrieval tuning ($75/hr).
+
+**Turnkey packages:** Solo Professional ($299) · Small Business Starter ($999) ·
+Research Lab Bundle ($2,499) · Enterprise Pilot ($5,999).
+
+> You download MAi-RAG-PA for free. We turn it into a specialist that knows your data,
+> follows your rules, and never phones home — for less than the cost of a single consultant hour.
+
+**👉 [Explore Role Creation & Pricing →](https://mai-rag-pa.github.io/MAi-RAG-PA/roles.html)**
 
 -----------------------------------------------------------------------------------
 
@@ -614,5 +679,5 @@ Every donation helps keep MAi-RAG-PA free and continuously improving.
 </p>
 
 <p align="center">
-  Version 1.7.0 | Released June 2026
+  Version 1.0.0 | Released June 2026
 </p>
