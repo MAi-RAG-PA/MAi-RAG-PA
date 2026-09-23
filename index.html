@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- PRIMARY SEO META TAGS (enhanced) -->
-    <title>MAi-RAG-PA | Offline RAG Knowledge Base Assistant · Local LLM · Self‑Healing · Research Synthesizer · No Cloud · No Subscriptions · Let AI Work for you, not the other way around.</title>
-    <meta name="description" content="MAi-RAG-PA: 100% offline, privacy-focused AI personal assistant. Run local LLMs via Ollama, build a RAG knowledge database, get footnoted citations for verifiable research, self‑healing agentic workflows. No cloud, No subscriptions, No data mining, full local sovereignty.">
-    <meta name="keywords" content="offline AI assistant, private RAG, local LLM, Ollama RAG, self-healing AI, privacy-focused AI, local vector database, Qdrant, SQLite memory, agentic workflow, no cloud, open source AI, local AI productivity suite, file upload AI, research synthesis, footnoted citations, knowledge base management, MAi-RAG-PA, RAG knowledge base, self-healing system, offline research assistant, document summarization, EPUB support, PDF analysis, local AI research tool">
+
+    <!-- PRIMARY SEO META TAGS -->
+    <title>MAi-RAG-PA | Offline RAG Knowledge Base Assistant · Local LLM · Self‑Healing · Research Synthesizer · No Cloud · No Subscriptions</title>
+    <meta name="description" content="MAi-RAG-PA: 100% offline, privacy-focused AI personal assistant. Run local LLMs via Ollama, build a RAG knowledge database, get footnoted citations, and use self‑healing agentic workflows. Custom Roles available. No cloud, no subscriptions, full local sovereignty.">
+    <meta name="keywords" content="offline AI assistant, private RAG, local LLM, Ollama RAG, self-healing AI, privacy-focused AI, local vector database, Qdrant, SQLite memory, agentic workflow, no cloud, open source AI, custom AI roles, MAi-RAG-PA, RAG knowledge base, offline research assistant, document summarization, local AI research tool">
     <meta name="author" content="MAi-RAG-PA">
     <meta name="robots" content="index, follow">
     <meta name="google-site-verification" content="NT_xG7WBW0c6a-s4oikpWHUKqVvel14xLCWJqp4zJ54" />
@@ -17,7 +17,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://mai-rag-pa.github.io/MAi-RAG-PA/">
     <meta property="og:title" content="MAi-RAG-PA | Offline Qdrant RAG Knowledge Base Assistant with Long-Term Memory, File Upload & Self‑Healing">
-    <meta property="og:description" content="Your data, your rules. Let AI Work for you, not the other way around. A comprehensive offline‑first AI suite with Long-Term Memory knowledgebase, file upload, research synthesis with footnoted citations, and self‑healing agentic workflows. No cloud, No subscriptions.">
+    <meta property="og:description" content="Your data, your rules. An offline‑first AI suite with Long-Term Memory, file upload, research synthesis with footnoted citations, self‑healing agentic workflows, and customizable Roles. No cloud, no subscriptions.">
     <meta property="og:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/intro.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -28,7 +28,7 @@
     <meta name="twitter:description" content="100% offline, privacy‑focused AI personal assistant. Run local LLMs, build RAG knowledge bases, file upload, research synthesis with compact footnotes, and self‑healing agentic workflows.">
     <meta name="twitter:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/intro.png">
 
-    <!-- JSON-LD STRUCTURED DATA (for rich search results) -->
+    <!-- JSON-LD STRUCTURED DATA -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -36,7 +36,7 @@
       "name": "MAi-RAG-PA",
       "applicationCategory": "DeveloperApplication, ProductivityApplication",
       "operatingSystem": "Linux, macOS, Windows (WSL2), Unix",
-      "description": "MAi-RAG-PA is a 100% offline, privacy-first AI personal assistant with memory-augmented RAG, self-healing agentic workflows, and full local data sovereignty.",
+      "description": "MAi-RAG-PA is a 100% offline, privacy-first AI personal assistant with memory-augmented RAG, self-healing agentic workflows, customizable Roles, and full local data sovereignty.",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -45,13 +45,10 @@
       "url": "https://github.com/MAi-RAG-PA/MAi-RAG-PA",
       "screenshot": "https://mai-rag-pa.github.io/MAi-RAG-PA/assets/intro.png",
       "softwareVersion": "1.7.0",
-      "author": {
-        "@type": "Organization",
-        "name": "MAi-RAG-PA Community"
-      },
+      "author": { "@type": "Organization", "name": "MAi-RAG-PA Community" },
       "featureList": [
         "Offline AI assistant",
-        "Robust Feature full Chat Console",
+        "Full-featured Chat Console",
         "Long-Term Memory (LTM) toggle",
         "Qdrant vector database",
         "File upload and analysis (EPUB, PDF, DOCX, etc.)",
@@ -59,11 +56,13 @@
         "Self‑healing agentic workflows",
         "Ollama integration for local LLMs",
         "SQLite memory",
-        "Super audit script for proactive maintenance"
-        "Text Editor with multfile type support",
-        "Time Management Operations: Calendar, Scheduling, Events, Planner, Notifications, To Do List",
-        "Robust System prompt implementing Context-aware responses that remember your preferences and history",
-        "Hallucination Defense: Cross-references the knowledge base, Admits uncertainty, Verifies correctness, Provides citations, Avoids fabrications"
+        "Super audit script for proactive maintenance",
+        "Text Editor with multiple file-type support",
+        "Time Management: Calendar, Scheduling, Events, Planner, Notifications, To-Do List",
+        "Context-aware system prompt that remembers your preferences and history",
+        "Hallucination Defense: Cross-references knowledge base, admits uncertainty, verifies correctness, provides citations",
+        "Roles System (v1.7.0): per-Role system prompts, LTM collections, scoped memory, model overrides",
+        "Role-scoped isolation for compliance-grade data separation"
       ]
     }
     </script>
@@ -96,7 +95,7 @@
         a { color: var(--accent-blue); text-decoration: none; }
         a:hover { color: var(--accent-blue-hover); }
 
-        /* ---- HEADER ---- */
+        /* HEADER */
         header {
             position: sticky; top: 0; z-index: 100;
             background: rgba(13, 17, 23, 0.92);
@@ -108,12 +107,18 @@
         .logo-area { display: flex; align-items: center; gap: 0.8rem; text-decoration: none; color: var(--text-primary); }
         .logo-area img { height: 55px; width: auto; }
         .logo-area span { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.5px; }
-        .nav-links { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+        .nav-links { display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: center; }
         .nav-links a { color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; transition: color 0.2s; }
-        .nav-links a:hover { color: var(--accent-blue); }
-        .nav-links a.active { color: var(--accent-blue); }
+        .nav-links a:hover, .nav-links a.active { color: var(--accent-blue); }
+        .nav-cta {
+            background: var(--accent-green) !important;
+            color: #fff !important;
+            padding: 6px 14px !important;
+            border-radius: 6px;
+        }
+        .nav-cta:hover { background: var(--accent-green-hover) !important; color: #fff !important; }
 
-        /* ---- HERO ---- */
+        /* HERO */
         .hero { text-align: center; padding: 4rem 1rem 2.5rem; }
         .hero-badge {
             display: inline-block;
@@ -138,11 +143,30 @@
             font-size: 1.2rem;
             color: var(--text-secondary);
             max-width: 750px;
-            margin: 0 auto 2rem;
+            margin: 0 auto 1.5rem;
         }
         .hero .subtitle strong { color: var(--text-primary); }
+        .hero .hook {
+            max-width: 800px;
+            margin: 1.5rem auto 2rem;
+            padding: 1.2rem 1.5rem;
+            background: linear-gradient(135deg, rgba(163,113,247,0.10) 0%, rgba(88,166,255,0.08) 100%);
+            border: 1px solid rgba(163,113,247,0.35);
+            border-radius: 12px;
+            font-size: 1.05rem;
+            color: var(--text-primary);
+            line-height: 1.55;
+        }
+        .hero .hook strong {
+            color: #fff;
+            background: linear-gradient(90deg, #a371f7, #58a6ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
 
-        /* ---- INSTALL BOX ---- */
+        /* INSTALL BOX */
         .installer-box {
             background: #010409;
             border: 1px solid var(--border-color);
@@ -153,9 +177,6 @@
             text-align: left;
             box-shadow: 0 20px 40px var(--shadow-color);
         }
-        .installer-header { display: flex; gap: 8px; margin-bottom: 0.8rem; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; }
-        .dot.red { background: #ff5f56; } .dot.yellow { background: #ffbd2e; } .dot.green { background: #27c93f; }
         .installer-box code {
             display: block; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             color: #e6edf3; font-size: 1rem; word-break: break-all; line-height: 1.5;
@@ -168,9 +189,8 @@
             align-items: center;
             gap: 0.5rem;
         }
-        .installer-box .note .emoji { font-size: 1.2rem; }
 
-        /* ---- BUTTONS ---- */
+        /* BUTTONS */
         .btn-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0; }
         .btn {
             display: inline-flex; align-items: center; gap: 0.6rem;
@@ -184,16 +204,16 @@
         .btn-outline { background: transparent; border: 2px solid var(--accent-blue); color: var(--accent-blue); }
         .btn-outline:hover { background: var(--accent-blue); color: #fff; }
 
-        /* ---- SECTION TITLES ---- */
+        /* SECTION TITLES */
         .section-title { text-align: center; font-size: 2.2rem; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
         .section-subtitle { text-align: center; color: var(--text-secondary); max-width: 700px; margin: 0 auto 3rem; }
 
-        /* ---- GRIDS ---- */
+        /* GRIDS */
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 3rem 0; }
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.8rem; margin: 3rem 0; }
         @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .hero h1 { font-size: 2.4rem; } }
 
-        /* ---- CARDS ---- */
+        /* CARDS */
         .card {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -210,7 +230,7 @@
         .card li::before { content: "✓"; color: var(--accent-green); position: absolute; left: 0; font-weight: 700; }
         .card .highlight-blue { color: var(--accent-blue); font-weight: 600; }
 
-        /* ---- WORKFLOW STEPS ---- */
+        /* WORKFLOW STEPS */
         .workflow-steps { display: flex; justify-content: space-between; align-items: center; margin: 2rem 0; flex-wrap: wrap; gap: 0.5rem; }
         .step {
             background: var(--bg-tertiary);
@@ -226,7 +246,7 @@
         .arrow { color: var(--text-secondary); font-size: 1.5rem; font-weight: 300; }
         @media (max-width: 600px) { .workflow-steps { flex-direction: column; } .arrow { transform: rotate(90deg); } }
 
-        /* ---- GALLERY ---- */
+        /* GALLERY */
         .gallery-section { background: var(--bg-secondary); padding: 4rem 0; margin: 3rem 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
         .gallery-grid { display: grid; grid-template-columns: 1fr; gap: 3rem; margin-top: 2rem; }
         .gallery-item { text-align: center; }
@@ -240,7 +260,7 @@
         .gallery-item h4 { margin-top: 1.2rem; color: var(--text-primary); font-size: 1.2rem; }
         .gallery-item p { color: var(--text-secondary); max-width: 700px; margin: 0.3rem auto 0; }
 
-        /* ---- COMPARISON TABLE ---- */
+        /* COMPARISON TABLE */
         .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0; }
         .compare-col { background: var(--bg-tertiary); border-radius: 12px; padding: 2rem; border: 1px solid var(--border-color); }
         .compare-col h3 { color: var(--text-primary); margin-bottom: 1.5rem; font-size: 1.4rem; }
@@ -250,7 +270,7 @@
         .compare-col .bad { color: #f85149; }
         .compare-col .bad::before { content: "✗"; color: #f85149; }
 
-        /* ---- FOOTER ---- */
+        /* FOOTER */
         footer { text-align: center; padding: 3rem 1rem 2rem; color: var(--text-secondary); font-size: 0.9rem; border-top: 1px solid var(--border-color); margin-top: 3rem; }
         footer a { color: var(--accent-blue); }
         footer a:hover { text-decoration: underline; }
@@ -259,10 +279,10 @@
         .footer-social a { color: var(--text-secondary); font-size: 1.5rem; transition: color 0.2s; }
         .footer-social a:hover { color: var(--accent-blue); }
 
-        /* ---- RESPONSIVE TWEAKS ---- */
         @media (max-width: 480px) {
             .installer-box code { font-size: 0.85rem; }
             .btn { padding: 12px 20px; font-size: 0.95rem; }
+            .hero .hook { font-size: 0.95rem; }
         }
     </style>
 </head>
@@ -270,7 +290,7 @@
 
     <header>
         <div class="container header-content">
-            <a href="#" class="logo-area" aria-label="MAi-RAG-PA home">
+            <a href="index.html" class="logo-area" aria-label="MAi-RAG-PA home">
                 <img src="assets/MAi-RAG.png" alt="MAi-RAG-PA Offline Local AI Assistant Logo">
                 <span>MAi-RAG-PA</span>
             </a>
@@ -281,6 +301,7 @@
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md">Install</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md">Changelog</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">GitHub</a>
+                <a href="roles.html#contact" class="nav-cta">Request a Role</a>
             </nav>
         </div>
     </header>
@@ -292,12 +313,17 @@
                 <span class="hero-badge">✨ v1.7.0 • Open Source &amp; 100% Free</span>
                 <h1>An Offline Local AI Personal Assistant<br>that stays <span class="highlight">personal</span>.</h1>
                 <p class="subtitle">
-                    <strong>Your data, your rules.</strong> 
+                    <strong>Your data, your rules.</strong>
                     <br>A comprehensive, privacy‑first productivity suite that runs entirely on your local machine.
                     <br>Run local LLMs via <strong>Ollama</strong>, build a <strong>RAG knowledge base</strong>, and use <strong>self‑healing agentic workflows</strong>.
                     <br>No cloud. No subscriptions. No data mining.
-                    <br><strong>Let AI work for you, not the other way around.</strong>
                 </p>
+
+                <div class="hook">
+                    <strong>Your private AI just became a team of specialized assistants</strong> —
+                    a $40/hr tutor, a $400/hr lawyer, and a $5,000 report, all on your laptop.
+                    For a one-time build fee. No cloud. No subscriptions. No data mining.
+                </div>
 
                 <div style="margin-bottom:1rem;">
                     <a href="roles.html" style="display:inline-block; background:rgba(163,113,247,0.12); color:var(--accent-purple); border:1px solid rgba(163,113,247,0.3); padding:6px 18px; border-radius:30px; font-size:0.9rem; font-weight:600;">
@@ -307,7 +333,7 @@
 
                 <div class="installer-box">
                     <code>curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash</code>
-                    <p class="note"></span> One‑line installer for Linux, macOS, Windows WSL2, and Unix.</p>
+                    <p class="note">💡 One‑line installer for Linux, macOS, Windows WSL2, and Unix.</p>
                 </div>
 
                 <div class="btn-group">
@@ -375,13 +401,13 @@
                     </ul>
                 </div>
                 <div class="card">
-                    <div class="card-icon">📅</div>
-                    <h3>Full‑Featured Calendar &amp; Tasks</h3>
+                    <div class="card-icon">🎭</div>
+                    <h3>Roles — Private Specialists</h3>
                     <ul>
-                        <li>Year, month, week, day views</li>
-                        <li>Recurring events &amp; smart reminders</li>
-                        <li>Priority‑based todo lists</li>
-                        <li>Conflict detection and notifications</li>
+                        <li>Each Role has its own knowledge base &amp; memory</li>
+                        <li>Per-Role system prompt &amp; citation settings</li>
+                        <li>Model override per Role for hardware efficiency</li>
+                        <li>Role-scoped isolation — no cross-contamination</li>
                     </ul>
                 </div>
             </div>
@@ -399,6 +425,7 @@
                         <li>Full access to source code</li>
                         <li>Self‑healing agentic workflows</li>
                         <li>Local vector database and memory</li>
+                        <li>Custom Roles you own outright</li>
                     </ul>
                 </div>
                 <div class="compare-col">
@@ -410,6 +437,7 @@
                         <li class="bad">Closed source / proprietary</li>
                         <li class="bad">Limited customization</li>
                         <li class="bad">Dependent on external APIs</li>
+                        <li class="bad">Generic — one brain for everyone</li>
                     </ul>
                 </div>
             </div>
@@ -447,7 +475,7 @@
                 </p>
                 <div class="btn-group">
                     <a href="roles.html" class="btn btn-outline">Explore Roles &amp; Pricing</a>
-                    <a href="roles.html#usecases" class="btn btn-secondary">See Use Cases</a>
+                    <a href="roles.html#contact" class="btn btn-secondary">Request a Role Build</a>
                 </div>
             </div>
 
@@ -482,7 +510,7 @@
                     <div class="gallery-item">
                         <img src="assets/ChatConsole.png" alt="MAi-RAG-PA multi-threaded chat console with model selector and system resource monitor">
                         <h4>Multi‑Threaded Chat Console</h4>
-                        <p><strong style="color: var(--accent-blue);">Persistent, database‑backed conversations with real‑time resource monitoring and dynamic model switching.</strong></p>
+                        <p><strong style="color: var(--accent-blue);">Persistent, database‑backed conversations with real‑time resource monitoring, dynamic model switching, and per-thread Role auto-activation.</strong></p>
                     </div>
                     <div class="gallery-item">
                         <img src="assets/Text-Editor.png" alt="MAi-RAG-PA AI-assisted text and code editor with syntax highlighting">
@@ -492,7 +520,7 @@
                     <div class="gallery-item">
                         <img src="assets/Memory.png" alt="MAi-RAG-PA dual-layer memory system showing SQLite and Qdrant management">
                         <h4>Dual‑Layer Memory System</h4>
-                        <p><strong style="color: var(--accent-blue);">Ingest 17+ document formats into Qdrant for semantic search, while SQLite tracks your habits, tasks, and preferences.</strong></p>
+                        <p><strong style="color: var(--accent-blue);">Ingest 17+ document formats into Qdrant for semantic search, while SQLite tracks your habits, tasks, and preferences — all Role-scoped.</strong></p>
                     </div>
                     <div class="gallery-item">
                         <img src="assets/Calendar.png" alt="MAi-RAG-PA full-featured calendar with year, month, week, and day views">
@@ -533,8 +561,9 @@
             <section style="text-align: center; padding: 3rem 1rem 2rem;">
                 <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Ready to Take Back Control of Your Data?</h2>
                 <p style="color: var(--text-secondary); margin-bottom: 2rem; max-width: 650px; margin-left: auto; margin-right: auto;">
-                    <strong>Join the community of users who have ditched cloud subscriptions and data mining for a truly personal, offline AI assistant.
-                <br><strong>Let AI work for you, not the other way around.</strong></p>
+                    <strong>Join the community of users who have ditched cloud subscriptions and data mining for a truly personal, offline AI assistant.</strong>
+                    <br><strong>Let AI work for you, not the other way around.</strong>
+                </p>
 
                 <div class="installer-box" style="max-width: 650px; margin-bottom: 2rem;">
                     <code>curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash</code>
@@ -544,7 +573,10 @@
                     <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md" class="btn">
                         Get Started with the Installer
                     </a>
-                    <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" class="btn btn-outline">
+                    <a href="roles.html#contact" class="btn btn-outline">
+                        Request a Custom Role
+                    </a>
+                    <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" class="btn btn-secondary">
                         ⭐ Star on GitHub
                     </a>
                 </div>
@@ -557,6 +589,7 @@
             <div class="footer-links">
                 <a href="index.html">Home</a>
                 <a href="roles.html">Roles</a>
+                <a href="roles.html#contact">Request a Role</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md">Documentation</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md">Installation</a>
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-OLLAMA-MODELS.md">Models</a>
@@ -567,7 +600,6 @@
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" aria-label="GitHub repository">
                     <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                 </a>
-                <!-- Add more social links if you have a Discord or Twitter -->
             </div>
             <p><strong>MAi‑RAG‑PA</strong> — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</p>
             <p style="margin-top: 0.5rem; font-size: 0.8rem; opacity: 0.7;">Version 1.7.0 | Copyright © 2026 MAi‑RAG‑PA. All rights reserved.</p>
