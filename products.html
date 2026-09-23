@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO -->
+    <title>Products | MAi-RAG-PA — Business Solution Reports, Guides & Digital Products</title>
+    <meta name="description" content="Premium business solution reports, coding templates, and local-AI guides. Privacy-first digital products that keep your data on your hardware. One-time purchase, instant download.">
+    <meta name="keywords" content="business solution reports, local AI guides, RAG pipeline guides, privacy-first digital products, AI automation templates, B2B lead gen playbook, MAi-RAG-PA products">
+    <meta name="author" content="MAi-RAG-PA">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://mai-rag-pa.github.io/MAi-RAG-PA/products.html">
+
+    <!-- OG -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mai-rag-pa.github.io/MAi-RAG-PA/products.html">
+    <meta property="og:title" content="MAi-RAG-PA Products | Business Reports, Guides & Digital Products">
+    <meta property="og:description" content="Premium reports and guides for building privacy-first AI systems on your own hardware.">
+    <meta property="og:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/intro.png">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- JSON-LD: ItemList of products -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "MAi-RAG-PA Digital Products",
+      "url": "https://mai-rag-pa.github.io/MAi-RAG-PA/products.html",
+      "itemListElement": [
+        {"@type":"ListItem","position":1,"item":{"@type":"Product","name":"The Automated Lead Generator","offers":{"@type":"Offer","price":"45","priceCurrency":"USD"}}},
+        {"@type":"ListItem","position":2,"item":{"@type":"Product","name":"AI-Powered Second-BrainOS","offers":{"@type":"Offer","price":"18","priceCurrency":"USD"}}},
+        {"@type":"ListItem","position":3,"item":{"@type":"Product","name":"Automate Bookkeeping w/ Local AI","offers":{"@type":"Offer","price":"27","priceCurrency":"USD"}}},
+        {"@type":"ListItem","position":4,"item":{"@type":"Product","name":"Build Custom AI Agents Without Code","offers":{"@type":"Offer","price":"27","priceCurrency":"USD"}}},
+        {"@type":"ListItem","position":5,"item":{"@type":"Product","name":"Data Enrichment Playbook for B2B Lead Generation","offers":{"@type":"Offer","price":"27","priceCurrency":"USD"}}},
+        {"@type":"ListItem","position":6,"item":{"@type":"Product","name":"Build Your Own Local RAG Engine","offers":{"@type":"Offer","price":"18","priceCurrency":"USD"}}},
+        {"@type":"ListItem","position":7,"item":{"@type":"Product","name":"The AI Automation Starter Kit","offers":{"@type":"Offer","price":"9","priceCurrency":"USD"}}},
+        {"@type":"ListItem","position":8,"item":{"@type":"Product","name":"The Local AI Toolkit for Small Business","offers":{"@type":"Offer","price":"18","priceCurrency":"USD"}}},
+        {"@type":"ListItem","position":9,"item":{"@type":"Product","name":"The Privacy-First Lead Generation Checklist","offers":{"@type":"Offer","price":"3","priceCurrency":"USD"}}}
+      ]
+    }
+    </script>
+
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-blue-hover: #79c0ff;
+            --accent-green: #238636;
+            --accent-green-hover: #2ea043;
+            --accent-purple: #a371f7;
+            --accent-cyan: #79c0ff;
+            --accent-yellow: #d29922;
+            --border-color: #30363d;
+            --shadow-color: rgba(0,0,0,0.5);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { color: var(--accent-blue-hover); }
+
+        /* HEADER */
+        header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(13, 17, 23, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.6rem 0;
+        }
+        .header-content { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+        .logo-area { display: flex; align-items: center; gap: 0.8rem; text-decoration: none; color: var(--text-primary); }
+        .logo-area img { height: 55px; width: auto; }
+        .logo-area span { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.5px; }
+        .nav-links { display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: center; }
+        .nav-links a { color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; transition: color 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: var(--accent-blue); }
+        .nav-cta {
+            background: var(--accent-green) !important;
+            color: #fff !important;
+            padding: 6px 14px !important;
+            border-radius: 6px;
+        }
+        .nav-cta:hover { background: var(--accent-green-hover) !important; color: #fff !important; }
+
+        /* HERO */
+        .hero { text-align: center; padding: 4rem 1rem 2rem; }
+        .hero-badge {
+            display: inline-block;
+            background: rgba(88, 166, 255, 0.12);
+            color: var(--accent-blue);
+            border: 1px solid rgba(88, 166, 255, 0.25);
+            padding: 4px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+        }
+        .hero h1 {
+            font-size: 2.8rem;
+            color: var(--text-primary);
+            letter-spacing: -1.2px;
+            line-height: 1.12;
+            margin-bottom: 1rem;
+        }
+        .hero h1 .highlight { color: var(--accent-blue); }
+        .hero .subtitle {
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            max-width: 800px;
+            margin: 0 auto 1.5rem;
+        }
+        .hero .subtitle strong { color: var(--text-primary); }
+
+        /* SECTION TITLES */
+        .section-title { text-align: center; font-size: 2rem; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+        .section-subtitle { text-align: center; color: var(--text-secondary); max-width: 720px; margin: 0 auto 2.5rem; }
+
+        /* PRODUCT GRID */
+        .product-section { padding: 2rem 0 3rem; }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .product-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.6rem;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+        .product-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 12px 28px var(--shadow-color);
+        }
+        .product-card .price-tag {
+            display: inline-block;
+            align-self: flex-start;
+            background: rgba(88, 166, 255, 0.12);
+            color: var(--accent-blue);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-bottom: 0.8rem;
+        }
+        .product-card h3 {
+            font-size: 1.15rem;
+            color: var(--text-primary);
+            margin-bottom: 0.6rem;
+            line-height: 1.3;
+        }
+        .product-card .desc {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            margin-bottom: 1.4rem;
+            flex-grow: 1;
+        }
+        .product-card .buy-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem;
+        }
+        .product-card .price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .product-card .price small { font-size: 0.85rem; color: var(--text-secondary); font-weight: 400; margin-left: 2px; }
+        .buy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--accent-green);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background 0.2s, transform 0.2s;
+            white-space: nowrap;
+        }
+        .buy-btn:hover { background: var(--accent-green-hover); color: #fff; transform: translateY(-1px); }
+
+        /* FREE SAMPLES PLACEHOLDER */
+        .samples-cta {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 2.5rem 2rem;
+            margin: 3rem 0;
+            text-align: center;
+        }
+        .samples-cta h3 { color: var(--text-primary); font-size: 1.4rem; margin-bottom: 0.6rem; }
+        .samples-cta p { color: var(--text-secondary); max-width: 620px; margin: 0 auto 1.5rem; }
+        .samples-cta .btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            background: var(--accent-blue); color: #fff;
+            padding: 12px 24px; border-radius: 8px; font-weight: 600;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .samples-cta .btn:hover { background: var(--accent-blue-hover); color: #fff; transform: translateY(-1px); }
+
+        /* TRUST STRIP */
+        .trust-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin: 3rem 0 2rem;
+            padding: 1.6rem 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .trust-item { text-align: center; }
+        .trust-item .ico { font-size: 1.4rem; margin-bottom: 0.3rem; }
+        .trust-item .lbl { font-size: 0.85rem; color: var(--text-secondary); }
+
+        /* CTA BOTTOM */
+        .final-cta { text-align: center; padding: 3rem 1rem 2rem; }
+        .final-cta h2 { font-size: 2rem; margin-bottom: 1rem; }
+        .final-cta p { color: var(--text-secondary); max-width: 680px; margin: 0 auto 2rem; }
+        .btn-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.6rem;
+            background: var(--accent-green); color: #fff;
+            padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 1rem;
+            transition: all 0.2s ease; text-decoration: none;
+        }
+        .btn:hover { background: var(--accent-green-hover); transform: translateY(-2px); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-outline { background: transparent; border: 2px solid var(--accent-purple); color: var(--accent-purple); }
+        .btn-outline:hover { background: var(--accent-purple); color: #fff; }
+
+        /* FOOTER */
+        footer { text-align: center; padding: 3rem 1rem 2rem; color: var(--text-secondary); font-size: 0.9rem; border-top: 1px solid var(--border-color); margin-top: 3rem; }
+        footer a { color: var(--accent-blue); }
+        footer a:hover { text-decoration: underline; }
+        .footer-links { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+
+        @media (max-width: 480px) {
+            .hero h1 { font-size: 2rem; }
+            .buy-btn { padding: 9px 14px; font-size: 0.85rem; }
+            .product-card .price { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container header-content">
+            <a href="index.html" class="logo-area" aria-label="MAi-RAG-PA home">
+                <img src="assets/MAi-RAG.png" alt="MAi-RAG-PA Logo">
+                <span>MAi-RAG-PA</span>
+            </a>
+            <nav class="nav-links" aria-label="Main navigation">
+                <a href="index.html">Home</a>
+                <a href="roles.html">Roles</a>
+                <a href="products.html" class="active">Products</a>
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md">Docs</a>
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md">Install</a>
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">GitHub</a>
+                <a href="roles.html#contact" class="nav-cta">Request a Role</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <!-- HERO -->
+            <section class="hero">
+                <span class="hero-badge">📚 Digital Products · Instant Download</span>
+                <h1>Reports, Guides &amp; Kits for <span class="highlight">Privacy-First Builders.</span></h1>
+                <p class="subtitle">
+                    Each product addresses a specific business problem with a step-by-step solution.
+                    <strong>One-time purchase, instant delivery, yours forever.</strong>
+                    No subscriptions. No telemetry. Built for people who run AI on their own hardware.
+                </p>
+            </section>
+
+            <!-- TRUST STRIP -->
+            <div class="trust-strip">
+                <div class="trust-item"><div class="ico">🔒</div><div class="lbl">Privacy-first by design</div></div>
+                <div class="trust-item"><div class="ico">⚡</div><div class="lbl">Instant email delivery</div></div>
+                <div class="trust-item"><div class="ico">💳</div><div class="lbl">Secure Stripe checkout</div></div>
+                <div class="trust-item"><div class="ico">♾️</div><div class="lbl">Lifetime access, no DRM</div></div>
+            </div>
+
+            <!-- PRODUCTS -->
+            <section class="product-section">
+                <h2 class="section-title">All Products</h2>
+                <p class="section-subtitle">Nine guides, playbooks, and kits. Pick the one that fits the problem you're solving today.</p>
+
+                <div class="product-grid">
+
+                    <!-- 1 -->
+                    <div class="product-card" id="automated-lead-generator">
+                        <span class="price-tag">Best Seller</span>
+                        <h3>The Automated Lead Generator</h3>
+                        <p class="desc">A complete guide to building your own privacy-first AI marketing system.</p>
+                        <div class="buy-row">
+                            <span class="price">$45</span>
+                            <a href="STRIPE_LINK_AUTOMATED_LEAD_GENERATOR" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                    <!-- 2 -->
+                    <div class="product-card" id="ai-powered-second-brain-os">
+                        <h3>AI-Powered Second-BrainOS</h3>
+                        <p class="desc">Build your own private knowledge system with local AI. Capture, organize, distill, and express using the CODE method. No cloud required.</p>
+                        <div class="buy-row">
+                            <span class="price">$18</span>
+                            <a href="STRIPE_LINK_SECOND_BRAIN" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                    <!-- 3 -->
+                    <div class="product-card" id="automate-bookkeeping-with-local-ai">
+                        <h3>Automate Bookkeeping w/ Local AI</h3>
+                        <p class="desc">Build your own private, tax-ready financial system. Replace QuickBooks and ChatGPT with a local solution that keeps your data on your hardware.</p>
+                        <div class="buy-row">
+                            <span class="price">$27</span>
+                            <a href="STRIPE_LINK_BOOKKEEPING" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                    <!-- 4 -->
+                    <div class="product-card" id="build-custom-ai-agents-without-code">
+                        <h3>Build Custom AI Agents Without Code</h3>
+                        <p class="desc">Learn how to create your own powerful AI agents with simplicity. No coding required!</p>
+                        <div class="buy-row">
+                            <span class="price">$27</span>
+                            <a href="STRIPE_LINK_CUSTOM_AGENTS" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                    <!-- 5 -->
+                    <div class="product-card" id="data-enrichment-playbook-b2b-lead-gen">
+                        <h3>Data Enrichment Playbook for B2B Lead Gen</h3>
+                        <p class="desc">How to enrich your lead lists with AI-assisted data processing. Improve lead quality, conversion rates, and revenue.</p>
+                        <div class="buy-row">
+                            <span class="price">$27</span>
+                            <a href="STRIPE_LINK_DATA_ENRICHMENT" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                    <!-- 6 -->
+                    <div class="product-card" id="build-your-own-local-rag-engine">
+                        <span class="price-tag">Popular</span>
+                        <h3>Build Your Own Local RAG Engine</h3>
+                        <p class="desc">Create a private AI knowledge base on your own hardware. Includes all the tools you need to get up and running.</p>
+                        <div class="buy-row">
+                            <span class="price">$18</span>
+                            <a href="STRIPE_LINK_LOCAL_RAG" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                    <!-- 7 -->
+                    <div class="product-card" id="ai-automation-starter-kit">
+                        <h3>The AI Automation Starter Kit</h3>
+                        <p class="desc">A practical toolkit for automating your business with local AI. Includes templates, prompts, and workflow ideas for beginners.</p>
+                        <div class="buy-row">
+                            <span class="price">$9</span>
+                            <a href="STRIPE_LINK_STARTER_KIT" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                    <!-- 8 -->
+                    <div class="product-card" id="local-ai-toolkit">
+                        <h3>The Local AI Toolkit for Small Business</h3>
+                        <p class="desc">Ready-to-use scripts, templates, and guides for leveraging local AI in your business. No technical background required.</p>
+                        <div class="buy-row">
+                            <span class="price">$18</span>
+                            <a href="STRIPE_LINK_LOCAL_AI_TOOLKIT" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                    <!-- 9 -->
+                    <div class="product-card" id="privacy-first-lead-gen-checklist">
+                        <h3>The Privacy-First Lead Generation Checklist</h3>
+                        <p class="desc">A step-by-step checklist for building a privacy-first lead generation system. Capture, qualify, and nurture without compromising data.</p>
+                        <div class="buy-row">
+                            <span class="price">$3</span>
+                            <a href="STRIPE_LINK_PRIVACY_CHECKLIST" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- FREE SAMPLES (placeholder — full email-catcher version next round) -->
+                <div class="samples-cta">
+                    <h3>Not sure yet? Grab a free sample.</h3>
+                    <p>Get a free sample report to see the quality of our work before you buy. Drop your email and we'll send you one.</p>
+                    <!-- PLACEHOLDER: full email catcher form coming in next iteration -->
+                    <a href="roles.html#contact" class="btn">Get a Free Sample →</a>
+                </div>
+
+                <!-- FINAL CTA -->
+                <section class="final-cta">
+                    <h2>Need a Custom Build Instead?</h2>
+                    <p>Some problems deserve a specialist, not a PDF. We engineer private AI Roles that run entirely on your machine — from $149, one-time.</p>
+                    <div class="btn-group">
+                        <a href="roles.html" class="btn btn-outline">Explore Role Creation</a>
+                        <a href="roles.html#contact" class="btn">Request a Role Build</a>
+                    </div>
+                </section>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="index.html">Home</a>
+                <a href="roles.html">Roles</a>
+                <a href="products.html">Products</a>
+                <a href="roles.html#contact">Request a Role</a>
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-README.md">Documentation</a>
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md">Changelog</a>
+            </div>
+            <p><strong>MAi-RAG-PA</strong> — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem; opacity: 0.7;">Copyright © 2026 MAi-RAG-PA. All rights reserved.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
