@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found | MAi-RAG-PA</title>
+    <meta name="robots" content="noindex, follow">
+    <link rel="canonical" href="https://mai-rag-pa.github.io/MAi-RAG-PA/">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #238636;
+            --accent-green-hover: #2ea043;
+            --accent-purple: #a371f7;
+            --border-color: #30363d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+        .wrap {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        .code {
+            font-size: 6rem;
+            font-weight: 800;
+            letter-spacing: -4px;
+            line-height: 1;
+            background: linear-gradient(135deg, #58a6ff 0%, #a371f7 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        h1 {
+            font-size: 1.8rem;
+            letter-spacing: -0.5px;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            margin-bottom: 2rem;
+        }
+        .actions {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 3rem;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 12px 22px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
+            background: var(--accent-green);
+            color: #fff;
+        }
+        .btn-primary:hover { background: var(--accent-green-hover); transform: translateY(-1px); color: #fff; }
+        .btn-ghost {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-ghost:hover { background: var(--border-color); color: var(--text-primary); }
+        .quick-links {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: left;
+        }
+        .quick-links h2 {
+            font-size: 0.85rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .quick-links ul {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+        }
+        .quick-links a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .quick-links a:hover { color: #79c0ff; }
+        .quick-links a::before { content: "→"; color: var(--accent-blue); }
+        @media (max-width: 480px) {
+            .code { font-size: 4rem; }
+            .quick-links ul { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="code">404</div>
+        <h1>This page wandered off.</h1>
+        <p>The URL you followed doesn't exist — but everything else is right where you left it.</p>
+
+        <div class="actions">
+            <a href="index.html" class="btn btn-primary">← Back to Home</a>
+            <a href="roles.html" class="btn btn-ghost">Explore Roles</a>
+        </div>
+
+        <div class="quick-links">
+            <h2>Quick links</h2>
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="roles.html">Roles &amp; Pricing</a></li>
+                <li><a href="products.html">Products</a></li>
+                <li><a href="samples.html">Free Samples</a></li>
+                <li><a href="roles.html#contact">Request a Role</a></li>
+                <li><a href="privacy.html">Privacy Policy</a></li>
+                <li><a href="terms.html">Terms of Service</a></li>
+                <li><a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">GitHub Repo</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
