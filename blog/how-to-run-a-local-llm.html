@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>How to Run a Local LLM on Your Laptop in 2026 | MAi-RAG-PA</title>
+    <meta name="description" content="A plain-English guide to running a local LLM on your own laptop. Install Ollama, choose the right model for your hardware, and chat privately — no cloud, no subscription.">
+    <meta name="keywords" content="run local LLM, Ollama tutorial, local AI setup, run llama locally, private AI laptop, offline AI assistant">
+    <meta name="author" content="MAi-RAG-PA">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://mai-rag-pa.github.io/MAi-RAG-PA/blog/how-to-run-a-local-llm.html">
+
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://mai-rag-pa.github.io/MAi-RAG-PA/blog/how-to-run-a-local-llm.html">
+    <meta property="og:title" content="How to Run a Local LLM on Your Laptop in 2026">
+    <meta property="og:description" content="Install Ollama, choose the right model, and chat privately. A plain-English walkthrough.">
+    <meta property="og:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="icon" href="../favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+    <link rel="stylesheet" href="blog.css">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      "headline": "How to Run a Local LLM on Your Laptop in 2026",
+      "description": "A plain-English walkthrough of installing Ollama, choosing a model for your hardware, and having your first private AI conversation.",
+      "author": { "@type": "Organization", "name": "MAi-RAG-PA" },
+      "publisher": { "@type": "Organization", "name": "MAi-RAG-PA" },
+      "datePublished": "2026-09-24",
+      "dateModified": "2026-09-24",
+      "mainEntityOfPage": "https://mai-rag-pa.github.io/MAi-RAG-PA/blog/how-to-run-a-local-llm.html"
+    }
+    </script>
+</head>
+<body>
+
+    <header>
+        <div class="container header-content">
+            <a href="../index.html" class="logo-area" aria-label="MAi-RAG-PA home">
+                <img src="../assets/MAi-RAG.png" alt="MAi-RAG-PA Logo">
+                <span>MAi-RAG-PA</span>
+            </a>
+            <nav class="nav-links">
+                <a href="../index.html">Home</a>
+                <a href="../roles.html">Roles</a>
+                <a href="../products.html">Products</a>
+                <a href="../samples.html">Free Samples</a>
+                <a href="index.html" class="active">Blog</a>
+                <a href="../about.html">About</a>
+                <a href="../roles.html#contact" class="nav-cta">Request a Role</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        <article>
+            <div class="post-hero">
+                <div class="post-meta">
+                    <span class="tag setup">Setup Guide</span>
+                    <span>September 24, 2026</span>
+                    <span>·</span>
+                    <span>8 min read</span>
+                </div>
+                <h1>How to Run a Local LLM on Your Laptop in 2026</h1>
+                <p class="lede">
+                    Two years ago, running a large language model on a laptop was a party trick.
+                    In 2026, it's genuinely useful — and it takes about fifteen minutes to set up.
+                    Here's exactly how, without a computer science degree.
+                </p>
+            </div>
+
+            <div class="post-body">
+
+                <p>
+                    Before we start, let me be clear about what this guide is <em>not</em>.
+                    It's not "how to replace ChatGPT." A local model on a laptop is not as smart as
+                    GPT-5 or Claude 4.5, and pretending otherwise wastes your time.
+                </p>
+
+                <p>
+                    What it <strong>is</strong>: a fast, private, always-available AI that reads your documents,
+                    remembers your context, and never sends a single byte to a server. For a lot of real
+                    work — summarizing, drafting, research, Q&amp;A on your own files — that's actually
+                    <em>more</em> useful than a frontier model that has never seen them.
+                </p>
+
+                <h2>What you need (be honest with yourself about this part)</h2>
+
+                <p>
+                    You don't need a gaming rig. But you do need a laptop from roughly the last
+                    four years, and preferably one with a decent amount of RAM.
+                </p>
+
+                <ul>
+                    <li><strong>16GB of RAM minimum</strong> — this is the real bottleneck. 8GB will technically run small models but the experience is poor.</li>
+                    <li><strong>32GB is comfortable</strong> — you can run bigger, more capable models and keep other apps open.</li>
+                    <li><strong>Any modern CPU works</strong> — Intel, AMD, or Apple Silicon. Apple's M-series chips are notably good at this.</li>
+                    <li><strong>A GPU is nice but not required</strong> — a dedicated NVIDIA card speeds things up, but CPU-only inference is fine for casual use.</li>
+                    <li><strong>10–30GB of free disk space</strong> — models are big files.</li>
+                </ul>
+
+                <p>
+                    If you're on a Mac with 16GB+ unified memory (M1, M2, M3, M4), you're in a great position.
+                    If you're on an older Windows laptop with 8GB RAM, temper your expectations — small models
+                    will run, but not well.
+                </p>
+
+                <div class="callout honest">
+                    <span class="callout-title">Honest boundary</span>
+                    <p>
+                        Local models are slower than cloud models. A 7B model on a laptop CPU produces
+                        maybe 5–15 tokens per second — that's readable but not instant. A GPU or
+                        Apple Silicon chip bumps that significantly.
+                    </p>
+                </div>
+
+                <h2>Step 1: Install Ollama</h2>
+
+                <p>
+                    <strong>Ollama</strong> is the easiest way to run local models. It's free, open source,
+                    and handles all the messy configuration for you. Think of it as "the Docker of local AI."
+                </p>
+
+                <p>Download from <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a>. There's a one-click installer for macOS and Windows, and a one-line terminal command for Linux:</p>
+
+                <pre><code>curl -fsSL https://ollama.com/install.sh | sh</code></pre>
+
+                <p>
+                    Once installed, Ollama runs quietly in the background. It listens on a local port
+                    (<code>11434</code>) and responds to commands. You won't see a big window or app icon —
+                    that's normal. It's meant to sit out of the way.
+                </p>
+
+                <p>
+                    To verify it's installed, open a terminal (or Command Prompt on Windows) and type:
+                </p>
+
+                <pre><code>ollama --version</code></pre>
+
+                <p>You should see a version number. If you do, you're done with the hardest part.</p>
+
+                <h2>Step 2: Download a model</h2>
+
+                <p>
+                    A "model" is the actual AI. It's a big file — typically 2 to 20 GB. Ollama
+                    downloads them for you with a single command.
+                </p>
+
+                <p>
+                    For a first test, I recommend <strong>Llama 3.2 3B</strong>. It's small, fast,
+                    and surprisingly capable for its size — perfect for a laptop.
+                </p>
+
+                <pre><code>ollama pull llama3.2:3b</code></pre>
+
+                <p>
+                    This downloads about 2GB. Once it finishes, run it:
+                </p>
+
+                <pre><code>ollama run llama3.2:3b</code></pre>
+
+                <p>
+                    You'll get a prompt where you can type messages. Try something simple:
+                </p>
+
+                <pre><code>&gt;&gt;&gt; Explain in two sentences why the sky is blue.</code></pre>
+
+                <p>
+                    If it responds — congratulations. You're now running an AI that never touches the internet.
+                    You can disconnect your Wi-Fi and it will still work. That's the whole point.
+                </p>
+
+                <div class="callout success">
+                    <span class="callout-title">You just did the hard part</span>
+                    <p>
+                        Everything from here is refinement. The core setup is done. Ollama + one model
+                        is a complete working local AI.
+                    </p>
+                </div>
+
+                <h2>Step 3: Choose the right model for your hardware</h2>
+
+                <p>
+                    Different models have different sizes, and size roughly correlates with capability.
+                    Here's a practical guide based on your RAM:
+                </p>
+
+                <h3>If you have 8GB RAM</h3>
+                <ul>
+                    <li><strong>Llama 3.2 1B</strong> — smallest, fastest, most limited</li>
+                    <li><strong>Qwen 2.5 1.5B</strong> — a bit smarter, similar speed</li>
+                    <li>Expect basic question-answering and simple drafting. Not much more.</li>
+                </ul>
+
+                <h3>If you have 16GB RAM</h3>
+                <ul>
+                    <li><strong>Llama 3.2 3B</strong> — great all-rounder</li>
+                    <li><strong>Qwen 2.5 7B</strong> — noticeably smarter, still fast</li>
+                    <li><strong>Mistral 7B</strong> — solid for writing tasks</li>
+                    <li>This is the sweet spot for most people. Good quality, good speed.</li>
+                </ul>
+
+                <h3>If you have 32GB+ RAM</h3>
+                <ul>
+                    <li><strong>Llama 3.3 70B (quantized)</strong> — approaching cloud-model quality</li>
+                    <li><strong>Qwen 2.5 14B or 32B</strong> — excellent for reasoning-heavy work</li>
+                    <li><strong>DeepSeek-R1 14B</strong> — good for math and logic</li>
+                    <li>These are slower but noticeably smarter. Worth the wait for complex tasks.</li>
+                </ul>
+
+                <p>
+                    You can have multiple models installed at once. Ollama doesn't care. Just
+                    <code>ollama pull</code> whatever you want to try.
+                </p>
+
+                <h2>Step 4: Get a proper chat interface</h2>
+
+                <p>
+                    Typing in a terminal works, but it's ugly and you lose conversation history.
+                    You'll want a real interface.
+                </p>
+
+                <p>Two good options:</p>
+
+                <ul>
+                    <li><strong>Open WebUI</strong> — a full-featured ChatGPT-style interface that connects to Ollama. Runs locally. Free.</li>
+                    <li><strong>MAi-RAG-PA</strong> — our own interface, built specifically for local AI with document upload, RAG, Roles, and calendar/task management.</li>
+                </ul>
+
+                <p>
+                    If you just want a chat window, Open WebUI is fine. If you want an actual
+                    <em>assistant</em> — one that reads your documents, remembers context, and switches
+                    personalities per task — that's what MAi-RAG-PA is for.
+                </p>
+
+                <h2>What local AI is actually good at</h2>
+
+                <p>
+                    Now that you have it running, here's what to actually use it for. This is where
+                    most people get lost — they try to use a local model for the things cloud models
+                    do best, get disappointed, and give up.
+                </p>
+
+                <p>Use it for:</p>
+
+                <ul>
+                    <li><strong>Summarizing your own documents.</strong> Contracts, notes, research papers, meeting transcripts — anything you'd rather not upload.</li>
+                    <li><strong>Drafting.</strong> Emails, first-pass writing, outlines. The model doesn't have to be brilliant, just fast and useful.</li>
+                    <li><strong>Q&amp;A on private files.</strong> "What did we decide about X in that contract?" — if X's answer lives in a PDF on your laptop, a local model can find it.</li>
+                    <li><strong>Coding help.</strong> Small models are surprisingly good at boilerplate, regex, and refactoring.</li>
+                    <li><strong>Offline use.</strong> On a plane, in a cabin, with unreliable internet — your AI still works.</li>
+                </ul>
+
+                <p>Don't use it for:</p>
+
+                <ul>
+                    <li><strong>Cutting-edge reasoning.</strong> Complex multi-step logic is still a cloud-model strength.</li>
+                    <li><strong>Trivia.</strong> Local models have smaller training corpora. They'll know less random facts.</li>
+                    <li><strong>Long-form fiction.</strong> Small models lose coherence fast. Bigger local models handle this better.</li>
+                </ul>
+
+                <div class="pull-quote">
+                    <p>"The right question isn't 'is local AI as good as ChatGPT?' It's 'for the work I actually do every day, is it good enough — and does the privacy tradeoff matter more than the quality gap?'"</p>
+                </div>
+
+                <h2>The parts nobody tells you about</h2>
+
+                <p>
+                    A few things I wish someone had warned me about when I started:
+                </p>
+
+                <ul>
+                    <li><strong>First response is slow.</strong> When you load a model for the first time, it takes 10–30 seconds to spin up. After that, responses are fast. This is called "cold start" and it's normal.</li>
+                    <li><strong>Context windows are smaller.</strong> Cloud models can handle 200,000+ tokens of context. Local models typically cap at 8,000–32,000. This means you can't paste a whole book — but you <em>can</em> use RAG to search it (see <a href="what-is-rag.html">our RAG guide</a>).</li>
+                    <li><strong>Quality varies wildly by task.</strong> A model that's great at summarizing might be mediocre at coding. Test on your actual work before committing.</li>
+                    <li><strong>Updates are frequent.</strong> New models come out every few weeks. Don't get attached to one — try new ones as they appear.</li>
+                </ul>
+
+                <h2>What to do next</h2>
+
+                <p>
+                    You've got a local AI running. That's the foundation. From here:
+                </p>
+
+                <ol>
+                    <li>Install Open WebUI or MAi-RAG-PA for a real interface</li>
+                    <li>Try 2–3 different models to see which feels best for your work</li>
+                    <li>If you want your AI to read your documents, learn about <a href="what-is-rag.html">RAG</a></li>
+                    <li>If you want specialized assistants (tutor, analyst, ghostwriter), look at <a href="../roles.html">Roles</a></li>
+                </ol>
+
+                <p>
+                    The whole point of local AI is that it belongs to you. No subscription can be cancelled,
+                    no API key can be revoked, no data center outage can take it offline. You installed it,
+                    you own it, and it runs for as long as your laptop does.
+                </p>
+
+                <p>
+                    That's a different relationship with AI than most people have. And once you've felt it,
+                    it's hard to go back.
+                </p>
+
+            </div>
+        </article>
+
+        <div class="post-cta">
+            <h3>Want an AI that reads your own documents?</h3>
+            <p>MAi-RAG-PA is a free, local AI assistant with built-in RAG, memory, and Roles. Download it, point it at your files, and ask anything.</p>
+            <div class="btn-group">
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" class="btn">Get MAi-RAG-PA Free</a>
+                <a href="what-is-rag.html" class="btn btn-secondary">Learn About RAG →</a>
+            </div>
+        </div>
+
+        <section class="related">
+            <h3>Keep reading</h3>
+            <div class="related-grid">
+                <div class="related-card">
+                    <h4><a href="local-ai-vs-chatgpt.html">Local AI vs. ChatGPT: The Honest Comparison</a></h4>
+                    <p>Where local wins, where cloud wins, and how to decide.</p>
+                </div>
+                <div class="related-card">
+                    <h4><a href="what-is-rag.html">What Is RAG? A Plain-English Guide</a></h4>
+                    <p>The tech behind "AI that reads your documents" — no code required.</p>
+                </div>
+                <div class="related-card">
+                    <h4><a href="private-ai-tutor-for-your-child.html">Build a Private AI Tutor for Your Child</a></h4>
+                    <p>A $40/hr tutor, for free, forever — without sending homework to a server.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="../index.html">Home</a>
+                <a href="../roles.html">Roles</a>
+                <a href="../products.html">Products</a>
+                <a href="../samples.html">Free Samples</a>
+                <a href="index.html">Blog</a>
+                <a href="../about.html">About</a>
+                <a href="../roles.html#contact">Request a Role</a>
+                <a href="../privacy.html">Privacy Policy</a>
+                <a href="../terms.html">Terms of Service</a>
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">GitHub</a>
+            </div>
+            <div class="footer-social">
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" aria-label="GitHub repository">
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                </a>
+            </div>
+            <p><strong>MAi‑RAG‑PA</strong> — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem; opacity: 0.7;">Version 1.7.0 | Copyright © 2026 MAi‑RAG‑PA. All rights reserved.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

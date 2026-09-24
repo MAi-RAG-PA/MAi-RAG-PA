@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>What Is RAG? A Plain-English Guide for People Who Don't Code | MAi-RAG-PA</title>
+    <meta name="description" content="RAG is the tech behind AI that reads your documents. Here's what it means, how it works, why it matters for privacy, and when it actually helps — explained without a single line of code.">
+    <meta name="keywords" content="what is RAG, RAG explained, retrieval augmented generation, AI that reads documents, private RAG, local RAG">
+    <meta name="author" content="MAi-RAG-PA">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://mai-rag-pa.github.io/MAi-RAG-PA/blog/what-is-rag.html">
+
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://mai-rag-pa.github.io/MAi-RAG-PA/blog/what-is-rag.html">
+    <meta property="og:title" content="What Is RAG? A Plain-English Guide">
+    <meta property="og:description" content="The tech behind AI that reads your documents. No code required.">
+    <meta property="og:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="icon" href="../favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+    <link rel="stylesheet" href="blog.css">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      "headline": "What Is RAG? A Plain-English Guide for People Who Don't Code",
+      "description": "A non-technical explanation of Retrieval Augmented Generation — the technology behind AI that reads your documents.",
+      "author": { "@type": "Organization", "name": "MAi-RAG-PA" },
+      "publisher": { "@type": "Organization", "name": "MAi-RAG-PA" },
+      "datePublished": "2026-09-24",
+      "dateModified": "2026-09-24",
+      "mainEntityOfPage": "https://mai-rag-pa.github.io/MAi-RAG-PA/blog/what-is-rag.html"
+    }
+    </script>
+</head>
+<body>
+
+    <header>
+        <div class="container header-content">
+            <a href="../index.html" class="logo-area">
+                <img src="../assets/MAi-RAG.png" alt="MAi-RAG-PA Logo">
+                <span>MAi-RAG-PA</span>
+            </a>
+            <nav class="nav-links">
+                <a href="../index.html">Home</a>
+                <a href="../roles.html">Roles</a>
+                <a href="../products.html">Products</a>
+                <a href="../samples.html">Free Samples</a>
+                <a href="index.html" class="active">Blog</a>
+                <a href="../about.html">About</a>
+                <a href="../roles.html#contact" class="nav-cta">Request a Role</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <article>
+            <div class="post-hero">
+                <div class="post-meta">
+                    <span class="tag explainer">Explainer</span>
+                    <span>September 24, 2026</span>
+                    <span>·</span>
+                    <span>7 min read</span>
+                </div>
+                <h1>What Is RAG? A Plain-English Guide for People Who Don't Code</h1>
+                <p class="lede">
+                    RAG is the acronym behind every "AI that reads your documents" product you've seen.
+                    It's three letters, one idea, and no code required to understand it. Here's what it
+                    actually means.
+                </p>
+            </div>
+
+            <div class="post-body">
+
+                <p>
+                    You've probably seen the phrase "RAG pipeline" or "RAG-based AI" floating around
+                    tech articles. It sounds intimidating. It isn't. RAG is one of the simplest
+                    ideas in modern AI, and once you understand it, you'll see it everywhere.
+                </p>
+
+                <p>
+                    Let's start with a problem.
+                </p>
+
+                <h2>The problem with "just ask a chatbot"</h2>
+
+                <p>
+                    Imagine you ask ChatGPT: "What does section 4.2 of my apartment lease say about
+                    breaking it early?"
+                </p>
+
+                <p>
+                    Two things happen:
+                </p>
+
+                <ol>
+                    <li>
+                        ChatGPT has never seen your lease. It has no idea what's in it.
+                    </li>
+                    <li>
+                        If you paste the lease in and ask, it <em>can</em> answer — but now you've
+                        sent a legal document to a company server, and you're trusting them not to
+                        keep it.
+                    </li>
+                </ol>
+
+                <p>
+                    This is the gap RAG was invented to close. You want an AI that can read <em>your</em>
+                    documents — but privately, accurately, and without the fuss of pasting text into
+                    a chat window every time.
+                </p>
+
+                <div class="pull-quote">
+                    <p>"RAG is a way to give an AI a filing cabinet — and teach it to look things up before answering."</p>
+                </div>
+
+                <h2>What RAG actually means</h2>
+
+                <p>
+                    RAG stands for <strong>Retrieval Augmented Generation</strong>. Let's unpack those
+                    three words backwards, because that's how the process runs.
+                </p>
+
+                <ul>
+                    <li><strong>Generation</strong> — the AI writing an answer. This is what a normal chatbot does.</li>
+                    <li><strong>Augmented</strong> — the answer is improved by adding relevant context.</li>
+                    <li><strong>Retrieval</strong> — the AI first searches a library of your documents for the right information, then writes the answer using what it found.</li>
+                </ul>
+
+                <p>
+                    So RAG = <em>search your documents first, then write the answer.</em>
+                    That's the whole concept.
+                </p>
+
+                <h2>A library metaphor</h2>
+
+                <p>
+                    Imagine two assistants working at a help desk.
+                </p>
+
+                <p>
+                    <strong>Assistant A</strong> has read a million books and remembers most of them.
+                    He's brilliant. But he's never read <em>your</em> company's internal handbook. If
+                    you ask him about your company's vacation policy, he'll guess based on what he
+                    knows about similar companies. Sometimes he's right; sometimes he's wrong; and
+                    when he's wrong, he's very confident about it.
+                </p>
+
+                <p>
+                    <strong>Assistant B</strong> isn't quite as brilliant, but she has one special
+                    skill: before answering any question, she walks to the company's filing cabinet,
+                    finds the relevant document, and reads it. Then she answers based on what the
+                    document actually says — and she cites the page number.
+                </p>
+
+                <p>
+                    RAG is what turns Assistant A into Assistant B.
+                </p>
+
+                <p>
+                    You're not changing the assistant's intelligence. You're changing what information
+                    they have access to <em>at the moment of answering.</em>
+                </p>
+
+                <h2>How RAG works (no code, I promise)</h2>
+
+                <p>The RAG process has four steps. Here they are:</p>
+
+                <h3>Step 1: Ingestion (done once)</h3>
+
+                <p>
+                    You give the system your documents. PDFs, Word docs, spreadsheets, ebooks, text
+                    files — whatever. The system breaks each document into small pieces (called
+                    "chunks") — usually a few paragraphs each. Big enough to have meaning, small
+                    enough to be precise.
+                </p>
+
+                <p>
+                    Each chunk gets converted into a numerical representation called an <em>embedding.</em>
+                    Think of an embedding as a "fingerprint" of the chunk's meaning. Similar meanings
+                    produce similar fingerprints. All of these fingerprints get stored in a special
+                    database (called a vector database) that's built for fast similarity lookup.
+                </p>
+
+                <h3>Step 2: Your question (done every time)</h3>
+
+                <p>
+                    You type a question like "What does the lease say about breaking it early?"
+                </p>
+
+                <p>
+                    The system takes your question, converts it into its own fingerprint, and goes
+                    to the database looking for chunks with similar fingerprints. It finds the top
+                    few — usually the five or ten most relevant chunks from across all your documents.
+                </p>
+
+                <h3>Step 3: Augmentation</h3>
+
+                <p>
+                    The system builds a prompt that looks something like this:
+                </p>
+
+                <pre><code>Answer the user's question using ONLY the context below.
+If the answer isn't in the context, say "I don't know."
+Cite the source document for any facts you use.
+
+Context:
+[chunk 1: ... relevant paragraph about breaking lease early ...]
+[chunk 2: ... section 4.2 ...]
+[chunk 3: ... related terms ...]
+
+Question: What does the lease say about breaking it early?
+
+Answer:</code></pre>
+
+                <p>
+                    That prompt gets sent to the AI model. And because the model now has the relevant
+                    chunks right there in front of it, it can answer accurately — and cite where
+                    the answer came from.
+                </p>
+
+                <h3>Step 4: Answer with citations</h3>
+
+                <p>
+                    The model writes a response that references the actual documents. Something like:
+                </p>
+
+                <p>
+                    <em>"According to section 4.2 of the lease, breaking early requires 60 days' written
+                    notice and forfeits the security deposit."</em>
+                </p>
+
+                <p>
+                    You get accuracy, citations, and the ability to verify. That's the whole point.
+                </p>
+
+                <h2>Why this matters for privacy</h2>
+
+                <p>
+                    Here's the thing that makes RAG special for people who care about privacy:
+                    <strong>the whole process can happen entirely on your machine.</strong>
+                </p>
+
+                <p>
+                    The embedding model, the vector database, and the AI that writes the answer — all
+                    of them can run locally. Your documents never leave your computer. Your questions
+                    never leave your computer. The only thing that changes is that your AI is now
+                    smarter about <em>your</em> content.
+                </p>
+
+                <p>
+                    This is what MAi-RAG-PA is built around. It uses Qdrant (a local vector database),
+                    Ollama (for running local models), and a local embedding pipeline. When you ask
+                    it a question about your contracts, your doctor's notes, or your research — all
+                    of that stays on your hardware.
+                </p>
+
+                <div class="callout success">
+                    <span class="callout-title">The core insight</span>
+                    <p>
+                        RAG doesn't require cloud AI. It works perfectly well on local models.
+                        In fact, RAG is what makes local models <em>feel</em> as useful as cloud
+                        models for document-heavy work.
+                    </p>
+                </div>
+
+                <h2>A concrete example</h2>
+
+                <p>
+                    Let's say you're a freelancer with three clients, and each has a different
+                    contract, style guide, and set of project notes. You have maybe 40 documents
+                    total.
+                </p>
+
+                <p>
+                    Without RAG, you either:
+                </p>
+                <ul>
+                    <li>Search manually through each document every time you need to check something</li>
+                    <li>Paste relevant documents into ChatGPT each time, exposing client info</li>
+                    <li>Keep everything in your head (impossible as the business grows)</li>
+                </ul>
+
+                <p>
+                    With RAG, you:
+                </p>
+                <ul>
+                    <li>Ingest all 40 documents into your local RAG system once</li>
+                    <li>Ask "What are Client A's payment terms?" and get an answer with a citation to the exact clause</li>
+                    <li>Ask "How does Client B want their reports structured?" and get a quote from their style guide</li>
+                    <li>Nothing was ever sent to a server</li>
+                </ul>
+
+                <p>
+                    That's the workflow. It's not magic. It's just a very good filing system attached
+                    to a very patient assistant.
+                </p>
+
+                <h2>When RAG doesn't help (being honest)</h2>
+
+                <p>
+                    RAG is powerful, but it's not a universal solution. It won't help with:
+                </p>
+
+                <ul>
+                    <li><strong>Questions that aren't answered in your documents.</strong> If you never wrote down your process for handling refunds, RAG can't find it. Garbage in, garbage out.</li>
+                    <li><strong>Reasoning that requires connecting many documents.</strong> RAG retrieves a few relevant chunks at a time. If your question requires cross-referencing 50 documents, it struggles.</li>
+                    <li><strong>Bad source documents.</strong> If your PDFs are poorly scanned images, or your Word docs have no structure, ingestion quality suffers.</li>
+                    <li><strong>Real-time information.</strong> RAG answers based on the documents you gave it. If those are outdated, the answers will be too.</li>
+                </ul>
+
+                <div class="callout warning">
+                    <span class="callout-title">Reality check</span>
+                    <p>
+                        A poorly configured RAG system can be worse than no RAG at all, because it
+                        retrieves irrelevant chunks and confuses the model. Chunking strategy, chunk
+                        size, and metadata tagging all matter. This is why some people hire help to
+                        build their RAG setups — and why <a href="../roles.html">Role Creation</a>
+                        exists as a service.
+                    </p>
+                </div>
+
+                <h2>The short version</h2>
+
+                <p>
+                    If you remember three things about RAG, remember these:
+                </p>
+
+                <ol>
+                    <li><strong>It's a search engine for your AI.</strong> Before answering, the AI looks up relevant context from your documents.</li>
+                    <li><strong>It works locally.</strong> The whole pipeline can run on your laptop, keeping your data private.</li>
+                    <li><strong>It's about accuracy, not intelligence.</strong> RAG doesn't make the model smarter — it makes it better informed about <em>your</em> content.</li>
+                </ol>
+
+                <p>
+                    Everything else — embeddings, vector databases, chunking strategies — is
+                    implementation detail. Important detail, but detail. The concept is simple.
+                </p>
+
+                <p>
+                    And once you understand it, you'll start seeing RAG everywhere — because it's
+                    quietly become the standard way AI reads private documents.
+                </p>
+
+            </div>
+        </article>
+
+        <div class="post-cta">
+            <h3>Ready for an AI that reads your documents?</h3>
+            <p>MAi-RAG-PA ships with a full local RAG pipeline — Qdrant vector store, semantic search, and citation output. Free and open source.</p>
+            <div class="btn-group">
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" class="btn">Get MAi-RAG-PA Free</a>
+                <a href="../roles.html" class="btn btn-outline">See Role Creation →</a>
+            </div>
+        </div>
+
+        <section class="related">
+            <h3>Keep reading</h3>
+            <div class="related-grid">
+                <div class="related-card">
+                    <h4><a href="how-to-run-a-local-llm.html">How to Run a Local LLM in 2026</a></h4>
+                    <p>The 15-minute setup, explained for humans.</p>
+                </div>
+                <div class="related-card">
+                    <h4><a href="local-ai-vs-chatgpt.html">Local AI vs. ChatGPT: The Honest Comparison</a></h4>
+                    <p>Where local wins, where cloud wins, how to decide.</p>
+                </div>
+                <div class="related-card">
+                    <h4><a href="private-ai-tutor-for-your-child.html">Build a Private AI Tutor for Your Child</a></h4>
+                    <p>A $40/hr tutor, for free, forever.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="../index.html">Home</a>
+                <a href="../roles.html">Roles</a>
+                <a href="../products.html">Products</a>
+                <a href="../samples.html">Free Samples</a>
+                <a href="index.html">Blog</a>
+                <a href="../about.html">About</a>
+                <a href="../roles.html#contact">Request a Role</a>
+                <a href="../privacy.html">Privacy Policy</a>
+                <a href="../terms.html">Terms of Service</a>
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">GitHub</a>
+            </div>
+            <div class="footer-social">
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" aria-label="GitHub repository">
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                </a>
+            </div>
+            <p><strong>MAi‑RAG‑PA</strong> — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem; opacity: 0.7;">Version 1.7.0 | Copyright © 2026 MAi‑RAG‑PA. All rights reserved.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

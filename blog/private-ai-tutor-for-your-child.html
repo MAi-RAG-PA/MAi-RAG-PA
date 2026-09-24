@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>How to Build a Private AI Tutor for Your Child | MAi-RAG-PA</title>
+    <meta name="description" content="Human tutors cost $40+ per hour. A private AI tutor costs nothing after setup — and it never sends your child's homework to a server. Here's how to build one.">
+    <meta name="keywords" content="AI tutor for kids, private AI tutor, home tutor AI, offline AI education, local AI for parents, AI math tutor">
+    <meta name="author" content="MAi-RAG-PA">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://mai-rag-pa.github.io/MAi-RAG-PA/blog/private-ai-tutor-for-your-child.html">
+
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://mai-rag-pa.github.io/MAi-RAG-PA/blog/private-ai-tutor-for-your-child.html">
+    <meta property="og:title" content="How to Build a Private AI Tutor for Your Child">
+    <meta property="og:description" content="A $40/hr tutor, for free, forever — without sending homework to a server.">
+    <meta property="og:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="icon" href="../favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+    <link rel="stylesheet" href="blog.css">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      "headline": "How to Build a Private AI Tutor for Your Child",
+      "description": "A practical guide for parents who want a private, local AI tutor — no cloud, no subscription, no homework uploads.",
+      "author": { "@type": "Organization", "name": "MAi-RAG-PA" },
+      "publisher": { "@type": "Organization", "name": "MAi-RAG-PA" },
+      "datePublished": "2026-09-24",
+      "dateModified": "2026-09-24",
+      "mainEntityOfPage": "https://mai-rag-pa.github.io/MAi-RAG-PA/blog/private-ai-tutor-for-your-child.html"
+    }
+    </script>
+</head>
+<body>
+
+    <header>
+        <div class="container header-content">
+            <a href="../index.html" class="logo-area">
+                <img src="../assets/MAi-RAG.png" alt="MAi-RAG-PA Logo">
+                <span>MAi-RAG-PA</span>
+            </a>
+            <nav class="nav-links">
+                <a href="../index.html">Home</a>
+                <a href="../roles.html">Roles</a>
+                <a href="../products.html">Products</a>
+                <a href="../samples.html">Free Samples</a>
+                <a href="index.html" class="active">Blog</a>
+                <a href="../about.html">About</a>
+                <a href="../roles.html#contact" class="nav-cta">Request a Role</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <article>
+            <div class="post-hero">
+                <div class="post-meta">
+                    <span class="tag usecase">Use Case</span>
+                    <span>September 24, 2026</span>
+                    <span>·</span>
+                    <span>9 min read</span>
+                </div>
+                <h1>How to Build a Private AI Tutor for Your Child</h1>
+                <p class="lede">
+                    A human tutor costs $40+ per hour. Over a school year that's $2,000+.
+                    A private AI tutor costs nothing after setup — and it never sends
+                    your child's homework, questions, or struggles to a company server.
+                </p>
+            </div>
+
+            <div class="post-body">
+
+                <p>
+                    Let me start by being honest about what this is and isn't.
+                </p>
+
+                <p>
+                    A local AI tutor is <strong>not</strong> a replacement for a great human teacher.
+                    It can't see your child's face when they're frustrated. It can't adjust its pace
+                    based on body language. It can't notice that they're tired and suggest a break.
+                </p>
+
+                <p>
+                    What it <em>can</em> do: be available at 9pm on a Tuesday when your child
+                    suddenly doesn't understand tonight's math homework. Be infinitely patient
+                    when they ask the same question four times. Explain the same concept
+                    five different ways. And do all of this without ever sending your child's
+                    questions, mistakes, or learning pace to a company that might use it to
+                    train their next model.
+                </p>
+
+                <p>
+                    For most parents, that's the actual value proposition: <strong>a patient,
+                    always-available, private tutor who costs nothing after setup.</strong>
+                </p>
+
+                <h2>The math</h2>
+
+                <p>Let's be concrete about the alternatives:</p>
+
+                <ul>
+                    <li><strong>Human tutor:</strong> $40–$80 per hour, typically 2x/week → $4,000–$8,000 per year</li>
+                    <li><strong>Khan Academy / free online:</strong> $0, but passive videos don't answer <em>your child's</em> specific questions</li>
+                    <li><strong>ChatGPT Plus / cloud AI:</strong> $20/month = $240/year, works OK, but sends every question to a server</li>
+                    <li><strong>Local AI tutor:</strong> $0 after setup (assuming you already own a computer), works offline, stays private</li>
+                </ul>
+
+                <p>
+                    The local option isn't "as good as a human tutor." It's "vastly better than
+                    nothing, at roughly the cost of the electricity to run your laptop."
+                </p>
+
+                <h2>Why privacy matters for kids' education</h2>
+
+                <p>
+                    This part gets overlooked, so let me lay it out.
+                </p>
+
+                <p>
+                    When your child types a math problem into ChatGPT, they're not just asking a
+                    question. They're sending:
+                </p>
+
+                <ul>
+                    <li>The exact curriculum their school uses</li>
+                    <li>What they're struggling with and when</li>
+                    <li>How they phrase things, and what level they write at</li>
+                    <li>The names of their teachers, classmates, and school</li>
+                    <li>Their own insecurities ("I don't understand why I can't get this")</li>
+                </ul>
+
+                <p>
+                    None of that is necessary for a math explanation. But all of it is data that
+                    gets logged, retained, and potentially used for product improvement.
+                </p>
+
+                <p>
+                    You wouldn't hand your child's notebook to a stranger on the street. But
+                    handing it to a cloud AI company is functionally similar — you're trusting
+                    an opaque corporate policy to protect a child who can't consent to the
+                    arrangement.
+                </p>
+
+                <p>
+                    A local tutor changes that completely. The questions stay on your machine.
+                    The learning pace stays private. There's no account to create, no data to
+                    leak, no company to trust.
+                </p>
+
+                <div class="pull-quote">
+                    <p>"Your child's education is not a data point. A local AI tutor treats it that way — because it can't do anything else."</p>
+                </div>
+
+                <h2>What you actually need</h2>
+
+                <p>
+                    Before you start, make sure you have:
+                </p>
+
+                <ul>
+                    <li><strong>A computer with 16GB+ RAM.</strong> 8GB technically works but is slow. 16GB is comfortable. 32GB is ideal.</li>
+                    <li><strong>Free disk space.</strong> About 10–20GB for models and documents.</li>
+                    <li><strong>The curriculum materials.</strong> Textbooks (PDF), worksheets, teacher's notes — whatever your child actually uses at school.</li>
+                    <li><strong>Some setup time.</strong> About an hour for the first install, less for subsequent tweaks.</li>
+                </ul>
+
+                <p>
+                    If you're already running MAi-RAG-PA or any local AI framework, you're ahead.
+                    If not, our <a href="how-to-run-a-local-llm.html">local LLM setup guide</a>
+                    walks you through the basics.
+                </p>
+
+                <h2>Step 1: Install a local AI framework</h2>
+
+                <p>
+                    MAi-RAG-PA is the recommended base — it comes with document ingestion, memory,
+                    and Roles already built in. If you'd rather use something simpler, Ollama +
+                    Open WebUI works too, but you'll do more manual work.
+                </p>
+
+                <p>
+                    The one-line install:
+                </p>
+
+                <pre><code>curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash</code></pre>
+
+                <p>
+                    Once installed, you'll have a web interface running locally at
+                    <code>localhost:3000</code> (or similar). Open it in your browser — this
+                    is your child's tutor, running entirely on your hardware.
+                </p>
+
+                <h2>Step 2: Choose a model</h2>
+
+                <p>
+                    For a child's tutor, I recommend <strong>Llama 3.2 8B</strong> or
+                    <strong>Qwen 2.5 7B</strong>. Both are:
+                </p>
+
+                <ul>
+                    <li>Fast enough for a back-and-forth conversation</li>
+                    <li>Capable enough to explain math, science, and history concepts clearly</li>
+                    <li>Small enough to run on a mid-range laptop</li>
+                </ul>
+
+                <p>
+                    If your child is doing advanced work (calculus, physics), consider bumping to
+                    a 14B or 32B model. Slower, but sharper.
+                </p>
+
+                <p>
+                    Download via Ollama:
+                </p>
+
+                <pre><code>ollama pull llama3.2:8b</code></pre>
+
+                <h2>Step 3: Ingest the curriculum</h2>
+
+                <p>
+                    This is where the local setup becomes dramatically better than a generic AI.
+                    Because your child's tutor will actually know the curriculum they're being taught.
+                </p>
+
+                <p>
+                    Gather whatever your child uses:
+                </p>
+
+                <ul>
+                    <li>Their math textbook (usually available as PDF from the publisher or school)</li>
+                    <li>Worksheets and homework sheets from the current unit</li>
+                    <li>Any study guides the teacher has shared</li>
+                    <li>Their own class notes (if they have digital versions)</li>
+                </ul>
+
+                <p>
+                    Upload these into the framework's knowledge base. The system will process them
+                    once — a few minutes for a textbook — and from then on, when your child asks
+                    "how do I do this problem?", the tutor will reference <em>their actual textbook</em>,
+                    using the exact methodology their teacher uses.
+                </p>
+
+                <div class="callout success">
+                    <span class="callout-title">This is the killer feature</span>
+                    <p>
+                        A generic AI tutor explains math the way a random internet person would.
+                        A RAG-based tutor explains it the way <em>your child's textbook</em> explains it.
+                        That consistency matters enormously for learning.
+                    </p>
+                </div>
+
+                <h2>Step 4: Set the tutor's personality</h2>
+
+                <p>
+                    Left to itself, an AI will give your child answers. What you want is a tutor
+                    that <em>teaches</em>. The difference is entirely in how you configure it.
+                </p>
+
+                <p>
+                    In MAi-RAG-PA, this is what "Roles" do. You create a Role called "Math Tutor"
+                    with a system prompt that looks something like:
+                </p>
+
+                <div class="callout honest">
+                    <span class="callout-title">Example system prompt</span>
+                    <p>
+                        "You are a patient math tutor for a middle-school student. Never give the
+                        answer directly. Instead, ask questions that guide them to the next step.
+                        If they make an error, don't correct them — ask a question that helps them
+                        notice the error themselves. Use the textbook and worksheets in your
+                        knowledge base as the source of truth for methodology. Praise effort,
+                        not just correct answers."
+                    </p>
+                </div>
+
+                <p>
+                    That single change — from "answer questions" to "guide learning" — is what
+                    turns a chatbot into an actual tutor. It's also what makes the setup more
+                    than trivial. Getting the prompt right takes experimentation.
+                </p>
+
+                <h2>Step 5: Test it with your child</h2>
+
+                <p>
+                    Before declaring victory, sit with your child for 20 minutes and try it out.
+                    A few things to watch for:
+                </p>
+
+                <ul>
+                    <li><strong>Does it explain at their level?</strong> If the tutor is using vocabulary above your child's grade, adjust the system prompt to specify grade level.</li>
+                    <li><strong>Does it reference the right textbook?</strong> If not, you may need to re-ingest or tag the documents more carefully.</li>
+                    <li><strong>Does it guide, or does it just answer?</strong> If it's spoiling the answer, the prompt is too permissive.</li>
+                    <li><strong>Is it fast enough?</strong> If each response takes 30+ seconds, consider a smaller model or check your hardware.</li>
+                </ul>
+
+                <p>
+                    Expect to iterate for a week or two before it feels right. This is normal.
+                </p>
+
+                <h2>The parts that are actually hard</h2>
+
+                <p>
+                    I'm going to be honest with you, because most "AI tutor" articles aren't:
+                    the setup itself is the easy part. What's hard is:
+                </p>
+
+                <ul>
+                    <li><strong>Chunking the textbook correctly.</strong> A 500-page textbook needs to be split in ways that respect its structure (chapters, sections, examples). A naive split produces chunks that lose context and confuse the model.</li>
+                    <li><strong>Writing a good system prompt.</strong> "Be a good tutor" doesn't work. Getting the AI to reliably guide without spoiling answers takes iteration.</li>
+                    <li><strong>Preventing hallucination.</strong> Without strict prompting, the AI will sometimes invent explanations, formulas, or facts. It needs explicit rules to cite the textbook and admit uncertainty.</li>
+                    <li><strong>Keeping it up to date.</strong> As your child advances through grades, the curriculum changes. You'll need to re-ingest new materials.</li>
+                    <li><strong>Making the child actually use it.</strong> The best tutor in the world is useless if the child doesn't open it. This part isn't technical — it's parenting.</li>
+                </ul>
+
+                <div class="callout warning">
+                    <span class="callout-title">If this sounds like a lot</span>
+                    <p>
+                        You're right — it is. Building a <em>good</em> AI tutor is a real project.
+                        The framework is free, but the craft of making a Role that actually
+                        works well is not automatic.
+                    </p>
+                </div>
+
+                <h2>The shortcut, if you want one</h2>
+
+                <p>
+                    I run a service that builds Roles for people. If you want the tutor without
+                    the trial-and-error, here's what the process looks like:
+                </p>
+
+                <ol>
+                    <li>You send us your child's textbook PDFs, worksheets, and a description of what you want (grade level, subject, teaching style).</li>
+                    <li>We engineer the Role — the prompt, the chunking strategy, the retrieval tuning — and test it against sample problems.</li>
+                    <li>We hand you back a configuration file. You drop it into your MAi-RAG-PA install, and it just works.</li>
+                </ol>
+
+                <p>
+                    For a grade-school or middle-school tutor, this is an <strong>Entry tier</strong>
+                    build — a one-time fee, no subscription. Details on the <a href="../roles.html">Roles page</a>.
+                </p>
+
+                <p>
+                    If you'd rather build it yourself, that's completely valid — everything you
+                    need is in the framework's documentation. The service just exists for people
+                    who'd rather pay for the shortcut than spend a weekend debugging chunking.
+                </p>
+
+                <h2>What you get at the end</h2>
+
+                <p>
+                    However you build it, the result is the same:
+                </p>
+
+                <ul>
+                    <li>A patient tutor, available 24/7, that never gets frustrated</li>
+                    <li>Grounded in your child's actual curriculum, not generic internet explanations</li>
+                    <li>That runs on your own hardware — no account, no server, no data collection</li>
+                    <li>That costs nothing after setup — no monthly subscription, ever</li>
+                    <li>That your child can use safely and privately for years</li>
+                </ul>
+
+                <p>
+                    That's a different relationship with education technology than most families
+                    have. And once you've built it, it belongs to you.
+                </p>
+
+                <p>
+                    Your child's learning is not a data point. It's theirs.
+                </p>
+
+            </div>
+        </article>
+
+        <div class="post-cta">
+            <h3>Want us to build the tutor for you?</h3>
+            <p>A custom Role tuned to your child's curriculum — private, local, and yours forever. One-time build, no subscription.</p>
+            <div class="btn-group">
+                <a href="../roles.html#contact" class="btn">Request a Tutor Role</a>
+                <a href="../roles.html" class="btn btn-outline">See All Role Tiers →</a>
+            </div>
+        </div>
+
+        <section class="related">
+            <h3>Keep reading</h3>
+            <div class="related-grid">
+                <div class="related-card">
+                    <h4><a href="how-to-run-a-local-llm.html">How to Run a Local LLM in 2026</a></h4>
+                    <p>The 15-minute setup, explained for humans.</p>
+                </div>
+                <div class="related-card">
+                    <h4><a href="what-is-rag.html">What Is RAG? A Plain-English Guide</a></h4>
+                    <p>How to give your AI a private filing cabinet.</p>
+                </div>
+                <div class="related-card">
+                    <h4><a href="local-ai-vs-chatgpt.html">Local AI vs. ChatGPT: The Honest Comparison</a></h4>
+                    <p>Where local wins, where cloud wins, how to decide.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="../index.html">Home</a>
+                <a href="../roles.html">Roles</a>
+                <a href="../products.html">Products</a>
+                <a href="../samples.html">Free Samples</a>
+                <a href="index.html">Blog</a>
+                <a href="../about.html">About</a>
+                <a href="../roles.html#contact">Request a Role</a>
+                <a href="../privacy.html">Privacy Policy</a>
+                <a href="../terms.html">Terms of Service</a>
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">GitHub</a>
+            </div>
+            <div class="footer-social">
+                <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" aria-label="GitHub repository">
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                </a>
+            </div>
+            <p><strong>MAi‑RAG‑PA</strong> — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem; opacity: 0.7;">Version 1.7.0 | Copyright © 2026 MAi‑RAG‑PA. All rights reserved.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
