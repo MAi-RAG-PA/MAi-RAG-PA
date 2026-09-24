@@ -95,7 +95,7 @@ const HeroSectionApp: React.FC = () => {
               </div>
               <div className="defense-item">
                 <div className="defense-check">✓</div>
-                <span>Natural language database querying</span>
+                <span>Natural language database querying with Role Expansion</span>
               </div>
             </div>
           </div>
