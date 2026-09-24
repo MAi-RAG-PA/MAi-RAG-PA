@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>What Is MAi-RAG-PA? The Local AI Assistant That Actually Belongs to You | MAi-RAG-PA</title>
-    <meta name="description" content="MAi-RAG-PA explained: a complete local AI workspace that reads your documents, remembers your context, and runs 100% on your machine. No cloud, no subscriptions, no data mining. Free and open source.">
-    <meta name="keywords" content="what is MAi-RAG-PA, local AI assistant, private AI workspace, offline AI, self-hosted AI, RAG knowledge base, local LLM assistant, AI that reads your documents">
+    <meta name="description" content="A complete tour of MAi-RAG-PA: chat console, triple-layer memory, hallucination defense, agentic workflows, Roles, calendar, self-healing, and more — all running 100% on your own machine. No cloud, no subscriptions.">
+    <meta name="keywords" content="what is MAi-RAG-PA, local AI assistant, private AI workspace, offline AI, self-hosted AI, RAG knowledge base, local LLM assistant, AI that reads your documents, agentic AI, AI workflow automation">
     <meta name="author" content="MAi-RAG-PA">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://mai-rag-pa.github.io/MAi-RAG-PA/blog/what-is-mai-rag-pa.html">
@@ -14,7 +14,7 @@
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://mai-rag-pa.github.io/MAi-RAG-PA/blog/what-is-mai-rag-pa.html">
     <meta property="og:title" content="What Is MAi-RAG-PA? The Local AI Assistant That Actually Belongs to You">
-    <meta property="og:description" content="A complete local AI workspace that reads your documents and runs 100% on your machine. Here's what it is, what it does, and why it matters.">
+    <meta property="og:description" content="A complete tour of what MAi-RAG-PA is, what it can do, and how it solves the privacy-convenience tradeoff that's defined AI for three years.">
     <meta property="og:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
 
@@ -27,7 +27,7 @@
       "@context": "https://schema.org",
       "@type": "BlogPosting",
       "headline": "What Is MAi-RAG-PA? The Local AI Assistant That Actually Belongs to You",
-      "description": "A complete local AI workspace that reads your documents, remembers your context, and runs 100% on your machine.",
+      "description": "A complete tour of MAi-RAG-PA — chat console, triple-layer memory, hallucination defense, agentic workflows, Roles, calendar, self-healing, and more — all running 100% on your own machine.",
       "author": { "@type": "Organization", "name": "MAi-RAG-PA" },
       "publisher": { "@type": "Organization", "name": "MAi-RAG-PA" },
       "datePublished": "2026-09-24",
@@ -60,63 +60,70 @@
         <article>
             <div class="post-hero">
                 <div class="post-meta">
-                    <span class="tag explainer">Explainer</span>
+                    <span class="tag flagship">Flagship</span>
                     <span>September 24, 2026</span>
                     <span>·</span>
-                    <span>14 min read</span>
+                    <span>18 min read</span>
                 </div>
                 <h1>What Is MAi-RAG-PA? The Local AI Assistant That Actually Belongs to You</h1>
                 <p class="lede">
                     Most people have heard of ChatGPT. Some have heard of running AI "locally."
                     Very few understand what happens when you put those two ideas together and
                     turn them into an actual working environment. This is that explanation —
-                    and it's the one you've been looking for.
+                    a complete tour of what MAi-RAG-PA is, what it does, and why it might be
+                    the last AI tool you ever install.
                 </p>
             </div>
 
             <div class="post-body">
 
                 <p>
-                    Let me start with a scenario. You're a freelancer, and one of your clients
-                    sends a 40-page contract. You need to find the termination clause, check the
-                    payment terms, and confirm whether there's a non-compete. Normally this takes
-                    you an hour with a highlighter and three cups of coffee.
+                    Let me start with a scenario that will feel familiar to a lot of people.
                 </p>
 
                 <p>
-                    You could paste it into ChatGPT — the AI would read it and answer your questions
-                    in about ten seconds. <em>But</em> you'd be sending a confidential client contract
-                    to a company server, and now that document exists on infrastructure you don't
-                    control. That's a real problem for a freelancer whose clients expect discretion.
+                    You're a freelancer, and one of your clients sends a 40-page contract. You
+                    need to find the termination clause, check the payment terms, and confirm
+                    whether there's a non-compete. Normally this takes you an hour with a
+                    highlighter and three cups of coffee.
                 </p>
 
                 <p>
-                    So you use the highlighter instead. Every time. Because the alternative is worse.
+                    You could paste it into ChatGPT — the AI would read it and answer your
+                    questions in about ten seconds. <em>But</em> you'd be sending a confidential
+                    client contract to a company server, and now that document exists on
+                    infrastructure you don't control. That's a real problem for a freelancer
+                    whose clients expect discretion.
                 </p>
 
                 <p>
-                    This exact tradeoff — <em>convenience versus privacy</em> — has defined AI for
-                    the last three years. You can have AI that helps you, or AI that respects you.
-                    Not both.
+                    So you use the highlighter instead. Every time. Because the alternative is
+                    worse.
+                </p>
+
+                <p>
+                    This exact tradeoff — <em>convenience versus privacy</em> — has defined AI
+                    for the last three years. You can have AI that helps you, or AI that respects
+                    you. Not both.
                 </p>
 
                 <p>
                     MAi-RAG-PA is the first tool I've used where that tradeoff stops being necessary.
                 </p>
 
-                <h2>What MAi-RAG-PA actually is</h2>
+                <h2>What MAi-RAG-PA is, in one paragraph</h2>
 
                 <p>
-                    The name is a mouthful, so let's unpack it. MAi-RAG-PA stands for
-                    <strong>Memory-Augmented Intelligence with Retrieval-Augmented Generation —
-                    Personal Assistant.</strong> Ignore the acronym. Here's what matters:
+                    MAi-RAG-PA stands for <strong>Memory-Augmented Intelligence with
+                    Retrieval-Augmented Generation — Personal Assistant.</strong> Ignore the
+                    acronym. What matters is this:
                 </p>
 
                 <p>
-                    It's a complete AI workspace that runs entirely on your computer.
-                    Not "sort of local." Not "local-first with a cloud fallback." <em>Entirely
-                    local.</em> Your documents, your conversations, your memory, your calendar,
-                    your notes — all of it lives on your machine, and none of it ever leaves.
+                    It's a complete AI workspace that runs entirely on your computer. Not "sort
+                    of local." Not "local-first with a cloud fallback." <em>Entirely local.</em>
+                    Your documents, your conversations, your memory, your calendar, your notes —
+                    all of it lives on your machine, and none of it ever leaves.
                 </p>
 
                 <p>
@@ -125,34 +132,21 @@
                 </p>
 
                 <p>
-                    But it's not just a chatbot with a privacy label. It's a full working
-                    environment that includes:
+                    But calling it "a local AI" undersells it by a mile. This is a full working
+                    environment — chat, memory, document ingestion, calendar, task management,
+                    text editing, code generation, self-healing diagnostics — woven into a single
+                    interface that runs on the laptop you already own.
                 </p>
 
-                <ul>
-                    <li>A <strong>chat console</strong> for talking to AI models running on your hardware</li>
-                    <li>A <strong>knowledge base</strong> that ingests 17 document formats (PDF, DOCX, EPUB, XLSX, PPTX, and more) into a searchable private library</li>
-                    <li><strong>Long-term and short-term memory</strong> so the assistant actually remembers your context across sessions</li>
-                    <li>A <strong>text and code editor</strong> with AI assistance and syntax verification</li>
-                    <li>A <strong>calendar, planner, and to-do system</strong> integrated with the assistant</li>
-                    <li><strong>Voice input</strong> using offline speech recognition</li>
-                    <li><strong>Roles</strong> — private AI specialists with their own knowledge and personality</li>
-                    <li><strong>Self-healing workflows</strong> where the AI can diagnose and fix issues safely</li>
-                </ul>
-
                 <p>
-                    That list matters less as a feature dump and more as a statement of intent:
-                    <strong>this is what a personal AI assistant should have been from the beginning.</strong>
-                    Not a browser tab pointed at someone else's server. Not a subscription that stops
-                    working when you cancel. Not a service that reads your email to "improve your
-                    experience." Just a tool, running on your hardware, doing what you ask.
+                    The rest of this article is a tour. Not a spec sheet — a walkthrough of what
+                    each piece actually does and why it matters.
                 </p>
 
                 <h2>The problem with every AI you've ever used</h2>
 
                 <p>
-                    Before explaining what MAi-RAG-PA does well, it's worth naming the problem it
-                    solves — because most people don't realize how bad the current situation is.
+                    Before we get into features, it's worth naming the problem MAi-RAG-PA solves.
                 </p>
 
                 <p>
@@ -176,251 +170,577 @@
                 </p>
 
                 <p>
-                    And that's before we even talk about the second problem: <strong>you don't
-                    actually own any of it.</strong> Stop paying the $20/month, and your AI
-                    stops existing. Your "assistant" was never a tool. It was a rental.
+                    And that's before the second problem: <strong>you don't actually own any of it.</strong>
+                    Stop paying the $20/month, and your AI stops existing. Your "assistant" was
+                    never a tool. It was a rental.
                 </p>
 
                 <p>
-                    MAi-RAG-PA is designed around the opposite set of assumptions:
+                    MAi-RAG-PA is designed around the opposite assumptions. Your data stays on
+                    your machine — not because a company promised, but because there's literally
+                    nowhere for it to go. You own the tool. It works as long as your computer works.
+                    No account, no license key, no activation server.
+                </p>
+
+                <h2>The Chat Console — the heart of the system</h2>
+
+                <p>
+                    When you open MAi-RAG-PA in your browser, this is what you see: the Chat
+                    Console. It's the primary interface, and it's where most of the work happens.
+                    But it's not just a chat box. Under the surface, there's more engineering
+                    here than in any other local AI tool I've used.
+                </p>
+
+                <h3>Threads that actually persist</h3>
+
+                <p>
+                    Down the left side, you have a list of every conversation you've ever had.
+                    These aren't browser-cached tabs — they're stored in a local SQLite database.
+                    Close the browser, restart your computer, come back a month later — the
+                    threads are still there, intact, exactly as you left them.
+                </p>
+
+                <p>
+                    Threads auto-title themselves based on their first message, so you don't end
+                    up with a sidebar full of "Untitled chat 1, 2, 3." Create new ones, delete
+                    old ones, all with a click.
+                </p>
+
+                <p>
+                    It sounds like a small thing. It isn't. The reason most people abandon local
+                    AI tools after a week is that they lose their conversations every session.
+                    MAi-RAG-PA treats conversations as data worth keeping.
+                </p>
+
+                <h3>A live monitor of your machine</h3>
+
+                <p>
+                    Right in the Chat Console, you get real-time meters for CPU usage, RAM usage,
+                    and swap. They update every 30 seconds.
+                </p>
+
+                <p>
+                    Why does this matter? Because local AI is hardware-bound. If you're running a
+                    14B model and your RAM is maxed out, you need to know <em>before</em> the
+                    system locks up. The monitor tells you. It's the difference between "I'll
+                    just run the bigger model" and knowing when to swap down to a smaller one.
+                </p>
+
+                <h3>Drop a document, ask a question</h3>
+
+                <p>
+                    You can attach files — PDFs, Word documents, Markdown, HTML, plain text —
+                    directly to a message. The AI reads the file and uses it as context for the
+                    conversation. No uploading anywhere; the file is read locally and discarded
+                    when the conversation ends.
+                </p>
+
+                <p>
+                    This is different from the RAG knowledge base (which we'll get to), because
+                    file attachments are a one-shot thing. You attach a document, ask about it,
+                    and move on. The knowledge base is for documents you want the AI to remember
+                    permanently.
+                </p>
+
+                <h3>Two toggles that change everything</h3>
+
+                <p>
+                    Above the chat input, there are two buttons that most users don't notice at
+                    first but end up relying on constantly:
+                </p>
+
+                <p>
+                    <strong>LTM Database Search ON/OFF.</strong> This controls whether the AI
+                    searches your long-term knowledge base before responding. Turn it off for
+                    general chit-chat or quick questions. Turn it on when you want answers
+                    grounded in your own documents. The toggle gives you control — some queries
+                    benefit from searching your files, others don't.
+                </p>
+
+                <p>
+                    <strong>Citations ON/OFF.</strong> When your knowledge base is consulted,
+                    this controls whether the AI shows you the source of each fact. With citations
+                    on, every claim gets a footnote referencing the exact document and page. With
+                    citations off, you get a cleaner answer. Turn it on for research, off for
+                    casual work.
+                </p>
+
+                <h3>Switch models mid-conversation</h3>
+
+                <p>
+                    A dropdown menu lets you change which AI model you're talking to — without
+                    restarting anything. Start a conversation with a fast 7B model, and if you
+                    need deeper reasoning, switch to a 32B model mid-thread. The new model
+                    picks up the conversation from where you left it.
+                </p>
+
+                <p>
+                    This matters because different tasks need different models. Summarizing a
+                    contract doesn't need a massive model — a fast one is fine. Writing creative
+                    prose or solving a hard coding problem benefits from something bigger.
+                    MAi-RAG-PA lets you use the right tool for the right job without friction.
+                </p>
+
+                <h3>24 themes, if you care</h3>
+
+                <p>
+                    There's a theme customizer with 24 color schemes — Dark Space Teal, Cyberpunk
+                    Neon, Arctic Frost, and so on. This isn't the reason to install MAi-RAG-PA,
+                    but it's a small thing that makes the tool feel like yours. Local software
+                    should feel personal. Notifications and status indicators use the theme
+                    colors too, so everything is coherent.
+                </p>
+
+                <h2>The memory that makes it personal</h2>
+
+                <p>
+                    Here's where MAi-RAG-PA separates itself from every other local AI tool.
+                    It has a <strong>triple-layer memory system</strong> — three distinct
+                    mechanisms that work together to make the assistant feel like it actually
+                    knows you.
+                </p>
+
+                <h3>Layer 1: The system prompt</h3>
+
+                <p>
+                    Every AI has a "system prompt" — the hidden instruction that tells it how
+                    to behave. Most tools give you a generic one and that's it. MAi-RAG-PA
+                    gives you two levels:
                 </p>
 
                 <ul>
-                    <li><strong>Your data stays on your machine.</strong> Not because a company promised, but because it physically can't leave — nothing in the system sends your files anywhere.</li>
-                    <li><strong>You own the tool.</strong> No subscription, no account, no license key, no activation server. It works as long as your computer works.</li>
-                    <li><strong>You control the version.</strong> If a future update makes things worse, you keep the current one. Nothing changes underneath you.</li>
-                    <li><strong>No telemetry, no analytics, no "product improvement."</strong> The system has no idea who you are, and it can't call home even if it wanted to.</li>
+                    <li><strong>A comprehensive default system prompt</strong> that enforces
+                    citation rules, hallucination defense, and structured output. This is
+                    production-ready out of the box.</li>
+                    <li><strong>Per-Role system prompts</strong> that override or extend the
+                    default for specific tasks. (More on Roles below.)</li>
                 </ul>
 
                 <p>
-                    If you've ever read a privacy policy and felt vaguely uncomfortable but
-                    couldn't articulate why — this is the answer.
+                    You can edit the default prompt from the Assistant Settings panel. Changes
+                    take effect immediately — no restart. If you want the AI to always speak in
+                    a formal tone, or always flag uncertainty, or always cite sources, you
+                    change it here once and it's permanent.
+                </p>
+
+                <h3>Layer 2: Short-term memory (SQLite)</h3>
+
+                <p>
+                    Every conversation you have is stored locally in a SQLite database. But it's
+                    not just a log — the system extracts <em>facts</em> from your conversations
+                    and uses them to inform future ones.
+                </p>
+
+                <p>
+                    If you tell the AI your name, your profession, your preferences, the projects
+                    you're working on, the tools you use — it remembers. Not in a "scroll back
+                    through history" way, but in a "state this as a fact when it's relevant" way.
+                    That's what makes it feel like a personal assistant instead of a chatbot.
+                </p>
+
+                <p>
+                    Calendar events, appointments, to-do items, and reminders also live in this
+                    layer. Everything about your operational context — who you are, what you're
+                    doing, what you need to remember — is stored here and available to the AI
+                    when needed.
+                </p>
+
+                <h3>Layer 3: Long-term memory (Qdrant vector database)</h3>
+
+                <p>
+                    This is the knowledge base — the part most people install MAi-RAG-PA for.
+                </p>
+
+                <p>
+                    You upload documents — PDFs, EPUBs, DOCX files, spreadsheets, presentations,
+                    Markdown, plain text, CSVs, LaTeX, and more (17 formats total). The system
+                    breaks each one into small chunks, converts each chunk into a mathematical
+                    "fingerprint" of its meaning, and stores those fingerprints in a local vector
+                    database called Qdrant.
+                </p>
+
+                <p>
+                    When you ask a question, the system searches that database for the chunks
+                    most relevant to your query, and feeds them to the AI as context. The AI
+                    answers based on <em>your actual documents</em> — with citations pointing
+                    to the exact page.
+                </p>
+
+                <p>
+                    Critically, you can create <strong>multiple knowledge bases</strong> and keep
+                    them completely isolated. One for client A, one for client B, one for medical
+                    records, one for research papers. Client A's data never appears in Client B's
+                    answers. This is what makes MAi-RAG-PA usable for professional work where
+                    confidentiality actually matters.
+                </p>
+
+                <h2>Hallucination defense — the feature nobody else has</h2>
+
+                <p>
+                    Every AI hallucinates. It's a fundamental property of how language models
+                    work. The question is what the tool does about it.
+                </p>
+
+                <p>
+                    MAi-RAG-PA takes this seriously. When the AI is answering based on your
+                    knowledge base, it:
+                </p>
+
+                <ul>
+                    <li><strong>Cross-references your documents</strong> before responding, so
+                    answers are grounded in real sources rather than the model's training data</li>
+                    <li><strong>Admits uncertainty</strong> when the answer isn't in the
+                    documents — instead of making something up, it says "I don't know"</li>
+                    <li><strong>Verifies correctness</strong> by checking retrieved chunks
+                    against the question before forming a response</li>
+                    <li><strong>Provides citations</strong> (when the toggle is on) so you can
+                    verify every claim yourself</li>
+                    <li><strong>Avoids fabrication</strong> — the system prompt explicitly
+                    instructs the model not to invent facts, and this is enforced in every
+                    knowledge-base response</li>
+                </ul>
+
+                <p>
+                    The result is something that feels fundamentally different from a chatbot.
+                    When you ask about a contract clause, you get a real answer with a real
+                    citation, and you can check the citation yourself in three seconds. If the
+                    answer isn't in your documents, it tells you. It doesn't guess.
+                </p>
+
+                <h2>The agentic workflow — Generate → Verify → Fix → Save</h2>
+
+                <p>
+                    This is the other feature no other local AI tool has, and it's the one that
+                    saves the most time in practice.
+                </p>
+
+                <p>
+                    When you ask MAi-RAG-PA to create a file — a Python script, a JSON config,
+                    a Markdown note, a text document — the file doesn't get written to disk
+                    immediately. It goes through a four-stage pipeline first:
+                </p>
+
+                <ol>
+                    <li><strong>Generate.</strong> The AI produces the content.</li>
+                    <li><strong>Verify.</strong> The content is checked against strict rules.
+                    Python files are parsed by the Python AST parser. JSON files are validated
+                    by the JSON parser. Text and Markdown files get structural checks.
+                    Non-empty content is required for everything.</li>
+                    <li><strong>Fix.</strong> If verification fails, the error is fed back to
+                    the AI, which tries again. Up to three retry attempts. Each one is logged.</li>
+                    <li><strong>Save.</strong> Only verified content reaches your filesystem.
+                    The file is written to your workspace, and you get a confirmation with the
+                    path and size.</li>
+                </ol>
+
+                <p>
+                    <strong>The result: broken code never reaches your disk.</strong>
+                </p>
+
+                <p>
+                    If you've ever used an AI to generate code, you know how much time you lose
+                    to "wait, that syntax is wrong" and "the imports are missing" and "there's
+                    an unterminated string." MAi-RAG-PA eliminates that entire class of problems.
+                    The verification step catches errors before they become your problem.
+                </p>
+
+                <p>
+                    And there's a bonus feature: <strong>file overwrite protection.</strong> If
+                    you ask the AI to create a file that already exists, it automatically adds
+                    a numbered suffix — <code>Philosophy_1.txt</code>, <code>Philosophy_2.txt</code>
+                    — instead of silently overwriting your work. Small thing. Saves you once,
+                    and it pays for itself.
+                </p>
+
+                <h2>Beyond chat: the full workspace</h2>
+
+                <p>
+                    Chat is the center, but MAi-RAG-PA wraps it in a full working environment.
+                    Here's what the rest of the interface gives you.
+                </p>
+
+                <h3>The text editor</h3>
+
+                <p>
+                    Directly beneath the Chat Console is a full multi-format text editor. It
+                    supports 16 file types — from plain text and Markdown, through HTML, CSS,
+                    JavaScript, TypeScript, Python, SQL, shell scripts, JSON, YAML, TOML, and CSV.
+                    Syntax highlighting is automatic based on file extension.
+                </p>
+
+                <p>
+                    On Chrome, Edge, or Vivaldi, files save directly to their original location
+                    on your disk using the File System Access API. On Firefox, they save to the
+                    workspace folder (a browser security limitation, not a bug). Either way,
+                    the workflow is: ask the AI for something, review it in the editor, save it
+                    to your computer.
+                </p>
+
+                <p>
+                    This integration is the reason MAi-RAG-PA feels like a workspace rather than
+                    a chat window. You're not copying and pasting between apps. The output of
+                    your conversation <em>is</em> the file on your disk.
+                </p>
+
+                <h3>Calendar, planner, and scheduling</h3>
+
+                <p>
+                    There's a full calendar system built in. Year, month, week, and day views.
+                    Create events with rich metadata, set up recurring appointments, add
+                    reminders at 24h, 1h, 30m, 15m, 5m, or "at time." Browser notifications
+                    fire when events are due. Conflict detection alerts you to overlaps.
+                </p>
+
+                <p>
+                    Why does a local AI have a calendar? Because a personal assistant should
+                    help you manage your time, not just answer questions. If you're going to
+                    run an AI on your machine anyway, it makes sense for it to hold your
+                    schedule.
+                </p>
+
+                <p>
+                    You can ask the AI things like "What do I have coming up next week?" or
+                    "Move my Wednesday meeting to Thursday morning" — and it reads and modifies
+                    the calendar directly.
+                </p>
+
+                <h3>To-dos and upcoming events at a glance</h3>
+
+                <p>
+                    A dedicated to-do manager tracks tasks with priorities (low, medium, high)
+                    and due dates. Overdue and upcoming filters keep the list focused. The
+                    upcoming events panel shows your next 15 events at a glance, so nothing
+                    sneaks up on you.
+                </p>
+
+                <p>
+                    Again — small features individually, but together they turn MAi-RAG-PA from
+                    "an AI you talk to" into "an AI that helps you actually get through your week."
+                </p>
+
+                <h3>System Doctor and self-healing</h3>
+
+                <p>
+                    This one is genuinely unusual. MAi-RAG-PA includes a diagnostic tool called
+                    the System Doctor that checks every subsystem — Ollama connectivity, Qdrant
+                    status, SQLite database integrity, workspace permissions, disk space, Python
+                    dependencies — and produces a health score from 0 to 100%. If something's
+                    wrong, it can often fix it automatically.
+                </p>
+
+                <p>
+                    On top of that, there's a <strong>self-healing system</strong>. When capable
+                    models are running (Qwen 2.5 Coder, CodeQwen, and others), the AI can
+                    diagnose code issues and write fixes in an isolated sandbox — never touching
+                    the live system. You review the changes, approve them, deploy them, or roll
+                    them back instantly. It's AI-powered code repair with full human oversight.
+                </p>
+
+                <h2>Roles — a team of specialists, not one generic brain</h2>
+
+                <p>
+                    This is the feature I'm most excited about, and it's the one that separates
+                    MAi-RAG-PA from every other local AI tool on the market.
+                </p>
+
+                <p>
+                    Most AI tools have "personas" — you tell ChatGPT "act like a lawyer" and it
+                    changes its tone. That's not a specialist. That's a costume.
+                </p>
+
+                <p>
+                    A <strong>Role</strong> in MAi-RAG-PA is genuinely different. It bundles:
+                </p>
+
+                <ul>
+                    <li>Its own <strong>system prompt</strong> — the personality, expertise, and rules</li>
+                    <li>Its own <strong>knowledge base</strong> — a separate private Qdrant collection</li>
+                    <li>Its own <strong>memory</strong> — facts and preferences that don't leak between Roles</li>
+                    <li>Its own <strong>citation setting</strong> — on or off, per Role</li>
+                    <li>Its own <strong>model</strong> — assign a fast model to one Role, a heavy model to another</li>
+                </ul>
+
+                <p>
+                    Switch Roles and the entire assistant transforms. The Legal Analyst stops
+                    answering like a poet. The Ghostwriter stops answering like a lawyer. And
+                    crucially: <strong>facts learned in one Role never surface in another.</strong>
+                    Client A's contracts never appear in Client B's thread. Your private journal
+                    never leaks into your professional writing.
+                </p>
+
+                <p>
+                    This isn't just a convenience feature. It's what makes MAi-RAG-PA
+                    compliance-ready in ways a single-prompt chatbot can never be. If you're a
+                    freelancer with three clients, you build three Roles. If you're a researcher
+                    with separate projects, you build a Role per project. If you're a business
+                    with distinct departments, each department gets its own isolated Role.
+                </p>
+
+                <h2>Multi-model flexibility — use the right tool for the job</h2>
+
+                <p>
+                    MAi-RAG-PA is <strong>completely model-agnostic.</strong> You can use any
+                    model available in Ollama — from a tiny 1.5B parameter model for lightweight
+                    tasks, up to a 671B reasoning giant for the hardest problems.
+                </p>
+
+                <p>
+                    On a mid-range laptop with 16GB RAM, a 7B model like
+                    <code>qwen2.5-coder:7b</code> is the sweet spot. It's fast, capable, and
+                    handles most tasks well. If you have 32GB or more, a 32B model like
+                    <code>qwen2.5-coder:32b</code> gives you a big quality bump. If you're on a
+                    workstation with 128GB, you can run <code>qwen3:235b-a22b</code> and get
+                    near-GPT-4 quality without ever touching a cloud server.
+                </p>
+
+                <p>
+                    MAi-RAG-PA ships with five models installed by default:
+                    <code>nomic-embed-text</code> for embeddings,
+                    <code>codeqwen:7b</code> for coding and system functions,
+                    <code>qwen2.5:1.5b</code> for quick tasks,
+                    <code>qwen2.5:7b</code> as the main general-purpose model, and
+                    <code>qwen2.5-coder:14b</code> for heavier coding work.
+                </p>
+
+                <p>
+                    That's a complete working setup out of the box. You can add more models
+                    later as your needs evolve, and the system's hardware auto-detection
+                    recommends the right size for your machine.
                 </p>
 
                 <h2>What your actual day looks like with MAi-RAG-PA</h2>
 
                 <p>
-                    Descriptions are cheap. Let me show you, concretely, what it does in practice —
-                    through six real scenarios.
+                    Features are one thing. Let me show you, concretely, how it works in
+                    practice — through six real scenarios.
                 </p>
 
                 <h3>The freelancer with confidential client documents</h3>
 
                 <p>
-                    You have three clients. Each sends you contracts, briefs, style guides, and
-                    project notes. In a year, you accumulate a couple hundred documents that all
-                    need to be searchable, but none of them can touch a cloud server.
+                    You have three clients. Each sends you contracts, briefs, style guides,
+                    and project notes. In a year, you accumulate a couple hundred documents
+                    that all need to be searchable, but none of them can touch a cloud server.
                 </p>
 
                 <p>
-                    With MAi-RAG-PA: you create a separate knowledge base per client. You upload
-                    each client's documents once. From then on, you can ask questions like
-                    <em>"What's Client A's policy on scope creep?"</em> or <em>"What did Client B
-                    say about the revision cycle?"</em> — and get answers with citations to the
-                    exact document and page. Client A's data never appears in Client B's results.
-                    Nothing was ever uploaded anywhere.
+                    With MAi-RAG-PA: you create a separate knowledge base per client. You
+                    upload each client's documents once. From then on, you ask questions like
+                    "What's Client A's policy on scope creep?" or "What did Client B say about
+                    the revision cycle?" — and get answers with citations to the exact document
+                    and page. Client A's data never appears in Client B's results.
                 </p>
 
                 <h3>The researcher with 200 PDFs</h3>
 
                 <p>
-                    You're writing a literature review. You have 200 academic papers as PDFs, and
-                    you need to synthesize findings across all of them — find contradictions, spot
-                    patterns, cite sources properly.
+                    You're writing a literature review. You have 200 academic papers as PDFs,
+                    and you need to synthesize findings across all of them — find contradictions,
+                    spot patterns, cite sources properly.
                 </p>
 
                 <p>
-                    With MAi-RAG-PA: you ingest all 200 papers into a knowledge base. You ask
-                    cross-cutting questions like <em>"Which papers discuss adverse effects of this
-                    treatment?"</em> or <em>"Do any of these studies contradict each other on
-                    methodology?"</em> The AI cites specific papers, with page numbers. You can
-                    verify every claim against the source. And the papers never leave your drive.
+                    With MAi-RAG-PA: you ingest all 200 papers. You ask cross-cutting questions
+                    like "Which papers discuss adverse effects of this treatment?" or "Do any
+                    of these studies contradict each other on methodology?" The AI cites
+                    specific papers with page numbers.
                 </p>
 
                 <h3>The parent helping with homework at 9pm</h3>
 
                 <p>
-                    Your child is stuck on math homework. You explained it three times. You're not
-                    sure you're explaining it the way their teacher does. You're tired.
+                    Your child is stuck on math homework. You explained it three times. You're
+                    not sure you're explaining it the way their teacher does. You're tired.
                 </p>
 
                 <p>
-                    With MAi-RAG-PA: you've already ingested your child's textbook and worksheets
-                    into a knowledge base. You ask the AI to walk through the problem at their
-                    grade level, using the textbook's methodology. The AI doesn't just give the
-                    answer — it guides your child to it. And nothing about your child's struggles,
-                    school, or homework is being logged by a company that might use it for product
-                    improvement.
+                    With MAi-RAG-PA: you've ingested your child's textbook and worksheets into
+                    a knowledge base. You ask the AI to walk through the problem at their grade
+                    level, using the textbook's methodology. The AI doesn't just give the
+                    answer — it guides your child to it.
                 </p>
 
                 <h3>The writer with years of personal notes</h3>
 
                 <p>
-                    You've been writing in a note-taking app for five years. Thousands of fragments,
-                    half-essays, character sketches, and observations. You know there's material
-                    in there you've forgotten about.
+                    You've been writing in a note-taking app for five years. Thousands of
+                    fragments, half-essays, character sketches, observations. You know there's
+                    material in there you've forgotten about.
                 </p>
 
                 <p>
-                    With MAi-RAG-PA: you import everything into a private knowledge base. Now you
-                    can ask <em>"What did I write about loneliness in 2023?"</em> and get back the
-                    exact notes, with dates. Or <em>"Find every sketch of a character named
-                    Marisol."</em> The AI becomes a research assistant for your own creative brain —
-                    and none of it is being fed into a training corpus somewhere.
+                    With MAi-RAG-PA: you import everything into a private knowledge base. Now
+                    you can ask "What did I write about loneliness in 2023?" and get back the
+                    exact notes, with dates. The AI becomes a research assistant for your own
+                    creative brain.
                 </p>
 
                 <h3>The small business owner with policies and manuals</h3>
 
                 <p>
                     You have an employee handbook, dozens of SOP documents, vendor contracts,
-                    insurance policies, and IRS notices. When someone asks a question, you spend
+                    insurance policies, IRS notices. When someone asks a question, you spend
                     twenty minutes digging through folders.
                 </p>
 
                 <p>
-                    With MAi-RAG-PA: everything goes into a knowledge base. Now you ask
-                    <em>"What's our policy on remote work expenses?"</em> and get an answer that
-                    cites the exact page of the exact document. Your employees could ask the same
-                    question themselves if you gave them access on your local network. No cloud
-                    service, no monthly fee, no data leaving the building.
+                    With MAi-RAG-PA: everything goes into a knowledge base. Now you ask "What's
+                    our policy on remote work expenses?" and get an answer citing the exact
+                    page of the exact document. If you gave employees access on your local
+                    network, they could ask the same question themselves.
                 </p>
 
                 <h3>The privacy-conscious professional</h3>
 
                 <p>
                     You work in an industry where confidentiality isn't just etiquette — it's
-                    regulatory. Legal, healthcare, finance, defense. You'd love AI help with your
-                    workload, but uploading client data to ChatGPT is not an option.
+                    regulatory. Legal, healthcare, finance, defense. You'd love AI help with
+                    your workload, but uploading client data to ChatGPT is not an option.
                 </p>
 
                 <p>
-                    With MAi-RAG-PA: nothing is uploaded. Ever. You can build a Role around your
-                    specific workflow, ingest your documents, and use it freely — with a clean
-                    conscience and a defensible audit trail, because the data never left your
-                    machine.
+                    With MAi-RAG-PA: nothing is uploaded. Ever. Build a Role around your
+                    specific workflow, ingest your documents, and use it freely — with a
+                    defensible audit trail, because the data never left your machine.
                 </p>
 
                 <div class="pull-quote">
                     <p>"The right question isn't 'can AI do this?' It's 'can AI do this without my data leaving the building?' For most professional work, the answer has been no. MAi-RAG-PA changes that answer."</p>
                 </div>
 
-                <h2>The two features nobody else has</h2>
-
-                <p>
-                    Lots of tools let you run local AI. Ollama gives you a way to run models. Open
-                    WebUI gives you a chat interface. LM Studio gives you a desktop app. All good
-                    projects. But MAi-RAG-PA does two things that, as far as I know, no other
-                    local AI tool does together.
-                </p>
-
-                <h3>1. Roles — actual specialized assistants, not just prompts</h3>
-
-                <p>
-                    Most "AI personas" are just different system prompts. You tell ChatGPT "act
-                    like a lawyer" and it changes its tone. That's not a specialist — it's a
-                    costume.
-                </p>
-
-                <p>
-                    MAi-RAG-PA's Roles are genuinely different. A Role bundles together:
-                </p>
-
-                <ul>
-                    <li>Its own <strong>system prompt</strong> (personality, expertise, rules)</li>
-                    <li>Its own <strong>knowledge base</strong> (a separate private vector collection)</li>
-                    <li>Its own <strong>memory</strong> (facts and preferences that don't leak between roles)</li>
-                    <li>Its own <strong>citation setting</strong> (citations on or off depending on the Role)</li>
-                    <li>Its own <strong>model</strong> (you can assign a fast model to one Role and a heavy model to another)</li>
-                </ul>
-
-                <p>
-                    Switch Roles and the entire assistant transforms. The Legal Analyst stops
-                    answering like a poet. The Ghostwriter stops answering like a lawyer. And
-                    crucially — <strong>facts learned in one Role never surface in another</strong>.
-                    Client A's contracts never appear in Client B's thread. Your private journal
-                    never leaks into your professional writing.
-                </p>
-
-                <p>
-                    This is what makes MAi-RAG-PA feel like a team of specialists rather than
-                    one generic brain. And it's also what makes it compliance-ready in ways a
-                    single-prompt chatbot can never be.
-                </p>
-
-                <h3>2. Self-healing workflows — the AI can actually fix things</h3>
-
-                <p>
-                    When most AI systems encounter a problem, they produce output and hope for
-                    the best. If the output is broken, you find out later — usually at the worst
-                    possible moment.
-                </p>
-
-                <p>
-                    MAi-RAG-PA takes a different approach. Every file the AI generates goes through
-                    a verification pipeline: <strong>Generate → Verify → Fix → Save.</strong>
-                    A Python file gets checked against the Python parser. A JSON file gets checked
-                    against the JSON parser. If verification fails, the error is fed back to the
-                    AI, which tries again. Only after the output passes verification does anything
-                    get written to your filesystem.
-                </p>
-
-                <p>
-                    The result: <strong>broken code never reaches your disk.</strong>
-                </p>
-
-                <p>
-                    And there's more. When something in the system itself breaks, capable models
-                    can diagnose the issue, write a fix in an isolated sandbox (never touching
-                    the live system), and hand you a changelog explaining exactly what they
-                    changed and why. You review it, approve it, and deploy — or roll back
-                    instantly if you don't like what you see.
-                </p>
-
-                <p>
-                    This isn't just a feature. It's a fundamentally different posture toward AI:
-                    instead of trusting the model to always be right, you build a system that
-                    <em>assumes it will sometimes be wrong</em> and checks its work accordingly.
-                </p>
-
                 <h2>What MAi-RAG-PA is not</h2>
 
                 <p>
-                    I'd rather you hear this from me than discover it after installing. Here
-                    are the honest boundaries:
+                    I'd rather you hear this from me than discover it after installing.
                 </p>
 
                 <p>
-                    <strong>It's not as smart as GPT-5.</strong> The models that run on a laptop
-                    are genuinely good, but they're not at the frontier. For open-ended reasoning,
-                    complex research, or high-stakes writing, cloud models are still better. If
-                    your work depends on the absolute best output quality, use cloud AI for that.
+                    <strong>It's not as smart as GPT-5.</strong> The models that run on a
+                    laptop are genuinely good, but they're not at the frontier. For open-ended
+                    reasoning or high-stakes writing, cloud models are still better. If your
+                    work depends on absolute output quality, use cloud AI for that.
                 </p>
 
                 <p>
                     <strong>It's not instant.</strong> On a good laptop, a 7B model responds in
-                    a few seconds per paragraph. Larger models take longer. It's usable, but it's
-                    not the seamless speed of a cloud API.
+                    a few seconds per paragraph. Larger models take longer. It's usable, but
+                    it's not the seamless speed of a cloud API.
                 </p>
 
                 <p>
                     <strong>It's not for everyone.</strong> It requires a computer with at least
-                    12GB of RAM, a 15GB install, and about twenty minutes of patience during setup.
-                    If you're looking for a browser tab that just works, use ChatGPT. If you want
-                    a tool that belongs to you, keep reading.
+                    12GB of RAM, a 15GB install, and about twenty minutes of patience during
+                    setup. If you're looking for a browser tab that just works, use ChatGPT.
                 </p>
 
                 <p>
-                    <strong>It's not magic.</strong> A locally-run AI is still an AI. It can be
-                    wrong. It can hallucinate. It should be verified. The system has extensive
-                    safeguards against this, but the same caution that applies to any AI applies
-                    here. <em>Always review important output before relying on it.</em>
+                    <strong>It's not magic.</strong> A locally-run AI is still an AI. It can
+                    be wrong. It can hallucinate. The system has extensive safeguards against
+                    this, but the same caution that applies to any AI applies here.
+                    <em>Always review important output before relying on it.</em>
                 </p>
 
                 <h2>What you need to run it</h2>
-
-                <p>
-                    The short version:
-                </p>
 
                 <ul>
                     <li><strong>Operating system:</strong> Linux (Ubuntu 22.04+, Fedora 38+, Arch), macOS 12+, or Windows via WSL2</li>
@@ -451,25 +771,24 @@
                 </p>
 
                 <p>
-                    If you'd rather understand every step, the
-                    <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md" target="_blank" rel="noopener">installation guide</a>
-                    walks through manual setup for every supported platform — Linux distros,
-                    macOS (Intel and Apple Silicon), and Windows via WSL2.
-                </p>
-
-                <p>
-                    Once it's running, your browser opens to a local address (usually
-                    <code>localhost:8000</code>), and you're looking at your own AI workspace.
-                    From there, the workflow is:
+                    Once it's running, your browser opens to a local address
+                    (<code>localhost:8000</code>), and you're looking at your own AI workspace.
+                    From there:
                 </p>
 
                 <ol>
-                    <li><strong>Pick a model</strong> based on your hardware (the system recommends one for you)</li>
+                    <li><strong>Pick a model</strong> — the system recommends one for your hardware</li>
                     <li><strong>Ingest some documents</strong> into a knowledge base — start with 5–10 files you actually use regularly</li>
                     <li><strong>Ask it questions</strong> — anything from general conversation to deep document search</li>
                     <li><strong>Create a Role</strong> when you're ready for a specialized assistant</li>
-                    <li><strong>Explore the other features</strong> — the calendar, the editor, the self-healing tools</li>
+                    <li><strong>Explore the rest</strong> — the calendar, the editor, the self-healing tools, the to-do list</li>
                 </ol>
+
+                <p>
+                    If you'd rather understand every step, the
+                    <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-INSTALLATION.md" target="_blank" rel="noopener">installation guide</a>
+                    walks through manual setup for every supported platform.
+                </p>
 
                 <h2>Why this matters more than it sounds like it does</h2>
 
@@ -478,34 +797,39 @@
                 </p>
 
                 <p>
-                    Ten years ago, local AI didn't exist. You used a cloud service, or you didn't
-                    use AI at all. Today, for the first time, a regular person with a normal
-                    laptop can run a capable AI that answers to them and no one else.
+                    Ten years ago, local AI didn't exist. You used a cloud service, or you
+                    didn't use AI at all. Today, for the first time, a regular person with a
+                    normal laptop can run a capable AI that answers to them and no one else.
                 </p>
 
                 <p>
-                    That's not a niche feature. That's a fundamental shift in who has power over
-                    the technology. Right now, four companies own the AI that a billion people
-                    use every day. If any of them change their terms, raise their prices, add a
-                    feature you don't like, or decide your data is worth more than their policy
-                    promised — you have no recourse. You just live with it.
+                    That's not a niche feature. That's a fundamental shift in who has power
+                    over the technology. Right now, four companies own the AI that a billion
+                    people use every day. If any of them change their terms, raise their prices,
+                    add a feature you don't like, or decide your data is worth more than their
+                    policy promised — you have no recourse. You just live with it.
                 </p>
 
                 <p>
-                    A local AI changes that relationship. Not because it's better than the cloud
-                    (it isn't, always). But because it's <em>yours</em>. And once you've used a
-                    tool that answers to nobody but you, it's very hard to go back.
+                    MAi-RAG-PA isn't just "a local alternative." It's a genuinely better
+                    workspace than most of what's available in the cloud. The triple-layer
+                    memory, the hallucination defense, the agentic workflow, the Roles system,
+                    the calendar, the self-healing tools — none of these exist in ChatGPT or
+                    Claude, and none of them <em>can</em> exist in a cloud service that needs
+                    to serve millions of users with one generic interface.
                 </p>
 
                 <p>
-                    That's what MAi-RAG-PA is. Not a replacement for cloud AI. An alternative
-                    to needing one. A workspace that does what you ask, keeps what you tell it,
-                    and never tells anyone else.
+                    This is what a personal AI assistant should have been from the beginning.
+                    Not a browser tab pointed at someone else's server. Not a subscription that
+                    stops working when you cancel. Not a service that reads your email to
+                    "improve your experience." Just a tool — running on your hardware, doing
+                    what you ask, remembering what you tell it, and never telling anyone else.
                 </p>
 
                 <p>
-                    If that sounds like something you want, it's free. It's open source. It runs
-                    on the laptop you already have.
+                    If that sounds like something you want, it's free. It's open source. It
+                    runs on the laptop you already have.
                 </p>
 
                 <p>
@@ -520,7 +844,7 @@
             <p>MAi-RAG-PA is free, open source, and installs in about fifteen minutes. Personal use, no strings attached.</p>
             <div class="btn-group">
                 <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA" class="btn">Get MAi-RAG-PA on GitHub</a>
-                <a href="how-to-run-a-local-llm.html" class="btn btn-secondary">Setup Guide →</a>
+                <a href="10-documents-to-feed-your-ai.html" class="btn btn-secondary">What to Ingest First →</a>
             </div>
         </div>
 
@@ -528,16 +852,16 @@
             <h3>Keep reading</h3>
             <div class="related-grid">
                 <div class="related-card">
+                    <h4><a href="10-documents-to-feed-your-ai.html">The 10 Documents You Should Feed Your AI First</a></h4>
+                    <p>What to actually ingest, and what to ask.</p>
+                </div>
+                <div class="related-card">
+                    <h4><a href="a-week-with-mai-rag-pa.html">A Week With MAi-RAG-PA</a></h4>
+                    <p>What seven days of daily use actually looks like.</p>
+                </div>
+                <div class="related-card">
                     <h4><a href="how-to-run-a-local-llm.html">How to Run a Local LLM in 2026</a></h4>
                     <p>The 15-minute setup, explained for humans.</p>
-                </div>
-                <div class="related-card">
-                    <h4><a href="what-is-rag.html">What Is RAG? A Plain-English Guide</a></h4>
-                    <p>How to give your AI a private filing cabinet.</p>
-                </div>
-                <div class="related-card">
-                    <h4><a href="local-ai-vs-chatgpt.html">Local AI vs. ChatGPT: The Honest Comparison</a></h4>
-                    <p>Where local wins, where cloud wins, how to decide.</p>
                 </div>
             </div>
         </section>
