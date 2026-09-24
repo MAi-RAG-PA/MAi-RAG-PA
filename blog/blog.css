@@ -19,6 +19,9 @@
     --shadow-color: rgba(0,0,0,0.5);
 }
 
+.tag.flagship { background: rgba(163, 113, 247, 0.15); color: var(--accent-purple); }
+
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
