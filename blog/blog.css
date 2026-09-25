@@ -185,6 +185,61 @@ header {
     border-bottom: 1px solid var(--border-color);
 }
 
+        /* BUNDLE CTA */
+        .bundle-cta {
+            text-align: center;
+            margin: 3rem auto 1rem;
+            max-width: 780px;
+            padding: 2.8rem 2.5rem;
+            background: linear-gradient(135deg, rgba(163,113,247,0.10) 0%, rgba(88,166,255,0.08) 100%);
+            border: 2px solid rgba(163,113,247,0.4);
+            border-radius: 18px;
+        }
+        .bundle-cta h3 {
+            font-size: 1.7rem;
+            color: var(--text-primary);
+            letter-spacing: -0.4px;
+            margin-bottom: 0.9rem;
+        }
+        .bundle-cta p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.65;
+            max-width: 620px;
+            margin: 0 auto 1.6rem;
+        }
+        .bundle-price {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.2rem;
+            margin-bottom: 1.6rem;
+        }
+        .bundle-price .bundle-now {
+            font-size: 2.6rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+        .bundle-price .bundle-was {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+        .bundle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--accent-purple);
+            color: #fff;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.05rem;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .bundle-btn:hover { background: #b58cf8; color: #fff; transform: translateY(-1px); }
+
 /* POST BODY */
 .post-body { max-width: 720px; margin: 0 auto; padding: 2rem 1rem 4rem; }
 .post-body p {
