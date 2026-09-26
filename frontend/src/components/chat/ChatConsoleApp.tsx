@@ -1262,7 +1262,7 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
             <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px', alignItems: 'flex-end' }}>
               <textarea
                 ref={textareaRef}
-                placeholder={filename ? 'Describe file content...' : 'Ask MAi-RAG-PA...'}
+                placeholder={filename ? 'Describe file content...' : 'Ask MAi-RAG-P.A. ...'}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
