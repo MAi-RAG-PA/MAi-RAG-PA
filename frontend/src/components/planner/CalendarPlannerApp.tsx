@@ -441,7 +441,7 @@ const CalendarPlannerApp: React.FC = () => {
     const loadEventsFromSQLite = async () => {
       try {
         setIsLoading(true);
-
+        
         // Fetch from the correct, existing endpoints
         const [eventsRes, remindersRes] = await Promise.all([
           apiClient.get('/api/memory/sqlite/events/upcoming?limit=1000'),
@@ -583,7 +583,7 @@ const CalendarPlannerApp: React.FC = () => {
   const handleSaveEntry = async (entry: CalendarEntry) => {
     try {
       const { tableName, payload } = entryToPayload(entry);
-
+      
       // 1. Save to the correct table
       await apiClient.post(`/api/memory/sqlite/${tableName}`, payload);
 
@@ -984,7 +984,7 @@ const CalendarPlannerApp: React.FC = () => {
             zIndex: 1,
             paddingLeft: '8px'
           }}>
-            MAi-RAG-PA Calendar/Planner
+            MAi-RAG-P.A. Calendar/Planner
           </div>
           <h1 style={{
             fontSize: '2.5rem',
