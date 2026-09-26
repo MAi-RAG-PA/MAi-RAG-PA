@@ -200,7 +200,7 @@ const ShortTermMemoryApp: React.FC = () => {
           All planner data and chat history are <strong>automatically saved by the system</strong>.
         </p>
         <p style={{ fontSize: "0.85rem", opacity: 0.7, margin: 0 }}>
-          MAi-RAG-PA learns about you over time, as a Personal Assistant should.
+          MAi-RAG-P.A. learns about you over time, as a Personal Assistant should.
         </p>
       </div>
 
