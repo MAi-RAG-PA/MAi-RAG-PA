@@ -30,7 +30,7 @@ const HeroSectionApp: React.FC = () => {
         <div className="hero-left">
           <div className="eyebrow reveal">
             <span className="eyebrow-accent" />
-            MAi-RAG-PA Localized Private Interface
+            MAi-RAG-P.A. Localized Private Interface
             <br />
             Memory-Augmented Intelligence · Retrieval-Augmented Generation · Personal Assistant
           </div>
