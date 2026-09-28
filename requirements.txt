@@ -39,6 +39,7 @@ langchain-ollama==0.1.0
 transformers==4.35.0
 huggingface-hub==0.17.3
 tokenizers==0.14.1
+pysqlcipher3==1.2.0
 sentencepiece==0.2.1
 safetensors==0.7.0
 
