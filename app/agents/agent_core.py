@@ -19,7 +19,6 @@ from app.memory.sqlite_memory import SQLiteMemoryManager
 from app.agents.verifier import ContentVerifier
 from app.rag.retriever import AdvancedRetriever
 from functools import lru_cache
-# Add after existing imports
 from app.agents.role_tools.iching_tools import (
     ICHING_ROLE_TOOLS,
     is_role_db_available,
@@ -1410,6 +1409,17 @@ def agent_loop(
             citation_mode=citation_mode, role_id=role_id,
         )
 
+    # ── Role-aware tool detection ──────────────────────────────────────
+    # If the active role has registered tools (e.g., I-Ching temporal tools),
+    # ALWAYS use the full tool-enabled loop. This ensures role-specific tools
+    # are callable regardless of whether the query contains "file" keywords.
+    # If no role tools exist, behavior is identical to before.
+    role_has_tools = False
+    if role_id:
+        role_tool_names = {"get_shao_yong_allocation", "get_iching_user_context", "save_iching_user_context"}
+        registered_tool_names = {t.name for t in TOOLS}
+        role_has_tools = bool(role_tool_names & registered_tool_names)
+
     # Simple chat detection
     tool_keywords = [
         "create file", "write file", "save", "calendar", "event", "reminder",
@@ -1417,7 +1427,7 @@ def agent_loop(
     ]
     is_simple_chat = not any(kw in query.lower() for kw in tool_keywords)
 
-    if is_simple_chat:
+    if is_simple_chat and not role_has_tools:
         logger.info("Simple chat detected — direct chat mode for %s", model_name)
         return _simple_chat_fallback(
             llm, query, rag_context, model_name,
