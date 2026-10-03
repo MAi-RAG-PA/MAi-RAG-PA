@@ -1479,7 +1479,28 @@ User query: {query}
     else:
         user_content = query
 
-    messages.append(HumanMessage(content=user_content))
+
+    # ── Deterministic temporal pre-fetch ──────────────
+    try:
+        import re as _re
+        from app.agents.role_tools.iching_tools import get_shao_yong_allocation
+        _years = []
+        for _m in _re.finditer(r"\b(\d{1,5})\s*(?:BCE|BC)\b", user_content, _re.I):
+            _y = -(int(_m.group(1)) - 1)
+            if _y not in _years: _years.append(_y)
+        for _m in _re.finditer(r"(?<![\d,])(\d{3,5})(?![\d,])", user_content):
+            _y = int(_m.group(1))
+            if _y not in _years: _years.append(_y)
+        _years = [y for y in _years if -67017 <= y <= 62583][:4]
+        if _years:
+            _blocks = [get_shao_yong_allocation.invoke({"year": y}) for y in _years]
+            user_content += (
+                "\n\nVERIFIED TEMPORAL DATA (auto-retrieved; cite directly, no [N] markers):\n"
+                + "\n".join(_blocks)
+            )
+    except Exception:
+        pass
+    messages.append(HumanMessage(content=user_content + "\n/no_think"))
     tool_calls_history: List[Dict[str, Any]] = []
 
     for iteration in range(1, max_iterations + 1):
