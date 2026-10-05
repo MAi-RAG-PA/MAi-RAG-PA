@@ -831,14 +831,30 @@ def get_system_prompt(
                 cursor = conn.cursor()
 
                 if role_id:
-                    cursor.execute(
-                        "SELECT system_prompt FROM roles WHERE id = ?",
-                        (role_id,),
-                    )
-                    row = cursor.fetchone()
-                    if row and row[0]:
-                        base_prompt = row[0].strip()
+                    try:
+                        cursor.execute(
+                            "SELECT system_prompt, citations_enabled FROM roles WHERE id = ?",
+                            (role_id,),
+                        )
+                        row = cursor.fetchone()
+                        prompt = row[0] if row else None
+                        citations_enabled = row[1] if row else 1
+                    except sqlite3.OperationalError:
+                        cursor.execute(
+                            "SELECT system_prompt FROM roles WHERE id = ?",
+                            (role_id,),
+                        )
+                        row = cursor.fetchone()
+                        prompt = row[0] if row else None
+                        citations_enabled = 1
+
+                    if prompt:
+                        base_prompt = prompt.strip()
                         logger.info("Using role-specific system prompt (role=%s)", role_id)
+
+                    if int(citations_enabled or 0) == 0:
+                        citation_mode = "none"
+                        logger.debug("Role disables citations; forcing citation_mode=none.")
                 else:
                     cursor.execute(
                         "SELECT value FROM short_term_memory WHERE key = 'system_prompt'"
@@ -1479,9 +1495,28 @@ User query: {query}
     else:
         user_content = query
 
-
-
-
+    # ── Generic role hook (role-packaged) ──
+    if role_id:
+        try:
+            import importlib
+    
+            _slug = re.sub(r"[^a-z0-9_]", "_", str(role_id).lower().replace("-", "_"))
+            if not _slug or _slug[0].isdigit():
+                _slug = "role_" + _slug
+    
+            _module_name = f"app.agents.role_tools.{_slug}_hooks"
+    
+            try:
+                _hook_mod = importlib.import_module(_module_name)
+            except ModuleNotFoundError:
+                _hook_mod = None
+    
+            if _hook_mod is not None:
+                _augment = getattr(_hook_mod, "augment_user_content", None)
+                if callable(_augment):
+                    user_content = _augment(user_content, role_id)
+        except Exception as _e:
+            logger.warning("Role hook skipped for %s: %s", role_id, _e)
     messages.append(HumanMessage(content=user_content))
     tool_calls_history: List[Dict[str, Any]] = []
 
