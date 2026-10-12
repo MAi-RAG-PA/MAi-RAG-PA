@@ -463,3 +463,77 @@ footer a:hover { text-decoration: underline; }
     .post-body h2 { font-size: 1.4rem; }
     .post-body p, .post-body ul li, .post-body ol li { font-size: 1rem; }
 }
+
+/* ============================================================
+   APP FAMILIARITY BACKDROP — 2 fixed layers behind content.
+   Content and placement untouched. Scoped app-cyan palette
+   (#22d3ee) so the page theme is unaffected.
+   Layer 1 (back): hexagonal grid (ported from app globals.css).
+   Layer 2 (front): animated circuit traces (from app hero).
+   (Rules live here so blog/index.html picks them up; inert on
+   post pages until the backdrop divs are present.)
+   ============================================================ */
+.bg-hex-grid,
+.bg-circuit {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+}
+.bg-hex-grid {
+    z-index: 0;
+    /* Hexagonal grid pattern — ported from app globals.css body::before */
+    background-image:
+        linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
+        linear-gradient(150deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
+        linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
+        linear-gradient(150deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
+        linear-gradient(60deg, rgba(255,255,255,0.03) 25%, transparent 25.5%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03)),
+        linear-gradient(60deg, rgba(255,255,255,0.03) 25%, transparent 25.5%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03));
+    background-size: 40px 70px;
+    background-position: 0 0, 0 0, 20px 35px, 20px 35px, 0 0, 20px 35px;
+    background-repeat: repeat;
+    -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 85%);
+    mask-image: radial-gradient(circle at center, black 40%, transparent 85%);
+    opacity: 0.35;
+}
+.bg-circuit { z-index: 0; opacity: 0.28; }
+.bg-circuit svg { width: 100%; height: 100%; display: block; }
+.bg-circuit .circuit-path {
+    fill: none;
+    stroke: #22d3ee;
+    stroke-width: 1;
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: bgCircuitFlow 8s linear infinite;
+    filter: drop-shadow(0 0 3px #22d3ee);
+}
+.bg-circuit .circuit-path:nth-child(2) { animation-delay: 1s; }
+.bg-circuit .circuit-path:nth-child(3) { animation-delay: 2s; }
+.bg-circuit .circuit-path:nth-child(4) { animation-delay: 3s; }
+.bg-circuit .circuit-path:nth-child(5) { animation-delay: 4s; }
+.bg-circuit .circuit-path:nth-child(6) { animation-delay: 5s; }
+@keyframes bgCircuitFlow {
+    0% { stroke-dashoffset: 1000; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { stroke-dashoffset: 0; opacity: 0; }
+}
+.bg-circuit .circuit-node {
+    fill: #22d3ee;
+    filter: drop-shadow(0 0 5px #22d3ee);
+    animation: bgNodePulse 2s ease-in-out infinite;
+}
+.bg-circuit .circuit-node:nth-child(odd) { animation-delay: 0.5s; }
+@keyframes bgNodePulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+main, footer { position: relative; z-index: 1; }
+@media (max-width: 768px) {
+    .bg-circuit { opacity: 0.16; }
+    .bg-hex-grid { opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bg-circuit .circuit-path,
+    .bg-circuit .circuit-node { animation: none; }
+}
