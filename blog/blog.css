@@ -205,7 +205,11 @@ header {
     letter-spacing: -1px;
     line-height: 1.15;
     margin-bottom: 1.2rem;
-    color: var(--text-primary);
+    background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
 }
 .post-hero .lede {
     font-size: 1.15rem;
@@ -283,17 +287,27 @@ header {
 
 .post-body h2 {
     font-size: 1.7rem;
-    color: var(--text-primary);
     letter-spacing: -0.4px;
     margin-top: 3rem;
     margin-bottom: 1rem;
     line-height: 1.25;
+    background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    display: inline-block;
 }
 .post-body h3 {
     font-size: 1.2rem;
-    color: var(--text-primary);
     margin-top: 2rem;
     margin-bottom: 0.7rem;
+    background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    display: inline-block;
 }
 .post-body ul, .post-body ol {
     color: var(--text-secondary);
@@ -422,8 +436,13 @@ header {
 }
 .post-cta h3 {
     font-size: 1.4rem;
-    color: var(--text-primary);
     margin-bottom: 0.8rem;
+    background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    display: inline-block;
 }
 .post-cta p {
     color: var(--text-secondary);
@@ -452,12 +471,15 @@ header {
 }
 .related h3 {
     font-size: 1.2rem;
-    color: var(--text-secondary);
     letter-spacing: 1.5px;
     text-transform: uppercase;
     margin-bottom: 1.5rem;
     text-align: center;
     font-weight: 700;
+    background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 .related-grid {
     display: grid;
@@ -472,9 +494,22 @@ header {
     transition: border-color 0.2s;
 }
 .related-card:hover { border-color: var(--accent-blue); }
-.related-card h4 { font-size: 1rem; color: var(--text-primary); margin-bottom: 0.5rem; line-height: 1.35; }
-.related-card h4 a { color: var(--text-primary); }
-.related-card h4 a:hover { color: var(--accent-blue); }
+.related-card h4 {
+    font-size: 1rem; margin-bottom: 0.5rem; line-height: 1.35;
+    background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    display: inline-block;
+}
+.related-card h4 a {
+    background: inherit;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.related-card h4 a:hover { filter: brightness(1.15); }
 .related-card p { font-size: 0.85rem; color: var(--text-secondary); margin: 0; }
 
 /* FOOTER (matches main site) */
