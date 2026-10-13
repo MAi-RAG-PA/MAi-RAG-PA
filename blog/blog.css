@@ -81,6 +81,22 @@ header {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 700;
+    position: relative;
+    padding-bottom: 1rem;
+}
+.blog-hero h1::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 160px;
+    height: 2px;
+    background: linear-gradient(90deg, #22d3ee, #FF9E57);
+    animation: blogTitlePulse 3s ease-in-out infinite;
+}
+@keyframes blogTitlePulse {
+    0%, 100% { opacity: 0.5; transform: translateX(-50%) scaleX(0.8); }
+    50% { opacity: 1; transform: translateX(-50%) scaleX(1); }
 }
 .blog-hero h1 .highlight { color: var(--accent-blue); }
 .blog-hero .subtitle {
@@ -600,5 +616,6 @@ main, footer { position: relative; z-index: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
     .bg-circuit .circuit-path,
-    .bg-circuit .circuit-node { animation: none; }
+    .bg-circuit .circuit-node,
+    .blog-hero h1::after { animation: none; }
 }
