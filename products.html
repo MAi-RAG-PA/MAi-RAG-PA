@@ -125,10 +125,27 @@
             margin-bottom: 1rem;
         }
         .hero h1 .highlight {
-            background: linear-gradient(90deg, #a371f7, #58a6ff);
+            background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            display: inline-block;
+            position: relative;
+        }
+        .hero h1 .highlight::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #22d3ee, #FF9E57);
+            animation: highlightPulse 3s ease-in-out infinite;
+        }
+        @keyframes highlightPulse {
+            0%, 100% { opacity: 0.5; transform: scaleX(0.8); }
+            50% { opacity: 1; transform: scaleX(1); }
         }
         .hero .subtitle {
             font-size: 1.15rem;
@@ -158,7 +175,14 @@
         }
 
         /* SECTION TITLES */
-        .section-title { text-align: center; font-size: 2rem; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+        .section-title {
+            text-align: center; font-size: 2rem; letter-spacing: -0.5px; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
         .section-subtitle { text-align: center; color: var(--text-secondary); max-width: 720px; margin: 0 auto 2.5rem; }
 
         /* TRUST STRIP */
@@ -200,13 +224,15 @@
         .book-card::before {
             content: "";
             position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 4px;
-            background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(34,211,238,0.10), transparent);
+            transition: left 0.6s ease;
+            pointer-events: none;
         }
-        .book-card.business::before {
-            background: linear-gradient(90deg, transparent, var(--accent-purple), transparent);
-        }
+        .book-card:hover::before { left: 100%; }
         .book-card:hover {
             transform: translateY(-6px);
             box-shadow: 0 20px 44px var(--shadow-color);
@@ -240,10 +266,15 @@
         }
         .book-card h3 {
             font-size: 1.7rem;
-            color: var(--text-primary);
             margin-bottom: 0.4rem;
             line-height: 1.2;
             letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            display: inline-block;
         }
         .book-card .bk-subtitle {
             color: var(--text-secondary);
@@ -343,18 +374,32 @@
         }
         .role-card {
             background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
+            border: 1px solid rgba(34,211,238,0.30);
             border-radius: 14px;
             padding: 1.6rem;
             display: flex;
             flex-direction: column;
-            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+        .role-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(34,211,238,0.10), transparent);
+            transition: left 0.6s ease;
+            pointer-events: none;
         }
         .role-card:hover {
             transform: translateY(-4px);
-            border-color: var(--accent-blue);
-            box-shadow: 0 12px 28px var(--shadow-color);
+            border-color: #22d3ee;
+            box-shadow: 0 12px 28px var(--shadow-color), 0 0 20px rgba(34,211,238,0.25);
         }
+        .role-card:hover::before { left: 100%; }
         .role-card .tier-tag {
             display: inline-block;
             align-self: flex-start;
@@ -371,9 +416,14 @@
         .role-card .tier-tag.professional { background: rgba(248,81,73,0.15); color: #f85149; }
         .role-card h3 {
             font-size: 1.15rem;
-            color: var(--text-primary);
             margin-bottom: 0.5rem;
             line-height: 1.3;
+            background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            display: inline-block;
         }
         .role-card .role-desc {
             color: var(--text-secondary);
@@ -420,8 +470,13 @@
         .why-section h2 {
             font-size: 1.7rem;
             margin-bottom: 1.4rem;
-            color: var(--text-primary);
             letter-spacing: -0.4px;
+            background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            display: inline-block;
         }
         .why-section p {
             color: var(--text-secondary);
@@ -438,16 +493,49 @@
         }
         .why-item {
             background: var(--bg-tertiary);
-            border-left: 3px solid var(--accent-purple);
+            border: 1px solid rgba(34,211,238,0.30);
+            border-left: 3px solid #22d3ee;
             border-radius: 8px;
             padding: 1.2rem 1.4rem;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease, box-shadow 0.4s ease, transform 0.4s ease;
         }
-        .why-item .why-title { font-weight: 600; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.5rem; }
+        .why-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(34,211,238,0.10), transparent);
+            transition: left 0.6s ease;
+            pointer-events: none;
+        }
+        .why-item:hover { border-color: #22d3ee; transform: translateY(-3px); box-shadow: 0 12px 24px rgba(0,0,0,0.4), 0 0 20px rgba(34,211,238,0.25); }
+        .why-item:hover::before { left: 100%; }
+        .why-item .why-title {
+            font-weight: 700;
+            font-size: 0.95rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
         .why-item .why-desc { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.55; }
 
         /* CTA BOTTOM */
         .final-cta { text-align: center; padding: 3rem 1rem 2rem; }
-        .final-cta h2 { font-size: 2rem; margin-bottom: 1rem; }
+        .final-cta h2 {
+            font-size: 2rem; margin-bottom: 1rem;
+            background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            display: inline-block;
+        }
         .final-cta p { color: var(--text-secondary); max-width: 680px; margin: 0 auto 2rem; }
         .btn-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0; }
         .btn {
@@ -465,13 +553,37 @@
         /* FREE SAMPLES CTA */
         .samples-cta {
             background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
+            border: 1px solid rgba(34,211,238,0.35);
             border-radius: 14px;
             padding: 2.5rem 2rem;
             margin: 3rem 0 1rem;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease, box-shadow 0.4s ease;
         }
-        .samples-cta h3 { color: var(--text-primary); font-size: 1.4rem; margin-bottom: 0.6rem; }
+        .samples-cta::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(34,211,238,0.10), transparent);
+            transition: left 0.6s ease;
+            pointer-events: none;
+        }
+        .samples-cta:hover { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.25); }
+        .samples-cta:hover::before { left: 100%; }
+        .samples-cta h3 {
+            font-size: 1.4rem; margin-bottom: 0.6rem;
+            background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            display: inline-block;
+        }
         .samples-cta p { color: var(--text-secondary); max-width: 620px; margin: 0 auto 1.5rem; }
         .samples-cta .btn {
             display: inline-flex; align-items: center; gap: 0.5rem;
@@ -510,7 +622,6 @@
         }
         .bg-hex-grid {
             z-index: 0;
-            /* Hexagonal grid pattern — ported from app globals.css body::before */
             /* Hexagonal grid pattern — ported from app globals.css body::before */
             background-image:
                 linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
@@ -565,7 +676,8 @@
         }
         @media (prefers-reduced-motion: reduce) {
             .bg-circuit .circuit-path,
-            .bg-circuit .circuit-node { animation: none; }
+            .bg-circuit .circuit-node,
+            .hero h1 .highlight::after { animation: none; }
         }
     </style>
 </head>
@@ -764,19 +876,8 @@
                         <h3>Educational Tutor Role</h3>
                         <p class="role-desc">A patient tutor that guides rather than solves, aligned to grade-appropriate reference material.</p>
                         <div class="buy-row">
-                            <span class="price">$49</span>
+                            <span class="price">$99</span>
                             <a href="STRIPE_LINK_TUTOR_ROLE" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
-                        </div>
-                    </div>
-
-                    <!-- Policy & Compliance -->
-                    <div class="role-card">
-                        <span class="tier-tag entry">Entry</span>
-                        <h3>Policy &amp; Compliance Q&amp;A Role</h3>
-                        <p class="role-desc">Answers employee questions from your handbook, SOPs, and policy documents — with citations.</p>
-                        <div class="buy-row">
-                            <span class="price">$69</span>
-                            <a href="STRIPE_LINK_POLICY_ROLE" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
                         </div>
                     </div>
 
@@ -786,7 +887,7 @@
                         <h3>Research Paper Synthesizer Role</h3>
                         <p class="role-desc">Cross-references multiple papers, flags contradictions, and cites every claim with page numbers.</p>
                         <div class="buy-row">
-                            <span class="price">$79</span>
+                            <span class="price">$135</span>
                             <a href="STRIPE_LINK_RESEARCH_ROLE" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
                         </div>
                     </div>
@@ -797,7 +898,7 @@
                         <h3>Style-Match Ghostwriter Role</h3>
                         <p class="role-desc">Writes in a specific voice using prior work as reference. Drop in a client's archive, get content that sounds like them.</p>
                         <div class="buy-row">
-                            <span class="price">$79</span>
+                            <span class="price">$135</span>
                             <a href="STRIPE_LINK_GHOSTWRITER_ROLE" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
                         </div>
                     </div>
@@ -808,7 +909,7 @@
                         <h3>Financial Statement Reviewer Role</h3>
                         <p class="role-desc">Year-over-year comparisons, anomaly flagging, and page-level citations across filings and statements.</p>
                         <div class="buy-row">
-                            <span class="price">$89</span>
+                            <span class="price">$189</span>
                             <a href="STRIPE_LINK_FINANCE_ROLE" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
                         </div>
                     </div>
@@ -819,7 +920,7 @@
                         <h3>Legal Document Analyst Role</h3>
                         <p class="role-desc">Extracts parties, obligations, deadlines, and risk clauses from contracts — with clause-level citations.</p>
                         <div class="buy-row">
-                            <span class="price">$99</span>
+                            <span class="price">$229</span>
                             <a href="STRIPE_LINK_LEGAL_ROLE" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
                         </div>
                     </div>
@@ -830,7 +931,7 @@
                         <h3>Grant Proposal Writer Role</h3>
                         <p class="role-desc">Matches research aims to funding priorities, cites prior work, and tracks submission requirements across funders.</p>
                         <div class="buy-row">
-                            <span class="price">$129</span>
+                            <span class="price">$289</span>
                             <a href="STRIPE_LINK_GRANT_ROLE" class="buy-btn" target="_blank" rel="noopener noreferrer">Buy Now →</a>
                         </div>
                     </div>
