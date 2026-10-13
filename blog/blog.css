@@ -76,27 +76,29 @@ header {
     letter-spacing: -1.2px;
     line-height: 1.12;
     margin-bottom: 1rem;
+    font-weight: 700;
+}
+.blog-hero h1 .blog-hl {
     background: linear-gradient(135deg, #22d3ee 0%, #FF9E57 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    font-weight: 700;
+    display: inline-block;
     position: relative;
-    padding-bottom: 1rem;
 }
-.blog-hero h1::after {
+.blog-hero h1 .blog-hl::after {
     content: '';
     position: absolute;
-    bottom: 0;
-    left: 50%;
-    width: 160px;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
     height: 2px;
     background: linear-gradient(90deg, #22d3ee, #FF9E57);
-    animation: blogTitlePulse 3s ease-in-out infinite;
+    animation: highlightPulse 3s ease-in-out infinite;
 }
-@keyframes blogTitlePulse {
-    0%, 100% { opacity: 0.5; transform: translateX(-50%) scaleX(0.8); }
-    50% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+@keyframes highlightPulse {
+    0%, 100% { opacity: 0.5; transform: scaleX(0.8); }
+    50% { opacity: 1; transform: scaleX(1); }
 }
 .blog-hero h1 .highlight { color: var(--accent-blue); }
 .blog-hero .subtitle {
@@ -617,5 +619,5 @@ main, footer { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) {
     .bg-circuit .circuit-path,
     .bg-circuit .circuit-node,
-    .blog-hero h1::after { animation: none; }
+    .blog-hero h1 .blog-hl::after { animation: none; }
 }
