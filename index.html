@@ -333,7 +333,7 @@
         /* GRIDS */
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 3rem 0; }
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.8rem; margin: 3rem 0; }
-        @media (max-width: 768px) { .grid-2, .grid-3, .compare-grid { grid-template-columns: 1fr; } .hero h1 { font-size: 2.4rem; } }
+        @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .hero h1 { font-size: 2.4rem; } }
 
         /* CARDS — app arch-card + defense-check treatment */
         .card {
@@ -542,6 +542,9 @@
         }
         .compare-col .bad { color: #f85149; }
         .compare-col .bad::before { content: "✗"; }
+        @media (max-width: 768px) {
+            .compare-grid { grid-template-columns: 1fr; }
+        }
 
         /* FOOTER */
         footer { text-align: center; padding: 3rem 1rem 2rem; color: var(--text-secondary); font-size: 0.9rem; border-top: 1px solid var(--border-color); margin-top: 3rem; }
