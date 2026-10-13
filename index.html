@@ -333,7 +333,7 @@
         /* GRIDS */
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 3rem 0; }
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.8rem; margin: 3rem 0; }
-        @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .hero h1 { font-size: 2.4rem; } }
+        @media (max-width: 768px) { .grid-2, .grid-3, .compare-grid { grid-template-columns: 1fr; } .hero h1 { font-size: 2.4rem; } }
 
         /* CARDS — app arch-card + defense-check treatment */
         .card {
@@ -681,7 +681,7 @@
         <div class="container">
             <!-- HERO -->
             <section class="hero">
-                <span class="hero-badge">✨ v1.7.0 • Open Source &amp; 100% Free</span>
+                <span class="hero-badge">v1.7.0 • Open Source &amp; 100% Free, including Built in Roles Creation</span>
                 <h1><span class="highlight-text">An AI personal assistant that stays personal.</span></h1>
                 <div class="hero-title-line" aria-hidden="true"></div>
                 <p class="subtitle">
@@ -697,16 +697,10 @@
                     Built once for a one-time fee. No cloud. No subscriptions. No data mining.
                 </div>
 
-                <div style="margin-bottom:1rem;">
-                    <a href="roles.html" style="display:inline-block; background:rgba(163,113,247,0.12); color:var(--accent-purple); border:1px solid rgba(163,113,247,0.3); padding:6px 18px; border-radius:30px; font-size:0.9rem; font-weight:600;">
-                        🆕 v1.7.0 — Meet the Roles System →
-                    </a>
-                </div>
-
                 <div class="installer-box">
                     <code id="install-cmd-1">curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash</code>
                     <div class="note-row">
-                        <p class="note">💡 One‑line installer for Linux, macOS, Windows WSL2, and Unix.</p>
+                        <p class="note">✨ One‑line installer for Linux, macOS, Windows WSL2, and Unix.</p>
                         <button class="copy-btn" data-copy-target="install-cmd-1" aria-label="Copy install command">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                             <span>COPY</span>
@@ -936,7 +930,7 @@
         <!-- FINAL CTA -->
         <div class="container">
             <section style="text-align: center; padding: 3rem 1rem 2rem;">
-                <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Ready to Take Back Control of Your Data?</h2>
+                <h2 class="section-title grad-text">Ready to Take Back Control of Your Data?</h2>
                 <p style="color: var(--text-secondary); margin-bottom: 2rem; max-width: 650px; margin-left: auto; margin-right: auto;">
                     <strong>Join the community of users who have ditched cloud subscriptions and data mining for a truly personal, offline AI assistant.</strong>
                     <br><strong>Let AI work for you, not the other way around.</strong>
@@ -945,7 +939,7 @@
                 <div class="installer-box">
                     <code id="install-cmd-2">curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash</code>
                     <div class="note-row">
-                        <p class="note">💡 One‑line installer for Linux, macOS, Windows WSL2, and Unix.</p>
+                        <p class="note">✨ One‑line installer for Linux, macOS, Windows WSL2, and Unix.</p>
                         <button class="copy-btn" data-copy-target="install-cmd-2" aria-label="Copy install command">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg>
                             <span>COPY</span>
