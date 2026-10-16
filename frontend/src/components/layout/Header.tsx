@@ -139,7 +139,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, showToast }) => {
     if (el) {
       const header = document.querySelector('header');
       const headerHeight = header ? header.offsetHeight : 88;
-
+      
       // Calculate exact position and add a 20px buffer so it's not cramped under the header
       const elementPosition = el.getBoundingClientRect().top + window.scrollY;
       const offsetPosition = elementPosition - headerHeight - 20;
@@ -302,45 +302,45 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, showToast }) => {
                 flexWrap: 'nowrap',
               }}
             >
-              <a
-                href="#console"
-                onClick={(e) => handleClick(e, 'console')}
+              <a 
+                href="#console" 
+                onClick={(e) => handleClick(e, 'console')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
               >
                 Chat Console
               </a>
-              <a
-                href="#notes"
-                onClick={(e) => handleClick(e, 'notes')}
+              <a 
+                href="#notes" 
+                onClick={(e) => handleClick(e, 'notes')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
               >
                 Text Editor
               </a>
-              <a
-                href="#memory"
-                onClick={(e) => handleClick(e, 'memory')}
+              <a 
+                href="#memory" 
+                onClick={(e) => handleClick(e, 'memory')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
               >
                 Memory
               </a>
-              <a
-                href="#planner"
-                onClick={(e) => handleClick(e, 'planner')}
+              <a 
+                href="#planner" 
+                onClick={(e) => handleClick(e, 'planner')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
               >
                 Calendar Planner
               </a>
-              <a
-                href="#settings"
-                onClick={(e) => handleClick(e, 'settings')}
+              <a 
+                href="#settings" 
+                onClick={(e) => handleClick(e, 'settings')} 
                 style={navLinkStyle}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted)'; }}
@@ -476,7 +476,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, showToast }) => {
             </button>
 
             <a
-              href="https://www.paypal.com/ncp/payment/GSTCK29MSGCH4"
+              href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601"
               target="_blank"
               rel="noopener noreferrer"
               title="PayPal me - If you find MAi-RAG-PA useful, Please donate to help continue updates & new features"
