@@ -145,7 +145,7 @@
             background: var(--accent-green);
             color: #fff;
         }
-        .btn-primary:hover { background: var(--accent-green-hover); transform: translateY(-1px); }
+        .btn-primary:hover { background: var(--accent-green-hover); transform: translateY(-1px); color: #fff; }
         .btn-ghost {
             background: var(--bg-tertiary);
             color: var(--text-primary);
@@ -190,7 +190,7 @@
 
         <div class="actions">
             <a href="products.html" class="btn btn-primary">← Back to Products</a>
-            <a href="roles.html" class="btn btn-ghost">Explore Role Creation</a>
+            <a href="roles.html" class="btn btn-ghost">Explore Custom Role Creation</a>
         </div>
 
         <p class="brand">
@@ -199,23 +199,26 @@
     </div>
 
     <script>
-        // Show the product name if Stripe passed it via ?product=slug or ?product=Name
+        // Show the product name if Stripe passed it via ?product=slug or ?product_name=Name
         (function () {
             var params = new URLSearchParams(window.location.search);
             var slug = params.get("product") || params.get("product_name");
             if (!slug) return;
 
-            // Map slugs → display titles. Add/rename freely.
+            // Map slugs → display titles. These match the Stripe Payment Link redirect URLs.
             var titles = {
-                "automated-lead-generator": "The Automated Lead Generator",
-                "ai-powered-second-brain-os": "AI-Powered Second-BrainOS",
-                "automate-bookkeeping-with-local-ai": "Automate Bookkeeping w/ Local AI",
-                "build-custom-ai-agents-without-code": "Build Custom AI Agents Without Code",
-                "data-enrichment-playbook-b2b-lead-gen": "Data Enrichment Playbook for B2B Lead Gen",
-                "build-your-own-local-rag-engine": "Build Your Own Local RAG Engine",
-                "ai-automation-starter-kit": "The AI Automation Starter Kit",
-                "local-ai-toolkit": "The Local AI Toolkit for Small Business",
-                "privacy-first-lead-gen-checklist": "The Privacy-First Lead Generation Checklist"
+                // Books
+                "confidential-by-default": "Confidential by Default — Part 1 of the Privacy Premium Course",
+                "the-privacy-practice": "The Privacy Practice — Part 2 of the Privacy Premium Course",
+
+                // Pre-Built Roles
+                "educational-tutor-role": "The Educational Tutor Role",
+                "policy-compliance-role": "The Policy & Compliance Q&A Role",
+                "research-synthesizer-role": "The Research Paper Synthesizer Role",
+                "style-match-ghostwriter-role": "The Style-Match Ghostwriter Role",
+                "financial-reviewer-role": "The Financial Statement Reviewer Role",
+                "legal-document-analyst-role": "The Legal Document Analyst Role",
+                "grant-proposal-writer-role": "The Grant Proposal Writer Role"
             };
 
             var display = titles[slug] || slug.replace(/-/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
