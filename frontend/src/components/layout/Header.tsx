@@ -479,9 +479,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, showToast }) => {
               href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601"
               target="_blank"
               rel="noopener noreferrer"
-              title="PayPal me - If you find MAi-RAG-PA useful, Please donate to help continue updates & new features"
+              title="If you find MAi-RAG-PA useful, Please donate to help continue updates & new features"
               className="donate-button"
-              aria-label="Support MAi-RAG-PA with a donation via PayPal (opens in new tab)"
+              aria-label="Support MAi-RAG-PA with a donation via Stripe (opens in new tab)"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
             >
               <span>Coffee & Donate</span>
