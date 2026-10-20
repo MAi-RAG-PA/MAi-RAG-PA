@@ -731,6 +731,13 @@ header {
   font-size: 0.9rem;
 }
 
+/* Planner chips sit on the always-dark calendar shell — keep them
+   translucent-dark under every theme (light themes turn --panel white) */
+.calendar-shell .chip,
+.modal .chip {
+  background: rgba(255,255,255,0.06);
+}
+
 .btn {
   background: linear-gradient(135deg, rgba(124,246,211,0.18), rgba(154,168,255,0.14));
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
@@ -772,6 +779,13 @@ header {
 /* =============================================================================
    HERO SECTION
    ============================================================================= */
+
+/* Light themes define --muted for white panels, but the hero shell is always
+   dark — keep muted text readable (matches the default dark theme value) */
+[data-theme="seafoam-apricot"] .hero,
+[data-theme="emerald-mint"] .hero {
+  --muted: #9aa7b7;
+}
 
 .hero {
   min-height: 100vh;
@@ -1081,7 +1095,7 @@ h1, h2, h3 {
 
 .step-label {
   font-size: 0.6875rem;
-  color: var(--muted);
+  color: rgba(255,255,255,0.85); /* fixed: near-white in every theme (was var(--muted) grey) */
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 500;
@@ -1312,7 +1326,7 @@ h1, h2, h3 {
 
 .card-description {
   margin: 0.5rem 0 0 0;
-  color: var(--muted);
+  color: rgba(255,255,255,0.85); /* fixed: near-white in every theme (was var(--muted) grey) */
   line-height: 1.4;
   font-size: 0.8125rem;
 }
@@ -1672,6 +1686,13 @@ select {
   border-radius: var(--border-radius-sm) !important;
 }
 
+/* Native option popups force a white background in most browsers — give them
+   theme-aware colors so selections stay readable (light text on dark bg) */
+select option {
+  background: var(--bg);
+  color: var(--text);
+}
+
 /* =============================================================================
    TIMELINE & EVENTS
    ============================================================================= */
@@ -1928,7 +1949,7 @@ select {
 }
 
 .month-card {
-  background: var(--panel);
+  background: rgba(255,255,255,0.06); /* fixed: planner shell is always dark */
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 12px;
@@ -1938,7 +1959,7 @@ select {
 }
 
 .month-card:hover {
-  background: var(--panel-strong);
+  background: rgba(255,255,255,0.09); /* fixed: matches default dark theme */
   border-color: var(--accent);
 }
 
@@ -1981,7 +2002,7 @@ select {
 }
 
 .day-cell {
-  background: var(--panel);
+  background: rgba(255,255,255,0.06); /* fixed: planner shell is always dark — do not theme with --panel */
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 8px;
@@ -1995,7 +2016,7 @@ select {
 }
 
 .day-cell:hover {
-  background: var(--panel-strong);
+  background: rgba(255,255,255,0.09); /* fixed: matches default dark theme */
   border-color: var(--accent);
 }
 
@@ -2031,7 +2052,7 @@ select {
 }
 
 .week-day-card {
-  background: var(--panel);
+  background: rgba(255,255,255,0.06); /* fixed: planner shell is always dark */
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 12px;
@@ -2041,7 +2062,7 @@ select {
 }
 
 .week-day-card:hover {
-  background: var(--panel-strong);
+  background: rgba(255,255,255,0.09); /* fixed: matches default dark theme */
   border-color: var(--accent);
 }
 
@@ -2076,7 +2097,7 @@ select {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  background: var(--panel);
+  background: rgba(255,255,255,0.06); /* fixed: planner shell is always dark */
   padding: 0 8px;
 }
 
@@ -2097,7 +2118,7 @@ select {
   font-size: 0.85rem;
   color: var(--accent);
   font-family: "IBM Plex Mono", monospace;
-  background: var(--panel-strong);
+  background: rgba(255,255,255,0.09); /* fixed: day-view time column — keep dark */
   border-right: 1px solid var(--line);
 }
 
@@ -2113,7 +2134,7 @@ select {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: var(--panel-strong);
+  background: rgba(255,255,255,0.09); /* fixed: day-view actions column — keep dark */
   border-left: 1px solid var(--line);
 }
 
@@ -2172,7 +2193,7 @@ select {
 }
 
 .modal {
-  background: var(--panel-strong);
+  background: rgba(255,255,255,0.09); /* fixed: planner shell is always dark — do not theme with --panel-strong */
   border-radius: var(--radius);
   padding: 24px;
   max-width: 500px;
@@ -2210,7 +2231,7 @@ select {
   flex-shrink: 0;
   position: sticky;
   bottom: 0;
-  background: var(--panel-strong);
+  background: rgba(255,255,255,0.09); /* fixed: sticky bar — keep dark under light themes */
   padding-top: 12px;
   border-top: 1px solid var(--line);
 }

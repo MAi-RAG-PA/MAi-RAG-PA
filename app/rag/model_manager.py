@@ -3,6 +3,7 @@
 Model management with automatic fallback for MAi-RAG.
 Fully model-agnostic - works with any Ollama model family.
 """
+
 from __future__ import annotations
 
 import json

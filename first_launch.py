@@ -3,6 +3,7 @@
 MAi-RAG-PA Smart Launcher
 Checks and installs dependencies, builds frontend, then starts the app
 """
+
 import json
 import os
 import shutil
@@ -24,7 +25,6 @@ os.environ["TRANSFORMERS_OFFLINE"] = "1"
 PROJECT_ROOT = Path(__file__).parent.resolve()
 VENV_PATH = PROJECT_ROOT / "venv"
 REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"
-WATCHDOG_SCRIPT = PROJECT_ROOT / "watchdog.py"
 QDRANT_BINARY = PROJECT_ROOT / "qdrant"
 QDRANT_LOG = PROJECT_ROOT / "qdrant.log"
 APP_MAIN = PROJECT_ROOT / "app" / "main.py"
@@ -36,7 +36,6 @@ OLLAMA_URL = "http://127.0.0.1:11434"
 QDRANT_URL = "http://127.0.0.1:6333"
 BACKEND_PORT = 8000
 BACKEND_HOST = "0.0.0.0"  # Change to "127.0.0.1" for local-only access
-WATCHDOG_PORT = 8001
 
 MIN_PYTHON_VERSION = (3, 12)
 MIN_NODE_VERSION = 20
@@ -55,7 +54,7 @@ class Colors:
 
 def log(message, color=Colors.NC):
     """Print a colored log message."""
-    print(f"{color}{message}{Colors.NC}")
+    print(f"{color}{message}{Colors.NC}")  # noqa: T201
 
 
 def validate_required_files():
@@ -65,7 +64,6 @@ def validate_required_files():
     required_files = {
         REQUIREMENTS_FILE: "Python requirements file",
         APP_MAIN: "Main application file",
-        WATCHDOG_SCRIPT: "Watchdog script",
         PACKAGE_JSON: "Frontend package.json",
     }
 
@@ -400,7 +398,6 @@ def cleanup_existing_processes():
     processes_to_check = [
         ("uvicorn", BACKEND_PORT),
         ("qdrant", 6333),
-        ("watchdog.py", WATCHDOG_PORT),
     ]
 
     for proc_name, port in processes_to_check:
@@ -448,52 +445,6 @@ def check_ollama():
     except Exception as e:
         log(f"Error checking Ollama: {e}", Colors.RED)
         return False
-
-
-def start_watchdog():
-    """Start the watchdog mini-server for WebUI Start/Stop buttons."""
-    if not WATCHDOG_SCRIPT.exists():
-        log(
-            "watchdog.py not found. WebUI Start/Stop buttons will not work.",
-            Colors.YELLOW,
-        )
-        return None
-
-    log("Starting Watchdog mini-server...", Colors.YELLOW)
-
-    try:
-        if sys.platform == "win32":
-            process = subprocess.Popen(
-                [sys.executable, str(WATCHDOG_SCRIPT)],
-                cwd=str(PROJECT_ROOT),
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        else:
-            process = subprocess.Popen(
-                [sys.executable, str(WATCHDOG_SCRIPT)],
-                cwd=str(PROJECT_ROOT),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-
-        log(f"   Watchdog started (PID: {process.pid})", Colors.BLUE)
-
-        # Wait for watchdog to be ready
-        for i in range(10):
-            if is_port_in_use(WATCHDOG_PORT):
-                log("Watchdog is ready on port 8001", Colors.GREEN)
-                return process
-            time.sleep(0.5)
-
-        log("Watchdog may not be ready yet, continuing...", Colors.YELLOW)
-        return process
-
-    except Exception as e:
-        log(f"Failed to start watchdog: {e}", Colors.RED)
-        return None
 
 
 def start_qdrant(max_retries=2):
@@ -614,7 +565,7 @@ def verify_backend_ready(max_wait=30):
     return False
 
 
-def start_backend(qdrant_process, watchdog_process):
+def start_backend(qdrant_process):
     """Start the FastAPI backend."""
     log("Starting MAi-RAG-PA backend...", Colors.YELLOW)
 
@@ -623,15 +574,15 @@ def start_backend(qdrant_process, watchdog_process):
     os.environ["PYTHONPATH"] = str(PROJECT_ROOT)
     os.environ["OLLAMA_URL"] = OLLAMA_URL
 
-    print()
+    print()  # noqa: T201
     log("=" * 50, Colors.GREEN)
     log("  MAi-RAG-PA is starting...", Colors.GREEN)
     log(f"  Web UI: http://localhost:{BACKEND_PORT}", Colors.GREEN)
     log("=" * 50, Colors.GREEN)
-    print()
+    print()  # noqa: T201
 
     def cleanup(signum=None, frame=None):
-        print()
+        print()  # noqa: T201
         log("Shutting down...", Colors.YELLOW)
         if qdrant_process:
             try:
@@ -640,15 +591,6 @@ def start_backend(qdrant_process, watchdog_process):
             except Exception:
                 try:
                     qdrant_process.kill()
-                except Exception:
-                    pass
-        if watchdog_process:
-            try:
-                watchdog_process.terminate()
-                watchdog_process.wait(timeout=5)
-            except Exception:
-                try:
-                    watchdog_process.kill()
                 except Exception:
                     pass
         sys.exit(0)
@@ -686,11 +628,11 @@ def start_backend(qdrant_process, watchdog_process):
 
 
 def main():
-    print()
+    print()  # noqa: T201
     log("=" * 50, Colors.GREEN)
     log("  MAi-RAG-PA Smart Launcher", Colors.GREEN)
     log("=" * 50, Colors.GREEN)
-    print()
+    print()  # noqa: T201
 
     # Step 0: Validate required files
     if not validate_required_files():
@@ -726,17 +668,14 @@ def main():
     if not check_ollama():
         sys.exit(1)
 
-    # Step 8: Start Watchdog (for WebUI Start/Stop buttons)
-    watchdog_process = start_watchdog()
-
-    # Step 9: Start Qdrant
+    # Step 8: Start Qdrant
     qdrant_process = start_qdrant()
     if qdrant_process is False:
         # User chose not to continue without Qdrant
         sys.exit(1)
 
-    # Step 10: Start backend
-    start_backend(qdrant_process, watchdog_process)
+    # Step 9: Start backend
+    start_backend(qdrant_process)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-P.A. Personal Assistant" width="150">
 </p>
 
-<h1 align="center">MAi-RAG-PA</h1>
+<h1 align="center">MAi-RAG-P.A.</h1>
 <h3 align="center">Your Offline Privacy, Self-Healing, Personal Assistant</h3>
 
 <p align="center">
-  <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
+  <strong>MAi-RAG-P.A. (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
 </p>
 
 <p align="center">
@@ -24,11 +24,11 @@
 
 
 <p align="center">
-  <strong>Version 1.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
-<h3 align="center">MAi-RAG-PA Legal Notice & License Agreement</h3>
+<h3 align="center">MAi-RAG-P.A. Legal Notice & License Agreement</h3>
 
 -----------------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@
 
 This software is provided **free of charge** for personal, non-commercial use. Under this license, you may:
 
-   - **Download and Install** - Install MAi-RAG-PA on your personal devices
+   - **Download and Install** - Install MAi-RAG-P.A. on your personal devices
    - **Use and Modify** - Use the software for personal projects and modify it for your own use
    - **Share with Others** - Share the software with others for their personal use (with attribution)
    - **Learn and Study** - Examine the source code for educational purposes
@@ -59,12 +59,12 @@ This software is provided **free of charge** for personal, non-commercial use. U
 ### 2.1 Definition of Commercial Use
 
    **Commercial use includes, but is not limited to:**
-   - **Using MAi-RAG-PA in a business or organizational environment**
-   - **Integrating MAi-RAG-PA into commercial products or services**
-   - **Providing services to clients using MAi-RAG-PA**
-   - **Redistributing MAi-RAG-PA as part of a commercial offering**
-   - **Using MAi-RAG-PA for revenue-generating activities**
-   - **Deploying MAi-RAG-PA for multiple users in an organization**
+   - **Using MAi-RAG-P.A. in a business or organizational environment**
+   - **Integrating MAi-RAG-P.A. into commercial products or services**
+   - **Providing services to clients using MAi-RAG-P.A.**
+   - **Redistributing MAi-RAG-P.A. as part of a commercial offering**
+   - **Using MAi-RAG-P.A. for revenue-generating activities**
+   - **Deploying MAi-RAG-P.A. for multiple users in an organization**
 
 ### 2.2 Commercial License Required
 
@@ -89,8 +89,8 @@ This software is provided **free of charge** for personal, non-commercial use. U
    - **Remove or alter copyright notices or license text**
    - **Hold the author liable for any damages, losses, or issues**
    - **Use for illegal activities or purposes that violate local laws**
-   - **Claim ownership of the original MAi-RAG-PA code**
-   - **Patent any features or methods implemented in MAi-RAG-PA**
+   - **Claim ownership of the original MAi-RAG-P.A. code**
+   - **Patent any features or methods implemented in MAi-RAG-P.A.**
 
 -----------------------------------------------------------------------------------
 
@@ -98,15 +98,15 @@ This software is provided **free of charge** for personal, non-commercial use. U
 
 ### 4.1 Ownership
 
-**The MAi-RAG-PA project, including all source code, documentation, designs, and associated materials, remains the exclusive intellectual property of Anthony Wyatt.**
+**The MAi-RAG-P.A. project, including all source code, documentation, designs, and associated materials, remains the exclusive intellectual property of Anthony Wyatt.**
 
 ### 4.2 Code Borrowing and Derivative Works
 
    **If you wish to:**
 
-   - **Borrow code** from MAi-RAG-PA for use in your own projects
-   - **Create derivative works** based on MAi-RAG-PA
-   - **Incorporate MAi-RAG-PA components** into other software
+   - **Borrow code** from MAi-RAG-P.A. for use in your own projects
+   - **Create derivative works** based on MAi-RAG-P.A.
+   - **Incorporate MAi-RAG-P.A. components** into other software
 
    **You must obtain written permission from the author before proceeding.**
 
@@ -115,9 +115,9 @@ This software is provided **free of charge** for personal, non-commercial use. U
 ### 4.3 Attribution for Borrowed Code
 
    **When permission is granted, you must:**
-   - **Clearly acknowledge MAi-RAG-PA as the source**
+   - **Clearly acknowledge MAi-RAG-P.A. as the source**
    - **Include: "Portions of this software are derived from MAi-RAG-PA by [Your Name], used with permission"**
-   - **Provide a link to the original MAi-RAG-PA repository**
+   - **Provide a link to the original MAi-RAG-P.A. repository**
    - **Comply with any additional terms specified in the written permission**
 
 -----------------------------------------------------------------------------------
@@ -126,7 +126,7 @@ This software is provided **free of charge** for personal, non-commercial use. U
 
 ### 5.1 Availability for Purchase
 
-   **The entire MAi-RAG-PA project is available for acquisition, including:**
+   **The entire MAi-RAG-P.A. project is available for acquisition, including:**
    - **All source code and intellectual property rights**
    - **Brand and trademark rights**
    - **Documentation and assets**
@@ -135,7 +135,7 @@ This software is provided **free of charge** for personal, non-commercial use. U
 ### 5.2 Author's Continued Use Rights
 
    **In the event of acquisition, the original author (Anthony Wyatt) reserves the right to:**
-   - **Continue using MAi-RAG-PA for personal purposes**
+   - **Continue using MAi-RAG-P.A. for personal purposes**
    - **Maintain a copy of the codebase for reference**
    - **Be acknowledged as the original creator**
    - **Receive updates on major developments (optional)**
@@ -178,12 +178,12 @@ This software is provided **free of charge** for personal, non-commercial use. U
 
 ## 8. User Responsibility
 
-   **By using MAi-RAG-PA, you acknowledge and agree that:**
+   **By using MAi-RAG-P.A., you acknowledge and agree that:**
 
 ### 8.1 Data Security
 
    - **You are responsible for securing your own data**
-   - **MAi-RAG-PA stores data locally on your system**
+   - **MAi-RAG-P.A. stores data locally on your system**
    - **You should maintain backups of important data**
    - **The author is not responsible for data loss**
 
@@ -226,7 +226,7 @@ This software is provided **free of charge** for personal, non-commercial use. U
 
 ## 11. Entire Agreement
 
-   **This license constitutes the entire agreement between you and the author regarding MAi-RAG-PA and supersedes all prior agreements, understandings, and representations.**
+   **This license constitutes the entire agreement between you and the author regarding MAi-RAG-P.A. and supersedes all prior agreements, understandings, and representations.**
 
 -----------------------------------------------------------------------------------
 
@@ -245,6 +245,14 @@ This software is provided **free of charge** for personal, non-commercial use. U
 
 -----------------------------------------------------------------------------------
 
+## Third-Party Components
+
+This project uses third-party open-source packages under their own licenses (see `requirements.txt` and `frontend/package.json`). One dependency carries obligations that apply to deployments of this software:
+
+- **PyMuPDF** (`pymupdf`, used for PDF parsing in `app/documents/parser.py`) is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**: <https://www.gnu.org/licenses/agpl-3.0.html>
+
+If you deploy MAi-RAG-P.A. as a hosted or network service, the AGPL-3.0 terms apply to PyMuPDF's use within it. For questions about commercial licensing arrangements, contact the copyright holder (Section 13, Contact Information).
+
 ## Summary Table
 
 | Use Case | Allowed? | Requirements |
@@ -260,13 +268,11 @@ This software is provided **free of charge** for personal, non-commercial use. U
 
 -----------------------------------------------------------------------------------
 
-   **By downloading, installing, or using MAi-RAG-PA, you agree to be bound by the terms of this license.**
+   **By downloading, installing, or using MAi-RAG-P.A., you agree to be bound by the terms of this license.**
 
-   **If you do not agree to these terms, do not use MAi-RAG-PA.**
+   **If you do not agree to these terms, do not use MAi-RAG-P.A.**
 
 -----------------------------------------------------------------------------------
-
-## Documentation
 
 ## Documentation
 
@@ -286,24 +292,24 @@ This software is provided **free of charge** for personal, non-commercial use. U
 
 -----------------------------------------------------------------------------------
 
-## 💝 Support MAi-RAG-PA
+## Support MAi-RAG-P.A.
 
-MAi-RAG-PA is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
+MAi-RAG-P.A. is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
 
-MAi-RAG-PA is free for personal use. If you find it valuable, donations are greatly appreciated:
+MAi-RAG-P.A. is free for personal use. If you find it valuable, donations are greatly appreciated:
 
-- **PayPal**: <a href="https://www.paypal.com/ncp/payment/GSTCK29MSGCH4">Grateful for your Contributions</a>
+- **Stripe**: <a href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601">Grateful for your Contributions</a>
 
-Every donation helps keep MAi-RAG-PA free and continuously improving.
+Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 
 **Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
 
 -----------------------------------------------------------------------------------
 
 <p align="center">
-  <strong>MAi-RAG-PA — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
+  <strong>MAi-RAG-P.A. — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
 </p>
 
 <p align="center">
-  Version 1.0.0 | Released June 2026
+  Version 2.0.0 | Updated October 2026
 </p>

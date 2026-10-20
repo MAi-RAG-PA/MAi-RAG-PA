@@ -1,21 +1,21 @@
 <p align="center">
-  <img src="assets/MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-P.A. Personal Assistant" width="150">
 </p>
 
-<h1 align="center">MAi-RAG-PA</h1>
+<h1 align="center">MAi-RAG-P.A.</h1>
 <h3 align="center">Your Offline Privacy, Self-Healing, Personal Assistant</h3>
 
 <p align="center">
-  <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
-</p> 
-  
+  <strong>MAi-RAG-P.A. (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
+</p>
+
 **SUPER EASY ONE-LINE Installer for ALL Mainstream Operating Systems:**
 
 ```bash
 curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 ```
 
-(See <a href="MAi-INSTALLATION.md">Installation</a> Documentation for complete information for troublshooting or dependency issues.)
+(See <a href="MAi-INSTALLATION.md">Installation</a> Documentation for complete information for troubleshooting or dependency issues.)
 
 <p align="center">
   <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/README.md">🏠 Home</a> •
@@ -32,31 +32,27 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 
 
 <p align="center">
-  <strong>Version 1.4 | Effective Date: June 2026</strong><br />
+  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
 -----------------------------------------------------------------------------------
 
-## What is MAi-RAG-PA?
+## What is MAi-RAG-P.A.?
 
-**MAi-RAG-PA is a complete AI-powered productivity suite that runs 100% locally on your machine:**
+**MAi-RAG-P.A. is a complete AI-powered productivity suite that runs 100% locally on your machine:**
 - Chat Console - Multi-threaded conversations with any Ollama model, And set up Roles for different Use Cases.
 - Text Editor - Multi-format editor with AI assistance
 - Long-Term Memory - Ingest 17 document formats (PDF, EPUB, DOCX, PPTX, XLSX, etc.) into a vector database
 - Calendar & Planner - Full-featured scheduling with smart reminders
 - Voice Recognition - Offline speech-to-text with Faster Whisper & Vosk
-- Agentic Workflows - Generate files with automatic verification
+- Agentic Workflows - Generate → Verify → Fix → Save: a structured pipeline validates output before any file is written to disk
 - 100% Private - No data ever leaves your machine
 
 ### System Requirements
 - **OS**: Linux (Ubuntu 22.04+, Fedora 38+, Arch), macOS 12+, Windows (WSL2), and others.
 
-- **We have a SUPER EASY ONE-LINE Installer for ALL Mainstream Operating Systems, and other Unix Varients:**
-
-```bash
-curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
-```
+- **We have a SUPER EASY ONE-LINE Installer** for all mainstream operating systems and other Unix variants - it sits at the top of this page; alternatives and dependency issues are covered in <a href="MAi-INSTALLATION.md">Installation</a>.
 
 ### Minimum Hardware
 - **CPU**: Intel i3 / AMD Ryzen 3 or better
@@ -75,20 +71,23 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 |---------------|-----|-------------------|-------------|
 | **High-End** | 32GB+ | Qwen3-235B-A22B (MoE), Mixtral-8x22B | Excellent |
 | **Mid-Range** | 16GB | Qwen3-30B-A3B (MoE), Qwen2.5-Coder-14B | Very Good |
-| **Consumer** | 8-12GB | Qwen2.5-Coder-7B, CodeQwen-7B | Good |
+| **Consumer** | 8-12GB | qwen2.5:7b, codeqwen:7b | Good |
 | **Minimal** | <8GB | Qwen2.5-3B, Phi-3-mini | Basic |
 
-**Protected System Model:**
-- **codeqwen:7b** is automatically installed and required for optimal system performance
-- Handles Short-Term Memory parsing, self-healing operations, and basic chat
+**Protected System Model (installed automatically - and this is why):**
+- **codeqwen:7b** is pulled unconditionally by the installer because core features depend on it:
+- **Short-Term Memory quick-entry**: natural-language reminders and events become structured data in your SQLite memory database - a regex fast-path handles simple phrasing first; anything it cannot parse is handed to codeqwen:7b
+- **Ask-your-database (Text-to-SQL)**: plain-English questions about your memory ("what is on my calendar next week?") are converted by codeqwen:7b into SQL against your SQLite database - it receives the full table schema with every query and no other model is used for this
+- **Self-Healing capability**: codeqwen:7b is on the capable-models list that unlocks the self-healing protocol (see Self-Healing System below), and it is the one capable model every default install already has
+- It is also the fallback model for simple chat turns when no dedicated chat model is available
 - Uses ~4.5GB RAM
-- Do not remove unless you understand the consequences
+- Do not remove it unless you understand the consequences - STM parsing and database queries stop working without it
 
 -----------------------------------------------------------------------------------
 
-## What Can You Do With MAi-RAG-PA?
+## What Can You Do With MAi-RAG-P.A.?
 
-**MAi-RAG-PA isn't just a chatbot — it's a complete AI-powered productivity suite running entirely on your local machine.**
+**MAi-RAG-P.A. isn't just a chatbot — it's a complete AI-powered productivity suite running entirely on your local machine.**
 
 **Key Features:**
 
@@ -143,11 +142,11 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 - **Multi-Model Orchestration**: Switch between 20+ Ollama models mid-conversation
 - **Voice Transcription**: Local Vosk-powered speech-to-text (offline)
 - **Agentic File Creation**: Generate files with automatic verification - no broken code reaches your filesystem
-- **Cross-Device Access**: SSH into your MAi-RAG-PA instance from tablets, phones, or other computers
+- **Cross-Device Access**: SSH into your MAi-RAG-P.A. instance from tablets, phones, or other computers
 
 ## Knowledge Base Integration
 
-**Every time you send a query, MAi-RAG-PA automatically triggers a database search. The LLM receives:**
+**Every time you send a query, MAi-RAG-P.A. automatically triggers a database search. The LLM receives:**
 
 1. **Your knowledge base** (injected as system message with source citations)
 2. **Its own training data** (built into the model)
@@ -157,10 +156,10 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 1. Reads retrieved documents from Long-Term Memory
 2. Decides if they're relevant
 3. Combines them with its own knowledge
-4. Generates response…datory Citation Format:**
+4. Generates response grounded in your retrieved documents
 
 **Mandatory Citation Format:**
-- Inline citations: "blue [Source 1: file.txt]"
+- Inline citations: "[Source 1: file.txt]"
 - End-of-response References section with full source details
 - Clear distinction between knowledge base and training data sources
 
@@ -174,7 +173,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 
 ## 🎭 Roles — Your AI Just Became a Team
 
-**MAi-RAG-PA v1.7.0 introduces Roles: self-contained AI specialists, each with its own knowledge, memory, and rules.**
+**MAi-RAG-P.A. v1.7 introduced Roles: self-contained AI specialists, each with its own knowledge, memory, and rules.**
 
 A **Role** is a private agent configuration. Each one carries:
 
@@ -229,7 +228,7 @@ multi-language ($199/language) · priority 48h build (+50%) · retrieval tuning 
 **Turnkey packages:** Solo Professional ($299) · Small Business Starter ($999) ·
 Research Lab Bundle ($2,499) · Enterprise Pilot ($5,999).
 
-> You download MAi-RAG-PA for free. We turn it into a specialist that knows your data,
+> You download MAi-RAG-P.A. for free. We turn it into a specialist that knows your data,
 > follows your rules, and never phones home — for less than the cost of a single consultant hour.
 
 **👉 [Explore Role Creation & Pricing →](https://mai-rag-pa.github.io/MAi-RAG-PA/roles.html)**
@@ -241,19 +240,19 @@ Research Lab Bundle ($2,499) · Enterprise Pilot ($5,999).
 ### 1. Navigation Menu (Top Header)
 
 <p align="center">
-  <img src="assets/header.png" alt="MAi-RAG-PA Navigation Header" width="900">
+  <img src="assets/header.png" alt="MAi-RAG-P.A. Navigation Header" width="900">
 </p>
 
 **The sticky header provides instant access to all system functions:**
 - **Logo Click**: Instantly scrolls to the top of the page
 - **Section Links**: Jump directly to Chat Console, Notes, Memory, Planner, or Settings
 - **Theme Selector**: 24 unique color themes (Dark Space Teal, Cyberpunk Neon, Arctic Frost, etc.)
-- **Start/Stop Buttons**: Control MAi-RAG-PA backend service directly from the UI
+- **Start/Stop Buttons**: Control MAi-RAG-P.A. backend service directly from the UI
 
 ### 2. Chat Console (The Brain)
 
 <p align="center">
-  <img src="assets/ChatConsole.png" alt="MAi-RAG-PA Chat Console" width="900">
+  <img src="assets/ChatConsole.png" alt="MAi-RAG-P.A. Chat Console" width="900">
 </p>
 
 **Your primary interface for AI interaction with multi-threaded conversations and system monitoring.**
@@ -304,10 +303,10 @@ If required system models are missing, a warning appears under the model selecto
 ### 3. Text Editor (Notes & Code)
 
 <p align="center">
-  <img src="assets/Text-Editor.png" alt="MAi-RAG-PA Text Editor" width="900">
+  <img src="assets/Text-Editor.png" alt="MAi-RAG-P.A. Text Editor" width="900">
 </p>
 
-**Multi-format editor supporting 16 file types:**
+**Multi-format editor supporting 19 file types:**
 - **Text & Docs**: .txt, .md, .html, .css, .xml, .ini, .cfg, .log
 - **Programming**: .py, .js, .ts, .sh, .sql
 - **Data**: .json, .yaml, .yml, .toml, .csv
@@ -327,7 +326,7 @@ If required system models are missing, a warning appears under the model selecto
 ### 4. Memory System (Dual-Layer Architecture)
 
 <p align="center">
-  <img src="assets/Memory.png" alt="MAi-RAG-PA Knowledge Base" width="900">
+  <img src="assets/Memory.png" alt="MAi-RAG-P.A. Knowledge Base" width="900">
 </p>
 
 #### Long-Term Memory (LTM) - Qdrant Vector Database
@@ -357,7 +356,7 @@ If required system models are missing, a warning appears under the model selecto
 **Technical Details:**
 - **Document Ingestion**: All 17 formats supported
 - **Semantic Chunking**: SpaCy sentence tokenization with overlap
-- **Vector Embeddings**: all-MiniLM-L6-v2 model (384 dimensions)
+- **Vector Embeddings**: nomic-embed-text via Ollama (768 dimensions)
 - **Persistent Storage**: Qdrant collections organized by topic
 - **RAG Retrieval**: Automatic search with source citations
 - **Rich Metadata**: Author, title, creation date, auto-extracted keywords
@@ -387,15 +386,15 @@ If required system models are missing, a warning appears under the model selecto
 ### 5. Calendar Planner
 
 <p align="center">
-  <img src="assets/WeekView.png" alt="MAi-RAG-PA Weekly View" width="900">
+  <img src="assets/WeekView.png" alt="MAi-RAG-P.A. Weekly View" width="900">
 </p>
 
 <p align="center">
-  <img src="assets/Month.png" alt="MAi-RAG-PA Monthly View" width="900">
+  <img src="assets/Month.png" alt="MAi-RAG-P.A. Monthly View" width="900">
 </p>
 
 <p align="center">
-  <img src="assets/Calendar.png" alt="MAi-RAG-PA Calendar/Planner" width="900">
+  <img src="assets/Calendar.png" alt="MAi-RAG-P.A. Calendar/Planner" width="900">
 </p>
 
 **Full-featured time management system:**
@@ -409,7 +408,7 @@ If required system models are missing, a warning appears under the model selecto
 **Event Management:**
 
 <p align="center">
-  <img src="assets/UpcomingEvents.png" alt="MAi-RAG-PA Upcoming Events & To Do List" width="900">
+  <img src="assets/UpcomingEvents.png" alt="MAi-RAG-P.A. Upcoming Events & To Do List" width="900">
 </p>
 
 - Create/Edit/Delete events with rich metadata
@@ -431,10 +430,10 @@ If required system models are missing, a warning appears under the model selecto
 ### 6. Assistant Settings
 
 <p align="center">
-  <img src="assets/AssistantSettings.png" alt="MAi-RAG-PA Assistant Notification Settings" width="900">
+  <img src="assets/AssistantSettings.png" alt="MAi-RAG-P.A. Assistant Notification Settings" width="900">
 </p>
 
-**Control center for MAi-RAG-PA's behavior and maintenance:**
+**Control center for MAi-RAG-P.A.'s behavior and maintenance:**
 
 #### System Doctor (One-Click Diagnostics)
 
@@ -488,7 +487,7 @@ If required system models are missing, a warning appears under the model selecto
 #### System Prompt Editor
 
 <p align="center">
-  <img src="assets/SystemPrompt.png" alt="MAi-RAG-PA Syatem Prompt & Heartbeat" width="900">
+  <img src="assets/SystemPrompt.png" alt="MAi-RAG-P.A. System Prompt & Heartbeat" width="900">
 </p>
 
 **Unified system prompt management:**
@@ -533,7 +532,7 @@ If required system models are missing, a warning appears under the model selecto
 
 **Zero broken code ever reaches your filesystem.**
 
-MAi-RAG-PA's signature feature — a deterministic verification pipeline ensuring every AI-created file is syntactically valid and structurally sound.
+MAi-RAG-P.A.'s signature feature — a deterministic verification pipeline ensuring every AI-created file is syntactically valid and structurally sound.
 
 ### The Pipeline
 
@@ -660,24 +659,24 @@ When creating a file that already exists:
 
 -----------------------------------------------------------------------------------
 
-## 💝 Support MAi-RAG-PA
+## Support MAi-RAG-P.A.
 
-MAi-RAG-PA is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
+MAi-RAG-P.A. is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
 
-MAi-RAG-PA is free for personal use. If you find it valuable, donations are greatly appreciated:
+MAi-RAG-P.A. is free for personal use. If you find it valuable, donations are greatly appreciated:
 
-- **PayPal**: <a href="https://www.paypal.com/ncp/payment/GSTCK29MSGCH4">Grateful for your Contributions</a>
+- **Stripe**: <a href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601">Grateful for your Contributions</a>
 
-Every donation helps keep MAi-RAG-PA free and continuously improving.
+Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 
 **Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
 
 -----------------------------------------------------------------------------------
 
 <p align="center">
-  <strong>MAi-RAG-PA — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
+  <strong>MAi-RAG-P.A. — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
 </p>
 
 <p align="center">
-  Version 1.0.0 | Released June 2026
+  Version 2.0.0 | Updated October 2026
 </p>

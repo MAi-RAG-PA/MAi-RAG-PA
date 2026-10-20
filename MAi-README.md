@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-P.A. Personal Assistant" width="150">
 </p>
 
-<h1 align="center">MAi-RAG-PA</h1>
+<h1 align="center">MAi-RAG-P.A.</h1>
 <h3 align="center">Your Offline Privacy, Self-Healing, Personal Assistant</h3>
 
 <p align="center">
-  <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
+  <strong>MAi-RAG-P.A. (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
 </p>
 
 <p align="center">
@@ -24,17 +24,17 @@
 
 
 <p align="center">
-  <strong>Version 1.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
-<h3 align="center">How MAi-RAG-PA Works</h3>
+<h3 align="center">How MAi-RAG-P.A. Works</h3>
 
 -----------------------------------------------------------------------------------
 
 ## Knowledge Base Integration
 
-**Every time you send a query, MAi-RAG-PA automatically triggers a database search. The LLM receives:**
+**Every time you send a query, MAi-RAG-P.A. automatically triggers a database search. The LLM receives:**
 
 1. **Your knowledge base** (injected as system message with source citations)
 2. **Its own training data** (built into the model)
@@ -62,7 +62,6 @@
 - **Logo Click**: Instantly scrolls to the top of the page
 - **Section Links**: Jump directly to Chat Console, Notes, Memory, Planner, or Settings
 - **Theme Selector**: 24 unique color themes (Dark Space Teal, Cyberpunk Neon, Arctic Frost, etc.)
-- **Start/Stop Buttons**: Control MAi-RAG-PA backend service directly from the UI
 
 ### 2. Chat Console (The Brain)
 
@@ -79,7 +78,7 @@
 - **CPU Usage**: Live percentage with color-coded progress bar
 - **RAM Usage**: Current vs. total available memory
 - **Swap Usage**: Monitor virtual memory to prevent crashes
-- **Auto-Refresh**: Updates every 30 seconds
+- **Auto-Refresh**: Updates every 5 seconds
 
 #### Model Selector
 - **Dynamic Loading**: Fetches models live from Ollama's API
@@ -94,19 +93,19 @@
 - **File Creation**: Use `[FILE]` prefix or natural language to generate files
 
 #### Voice-to-Text Input
-- **Offline Operation**: Uses bundled Vosk model (vosk-model-small-en-us-0.15)
+- **Offline Operation**: Bundled Vosk model as the primary engine (fully offline); faster-whisper available as an opt-in alternative (`VOICE_ENGINE=whisper`)
 - **16kHz Mono Recording**: Optimized for speech recognition
 - **Visual Feedback**: Microphone button pulses red while recording
 - **Auto-Insert**: Transcribed text automatically added to input field
 
 #### File Attachments
-- Attach PDF, DOCX, TXT, MD, HTML files for context
-- AI reads and incorporates file content into conversation
+- Attach any supported document (PDF, DOCX, TXT, MD, HTML - the same 17-format parser as the knowledge base)
+- Extracted text is injected into the conversation (capped at 50,000 characters)
 - Useful for document analysis and information extraction
 
 ### 3. Text Editor (Notes & Code)
 
-**Multi-format editor supporting 16 file types:**
+**Multi-format editor supporting 18 file types:**
 - **Text & Docs**: .txt, .md, .html, .css, .xml, .ini, .cfg, .log
 - **Programming**: .py, .js, .ts, .sh, .sql
 - **Data**: .json, .yaml, .yml, .toml, .csv
@@ -152,11 +151,11 @@
 **Technical Details:**
 - **Document Ingestion**: All 17 formats supported
 - **Semantic Chunking**: SpaCy sentence tokenization with overlap
-- **Vector Embeddings**: all-MiniLM-L6-v2 model (384 dimensions)
+- **Vector Embeddings**: nomic-embed-text model (768 dimensions, via Ollama)
 - **Persistent Storage**: Qdrant collections organized by topic
 - **RAG Retrieval**: Automatic search with source citations
 - **Rich Metadata**: Author, title, creation date, auto-extracted keywords
-- **Change Detection**: Skip unchanged files using SHA256 hashing
+- **Deduplication**: Chunk-content hashing (SHA256) skips identical content on re-ingestion
 
 #### Short-Term Memory (STM) - SQLite Database
 
@@ -201,7 +200,7 @@
 
 ### 6. Assistant Settings
 
-**Control center for MAi-RAG-PA's behavior and maintenance:**
+**Control center for MAi-RAG-P.A.'s behavior and maintenance:**
 
 #### System Doctor (One-Click Diagnostics)
 
@@ -216,11 +215,9 @@
 - Disk space availability
 - Python dependency verification
 
-**Auto-Fix Capabilities:**
-- Rebuilds corrupted virtual environments
-- Restarts unresponsive services
-- Clears orphaned Qdrant blobs
-- Re-pulls missing Ollama models
+**Fix Guidance:**
+- Every failed check comes with the exact command to run (e.g. `ollama serve`, `./qdrant`)
+- Diagnostics only - the doctor never modifies your system
 
 **Health Score:** 0-100% with color-coded status (green ≥80%, yellow ≥60%, red <60%)
 
@@ -228,7 +225,6 @@
 
 #### Notification Schedule
 - Interval toggles (24h, 1h, 30m, 15m, 5m, at-time)
-- Quiet hours to suppress notifications
 - Browser permission for native notifications
 
 #### System Prompt Editor
@@ -264,7 +260,7 @@
 
 **Zero broken code ever reaches your filesystem.**
 
-MAi-RAG-PA's signature feature — a deterministic verification pipeline ensuring every AI-created file is syntactically valid and structurally sound.
+MAi-RAG-P.A.'s signature feature — a deterministic verification pipeline ensuring every AI-created file is syntactically valid and structurally sound.
 
 ### The Pipeline
 
@@ -279,6 +275,9 @@ MAi-RAG-PA's signature feature — a deterministic verification pipeline ensurin
 - **.py files** → `ast.parse()` guarantees valid Python syntax
 - **.json files** → `json.loads()` guarantees valid JSON structure
 - **.txt/.md files** → Structure checks (paragraphs, capitalization, grammar)
+- **.js/.ts files** → Bracket-balance structure check
+- **.yaml/.yml files** → `yaml.safe_load()` structure validation
+- **.csv files** → Column-structure validation
 - **Other files** → Basic non-empty check
 
 **3. FIX (if needed)**
@@ -300,6 +299,9 @@ MAi-RAG-PA's signature feature — a deterministic verification pipeline ensurin
 | .json | json.loads() | Valid JSON structure |
 | .txt | Heuristic rules | Paragraph breaks, capitalization, typo detection |
 | .md | Heuristic rules | Same as .txt + Markdown-aware structure |
+| .js/.ts | Bracket balance | Matching {}, [], () structure |
+| .yaml/.yml | yaml.safe_load() | Valid YAML structure |
+| .csv | csv.reader | Consistent column structure |
 | Other | Basic check | Non-empty content |
 
 ### File Creation Methods
@@ -348,12 +350,12 @@ MAi-RAG-PA's signature feature — a deterministic verification pipeline ensurin
 
 | Issue | Solution |
 |-------|----------|
-| MAi-RAG-PA won't start | Is Ollama running? Verify Python 3.12+. Check Node.js 20+. Run System Doctor |
+| MAi-RAG-P.A. won't start | Is Ollama running? Verify Python 3.12+. Check Node.js 20+. Run System Doctor |
 | Slow response times | Use smaller model (7B vs 14B). Close RAM-intensive apps. Reduce context window |
 | Models not appearing | Verify Ollama: `curl http://localhost:11434/api/tags`. Pull model: `ollama pull qwen2.5-coder:7b` |
 | Ollama connection refused | Ensure `ollama serve` is running |
 | Qdrant not available | Run or install Qdrant if not installed |
-| Voice transcription fails | Check microphone permissions. Ensure Vosk model exists in `models/vosk-model-small-en-us-0.15/` |
+| Voice transcription fails | Check microphone permissions. Ensure the Vosk model exists in `models/vosk-model-small-en-us-0.15/` (installed automatically by install.sh) |
 | File not saved to workspace | Check `~/MAi-RAG-PA/workspace/` exists and is writable. Use `[FILE]` prefix |
 
 ### System Doctor
@@ -381,11 +383,11 @@ curl http://localhost:8000/api/auth/auto-key
 
 ## Acknowledgments
 
-**MAi-RAG-PA is built on the shoulders of giants:**
+**MAi-RAG-P.A. is built on the shoulders of giants:**
 
-- **[Ollama](https://ollama.ai)** - Local LLM inference
+- **[Ollama](https://ollama.com)** - Local LLM inference
 - **[Qdrant](https://qdrant.tech)** - Vector database
-- **[all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)** - Embedding model
+- **[nomic-embed-text](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5)** - Embedding model
 - **[FastAPI](https://fastapi.tiangolo.com)** - Backend framework
 - **[React](https://react.dev)** - Frontend framework
 - **[FasterWhisper](https://github.com/SYSTRAN/faster-whisper)** - Offline speech recognition
@@ -396,8 +398,6 @@ curl http://localhost:8000/api/auth/auto-key
 **And the countless open-source contributors who make this possible.**
 
 -----------------------------------------------------------------------------------
-
-## Documentation
 
 ## Documentation
 
@@ -417,24 +417,24 @@ curl http://localhost:8000/api/auth/auto-key
 
 -----------------------------------------------------------------------------------
 
-## 💝 Support MAi-RAG-PA
+## Support MAi-RAG-P.A.
 
-MAi-RAG-PA is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
+MAi-RAG-P.A. is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
 
-MAi-RAG-PA is free for personal use. If you find it valuable, donations are greatly appreciated:
+MAi-RAG-P.A. is free for personal use. If you find it valuable, donations are greatly appreciated:
 
-- **PayPal**: <a href="https://www.paypal.com/ncp/payment/GSTCK29MSGCH4">Grateful for your Contributions</a>
+- **Stripe**: <a href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601">Grateful for your Contributions</a>
 
-Every donation helps keep MAi-RAG-PA free and continuously improving.
+Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 
 **Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
 
 -----------------------------------------------------------------------------------
 
 <p align="center">
-  <strong>MAi-RAG-PA — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
+  <strong>MAi-RAG-P.A. — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
 </p>
 
 <p align="center">
-  Version 1.0.0 | Released June 2026
+  Version 2.0.0 | Updated October 2026
 </p>

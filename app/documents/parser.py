@@ -8,6 +8,7 @@ Returns (text_chunks, structured_records):
 
 Lazy-imports heavy libraries to avoid startup cost.
 """
+
 import csv
 import io
 import json

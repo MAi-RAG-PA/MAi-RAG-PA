@@ -4,6 +4,7 @@ Simple token-based authentication for MAi-RAG.
 Uses a configurable API key stored in SQLite settings.
 No external auth providers needed - fully self-contained.
 """
+
 import logging
 import secrets
 from typing import Optional
@@ -51,7 +52,11 @@ async def verify_api_key(request: Request) -> str:
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    if not secrets.compare_digest(provided_key, stored_key):
+    # MAI-PATCH security v1: compare BYTES. secrets.compare_digest raises TypeError for str values that
+    # contain non-ASCII characters, which made any such X-API-Key / ?api_key= value an HTTP 500.
+    if not secrets.compare_digest(
+        provided_key.encode("utf-8"), stored_key.encode("utf-8")
+    ):
         raise HTTPException(
             status_code=403,
             detail="Invalid API key",
@@ -69,8 +74,5 @@ async def optional_auth(request: Request) -> bool:
     if not mgr.get("api_key"):
         return True
 
-    try:
-        await verify_api_key(request)
-        return True
-    except HTTPException:
-        raise
+    await verify_api_key(request)
+    return True

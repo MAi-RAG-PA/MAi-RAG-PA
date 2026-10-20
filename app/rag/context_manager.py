@@ -4,6 +4,7 @@ Context window management for MAi-RAG.
 Fully model-agnostic - queries Ollama for actual model capabilities.
 Prevents token overflow by truncating history and documents to fit model limits.
 """
+
 import json
 import logging
 import re

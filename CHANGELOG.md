@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="assets/MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-P.A. Personal Assistant" width="150">
 </p>
 
-<h1 align="center">MAi-RAG-PA</h1>
+<h1 align="center">MAi-RAG-P.A.</h1>
 <h3 align="center">Your Offline Privacy, Self-Healing, Personal Assistant</h3>
 
 <p align="center">
-  <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
+  <strong>MAi-RAG-P.A. (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <strong>Current Version 1.7.0 | Effective Initial Release Date: June 2026</strong><br />
+  <strong>Current Version 2.0.0 | Effective Initial Release Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -29,12 +29,45 @@
 
 # Changelog
 
-All notable changes to MAi-RAG-PA will be documented in this file.
+All notable changes to MAi-RAG-P.A. will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# CHANGELOG
+## [2.0.0] - 2026-10-19
+
+#### Configuration System - Overhaul
+- New centralized `app/config.py`: every setting resolves from environment variable, then the project `.env` file, then a built-in default - an invalid value falls back to the default instead of breaking startup
+- `MAI_*` settings exposed: `MAI_CONTEXT_WINDOW`, `MAI_RAG_TOP_K`, `MAI_EMBEDDING_MODEL`, `MAI_EMBEDDING_DIM`, `MAI_OLLAMA_URL`, `MAI_QDRANT_URL`, batch sizes, and more
+- Backend services now share a single source of truth for the Ollama and Qdrant endpoints
+
+#### Embeddings Migration
+- Qdrant manager migrated from local sentence-transformers (all-MiniLM-L6-v2) to Ollama-hosted nomic-embed-text (768 dimensions) - one embedding engine across the system
+- Qdrant connection handled through configuration instead of hard-coded host/port defaults
+
+#### Memory (STM) Reliability
+- Thread-safety fix: SQLite transactions are serialized on the shared connection, preventing corrupted writes under concurrent activity
+- New STM export/import: full-history backup and merge-based restore (live configuration keys are deliberately excluded)
+
+#### API Key Security
+- Key-issuing endpoints (generate-key / auto-key) now answer only from localhost or the local network - cross-site origins and public host headers are rejected
+
+#### Ingestion Performance
+- Document chunking and ingestion run off the event loop, keeping the API responsive during large uploads
+- Ingestion batch size is now configurable
+
+#### Agent Core Stability & Governance
+- Citation routing and tool-hook hardening; role-context routing quality fixes
+- Generation limits (num_predict) aligned with hardware capability tiers
+- Performance governance and structured agent logging with dedicated file logging
+- Role isolation refinements following the 1.7.0 Roles release
+
+#### Documentation - Complete Overhaul
+- New documents: README.md, ARCHITECTURE.md, DOCKER.md, SELF-HEALING-SYSTEM-USER-WORKFLOW.md, LICENSE, and Windows WSL2 installation notes
+- Every guide rewritten and fact-checked line-by-line against the code (model duties, ports, verifiers, endpoints, commands)
+- Consistent MAi-RAG-P.A. naming across all documentation
+- Donation links standardized on Stripe
+- Versions aligned at 2.0.0 across all documents
 
 ## [1.7.0] - 2026-09-22
 
@@ -89,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Embedding Model — Major Important Feature Upgrade
 - Embeddings now use Ollama's `nomic-embed-text` (768-dim) instead of the local `all-MiniLM-L6-v2` sentence transformer.
-- Fresh MAi-RAG-PA installation installs nomic-embed-text embedding agent by default
+- Fresh MAi-RAG-P.A. installation installs nomic-embed-text embedding agent by default
 - The `models/all-MiniLM-L6-v2/` folder is no longer required.
 - **Migration required for existing installs**: delete old Qdrant collections and re-ingest (384 → 768 dimensions).
 
@@ -119,8 +152,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sync-to-release.sh` (updated exclusions)
 
 ---
-
-# CHANGELOG
 
 ## [1.6.0] - 2026-08-12
 
@@ -194,7 +225,6 @@ This release was shaped by extensive testing and feedback from the community, wi
 
 ---
 
-# CHANGELOG
 ## [1.5.1] - 2026-08-08
 
 #### Web Presence & SEO Enhancements
@@ -225,7 +255,6 @@ This release was shaped by extensive testing and feedback from the community, wi
 
 ---
 
-# CHANGELOG
 ## [1.5.0] - 2026-08-08
 
 ### Major Features
@@ -302,7 +331,6 @@ This release was shaped by extensive testing and feedback from the community, wi
 
 ---
 
-# Changelog
 ## [1.4.0] - 2026-08-06
 
 ## Fixed: WebSocket Connection Issues
@@ -334,8 +362,6 @@ Corrected WebSocket URL in LongTermMemoryApp.tsx to properly connect to localhos
 ** System Prompt Enforcement:**
 - Ensured LLM fallback behaviors strictly adhere to the anti-hallucination system prompts when RAG context is empty or when using heavily modified/merged models.
 
-
-# Changelog
 ## [1.3.8] - 2026-08-02
 
 ## Added
@@ -376,12 +402,11 @@ Corrected WebSocket URL in LongTermMemoryApp.tsx to properly connect to localhos
 - Fixed cross-platform compatibility issues in `ci.yaml`.
 - Removed restrictive UI/UX limitations on file selection and chunking.
 
-
 ## [1.0.0] - 2026-07-11
 
 ### Initial Release
 
-First public release of MAi-RAG-PA - Your Offline Privacy, Self-Healing, Personal Assistant.
+First public release of MAi-RAG-P.A. - Your Offline Privacy, Self-Healing, Personal Assistant.
 
 ### Added
 
@@ -495,7 +520,7 @@ First public release of MAi-RAG-PA - Your Offline Privacy, Self-Healing, Persona
 
 - Chat history now persists in SQLite database (previously stored in browser cache)
 - System prompt consistency across frontend, backend, and database
-- File path consistency throughout codebase (MAi-RAG-PA paths)
+- File path consistency throughout codebase (MAi-RAG-P.A. paths)
 - Citation enforcement in all knowledge base responses
 - Model recommendations now hardware-aware
 - File creation no longer overwrites existing files (adds numbered suffix)
@@ -571,12 +596,29 @@ Built on the shoulders of giants:
 - [SSH & LAN](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-SSH-SETUP.md) - Access the system remotely from other devices
 - [Changelog](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md) - Version history and updates
 - [License & Legal](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-LICENCE-LEGAL-NOTICE.md) - Terms of use and commercial licensing
+
+## Support & Contact
+
 **Issues**: [GitHub Issues](https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues)
 **Discussions**: [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
 **Email**: MAi-RAG-PA@proton.me
 
 ---
 
+## Support MAi-RAG-P.A.
+
+MAi-RAG-P.A. is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
+
+MAi-RAG-P.A. is free for personal use. If you find it valuable, donations are greatly appreciated:
+
+- **Stripe**: <a href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601">Grateful for your Contributions</a>
+
+Every donation helps keep MAi-RAG-P.A. free and continuously improving.
+
+**Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
+
+{SEP}
+
 <p align="center">
-  <strong>MAi-RAG-PA — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
+  <strong>MAi-RAG-P.A. — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
 </p>

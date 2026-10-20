@@ -3,6 +3,7 @@
 WebSocket connection manager for MAi-RAG real-time updates.
 Handles client connections, broadcasting, and message routing.
 """
+
 import asyncio
 import json
 import logging

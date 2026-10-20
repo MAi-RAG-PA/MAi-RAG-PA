@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Speech Recognition using faster-whisper (primary) or Vosk (fallback)
+Speech Recognition using Vosk (primary, fully offline) with faster-whisper as optional engine
 """
+
 import json
 import logging
 import os
@@ -38,7 +39,7 @@ class VoiceRecognizer:
     def __init__(self):
         self.whisper_model = None
         self.vosk_model = None
-        self.preferred_engine = os.getenv("VOICE_ENGINE", "auto").lower()
+        self.preferred_engine = os.getenv("VOICE_ENGINE", "vosk").lower()
         self._load_model()
 
     def _load_model(self):

@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-P.A. Personal Assistant" width="150">
 </p>
 
-<h1 align="center">MAi-RAG-PA</h1>
+<h1 align="center">MAi-RAG-P.A.</h1>
 <h3 align="center">Your Offline Privacy, Self-Healing, Personal Assistant</h3>
 
 <p align="center">
-  <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
+  <strong>MAi-RAG-P.A. (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
 </p>
 
 <p align="center">
@@ -24,121 +24,19 @@
 
 
 <p align="center">
-  <strong>Version 1.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
-<h3 align="center">MAi-RAG-PA Installation Guide</h3>
+<h3 align="center">MAi-RAG-P.A. Installation Guide</h3>
 
 <p align="center">Complete installation instructions for all supported platforms.</p>
 
 -----------------------------------------------------------------------------------
 
-## System Requirements
+## Quick Install (One Line)
 
-### Hardware Requirements
-
-| Component | Minimum | Recommended | Notes |
-|-----------|---------|-------------|-------|
-| **RAM** | 12 GB | 16 GB+ | 16GB+ required for 14B+ models |
-| **Disk Space** | 15 GB | 30 GB+ | Plus model sizes (7B ≈ 4GB each) |
-| **CPU** | Intel Core i3 / AMD Ryzen 3 | Intel Core i5+ / AMD Ryzen 5+ | 64-bit processor (x86_64 or ARM64) |
-| **GPU** | Optional | NVIDIA with 8GB+ VRAM | For faster inference with GPU-enabled Ollama |
-| **Browsers** | Chrome 90+ / Edge 90+ / Firefox 88+ / Safari 14+ | Latest versions | For best experience |
-
-### Required Software Versions
-
-| Software | Minimum Version | Recommended | Check Command |
-|----------|----------------|-------------|---------------|
-| **Python** | 3.12+ | 3.12+ | `python3 --version` |
-| **Node.js** | 20+ (LTS) | 20+ | `node --version` |
-| **Git** | 2.0+ | Latest | `git --version` |
-| **Ollama** | 0.30+ | Latest | `ollama --version` |
-| **Qdrant** | 1.17+ | Latest | `./qdrant --version` |
-
-**Installation Order:**
-1. Install all prerequisites listed above
-2. Start Ollama: `ollama serve`
-3. Start Qdrant: `./qdrant`
-4. Install MAi-RAG-PA using one of the methods below
-
-**Python packages** (installed automatically):
-- Core: FastAPI, Uvicorn, Qdrant client, Sentence Transformers, SpaCy
-- Document processing: python-docx, python-pptx, openpyxl, striprtf, odfpy, pylatexenc, docutils
-- PDF processing: pdfplumber, PyMuPDF
-- EPUB processing: ebooklib
-- Voice recognition: faster-whisper, vosk
-- Web: BeautifulSoup, frontmatter
-
-### All database document processing is handled automatically - no additional system packages required.
-
-**Document Format Support:**
-MAi-RAG-PA supports 17 document formats for knowledge base ingestion:
-- PDF, EPUB, DOCX, TXT, RTF, ODT
-- HTML, HTM, MD (Markdown)
-- CSV, TSV, JSON, XML
-- PPTX, XLSX
-- TEX (LaTeX), RST (reStructuredText)
-
-### Network Requirements
-
-- **Initial Setup**: Internet connection required for downloading dependencies
-- **Daily Use**: No internet required (fully offline operation)
-
------------------------------------------------------------------------------------
-
-## Operating System Support
-
-### Fully Supported (Tested)
-
-**Linux Distributions:**
-- **Debian-based**: Ubuntu 22.04+, Debian 12+, Linux Mint 21+, Rhino Linux, Pop!_OS 22.04+, Elementary OS 7+, Zorin OS 17+
-- **RPM-based**: Fedora 38+, RHEL 9+, CentOS Stream 9+, Rocky Linux 9+, AlmaLinux 9+
-- **Arch-based**: Arch Linux, Manjaro 23+, EndeavourOS
-- **SUSE-based**: openSUSE Leap 15.5+, openSUSE Tumbleweed, SLES 15+
-
-**macOS:**
-- macOS 12 (Monterey) and later
-- macOS 13 (Ventura)
-- macOS 14 (Sonoma)
-- macOS 15 (Sequoia)
-- Apple Silicon (M1/M2/M3/M4) fully supported
-
-**Windows (via WSL2 only):**
-- Windows 10 (version 2004+, Build 19041+)
-- Windows 11 (all versions)
-- Requires WSL2 with Ubuntu 22.04+
-
-### Partially Supported (May Require Manual Setup)
-
-**BSD Variants:**
-- FreeBSD 13+ (limited Ollama support)
-- OpenBSD 7.3+ (limited Ollama support)
-- Other Unix-like systems may require manual dependency installation
-
-**Other Systems:**
-- Haiku (R1/beta4+) - Limited, requires manual compilation
-- OpenIndiana/illumos - Limited support
-- Solaris 11+ - Not officially supported
-
-### Not Supported:
-
-- Windows native (without WSL2)
-- Windows 3.1 / 98 / XP / 2000 / Vista / 7 / 8 / 8.1
-- macOS 11 (Big Sur) and earlier
-- Linux distributions older than listed above
-- 32-bit systems (requires 64-bit)
-
------------------------------------------------------------------------------------
-
-## Installation Methods
-
-### Method 1: One-Line Quick Installer (Recommended for Non-Technical Users)
-
-**Linux/macOS:**
-The installer will automatically handle most dependencies and guide you through the setup process.
-
-## SUPER EASY ONE-LINE Installer (as long as all dependancies are met):
+**The recommended way to install. Paste this single command into a terminal on the machine where MAi-RAG-P.A. will run:**
 
 ```bash
 curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
@@ -146,27 +44,33 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 
 **What the installer does:**
 - Detects your operating system
-- Installs system dependencies (Python 3.12+, Node.js 20+, Git)
-- Downloads MAi-RAG-PA to ~/MAi-RAG-PA
+- Installs system dependencies (Python 3.10-3.12, 3.12 recommended; Node.js 20+; Git)
+- Downloads MAi-RAG-P.A. to ~/MAi-RAG-PA
 - Sets up Python virtual environment
 - Installs Python dependencies
 - Builds the React frontend
 - Asks if you want to install Ollama & Qdrant automatically or manually
-- Pulls a recommended AI model (qwen2.5-coder:7b)
-- Creates desktop launcher (Linux)
-- Optionally starts MAi-RAG-PA
+- Pulls the models it needs: codeqwen:7b (protected system model: STM parsing, text-to-SQL, self-healing capability), nomic-embed-text:latest (RAG), and qwen2.5:7b as the daily chat model when RAM is 8 GB or more (override with MAI_RAG_DAILY_CHAT_MODEL=<model>)
+- Creates app launchers (Linux app menu; macOS app bundle; Windows launch.bat / launch.vbs)
+- Optionally starts MAi-RAG-P.A.
 
 **Installation Process:**
 1. **System Dependencies**: Python, Node.js, and Git are installed automatically
 2. **Ollama & Qdrant**: You'll be asked whether to install these automatically or manually
    - Automatic: Downloads and installs Ollama and Qdrant binaries
    - Manual: You install them yourself using provided instructions
-3. **Version Checking**: If dependencies are already installed, the script checks versions and offers to update outdated components
-4. **Final Setup**: Desktop launcher created, ready to start
+3. **Version Checks**: Python and Node.js are checked against the supported range (Python 3.10-3.12, Node.js 20+); anything missing or out of range is reported before setup continues
+4. **Final Setup**: App launcher created, ready to start
+
+**Windows users:** see Windows (WSL2) Installation below - the installer runs inside WSL 2.
 
 -----------------------------------------------------------------------------------
 
-### Method 2: Manual Download
+## Alternative Installation Methods
+
+**The one-line installer above is recommended for everyone. Use these alternatives if you prefer a zip download, a git clone, or full manual control.**
+
+### Option 1: Download the Release Zip
 
 1. Go to [GitHub Releases](https://github.com/MAi-RAG-PA/MAi-RAG-PA/releases)
 2. Download the latest .zip file at bottom of page.
@@ -174,7 +78,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 4. Open terminal and navigate to the directory:
 
     # Extract the zip to your home directory
-    unzip ~/MAi-RAG-PA-v1.0.0.zip -d ~/
+    unzip ~/Downloads/MAi-RAG-PA-*.zip -d ~/
     cd ~/MAi-RAG-PA
 
 5. Run the installer:
@@ -183,7 +87,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 
 -----------------------------------------------------------------------------------
 
-### Method 3: Clone from GitHub
+### Option 2: Clone from GitHub
 
 **Clone the repository:**
 
@@ -196,7 +100,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 
 -----------------------------------------------------------------------------------
 
-### Method 4: Manual Installation (Advanced)
+### Option 3: Manual Installation (Advanced)
 
 **If you prefer to install dependencies manually or need more control:**
 
@@ -282,7 +186,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
     npm run build
     cd ..
 
-**Step 7: First Time Start MAi-RAG-PA**
+**Step 7: First Time Start MAi-RAG-P.A.**
 
     cd ~/MAi-RAG-PA
     python3 first_launch.py
@@ -301,11 +205,18 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 
 -----------------------------------------------------------------------------------
 
-# Windows Users (WSL2)
+## Windows (WSL2) Installation
 
-## Install Windows Subsystem for Linux 2.7.10  wsl.exe
+**Windows runs MAi-RAG-P.A. inside WSL 2 (a real Linux environment).**
+### Step 1: Install WSL 2
 
-## 1. Open bash terminal application
+**In Windows, open PowerShell (or Command Prompt) and run:**
+
+    wsl --install
+
+**Restart Windows if it asks you to, then open a Linux terminal (Ubuntu).**
+
+### Step 2: Get the code and run the installer
 
     cd ~
     git clone https://github.com/MAi-RAG-PA/MAi-RAG-PA.git
@@ -319,17 +230,19 @@ OR
     # Install unzip if you don't have it
     sudo apt update && sudo apt install unzip -y
 
-    # Change to the directory where the archive has been downloaded to, in this case Downloads"
+    # Change to the directory where the archive was downloaded (usually ~/Downloads)
     cd ~/Downloads
 
     # Extract the zip to your home directory
-    unzip ~/MAi-RAG-PA-v1.0.0.zip -d ~/
+    unzip ~/Downloads/MAi-RAG-PA-*.zip -d ~/
 
     cd ~/MAi-RAG-PA
     ./install.sh
 
 
-## 2. Must install python 3.12 to run MAi-RAG-PA:
+### Step 3: Install Python 3.12
+
+**The installer normally handles Python; use these steps if it reported a missing Python or if you skipped install.sh.**
 
     # Update package lists
     sudo apt update
@@ -337,42 +250,41 @@ OR
     # Install Python 3.12 and venv support
     sudo apt install -y python3.12 python3.12-venv python3.12-dev
 
-## If you get the "Error: Unable to locate package python3.12 python3.12-venv python3.12-dev" then you will need to install python 3.12 from an alternate repository.
-**STOP HERE** and SEE "Alternative Python 3.12 Instructions" below and return here when you have completed successful installation of python3.12.
+> **If apt reports "Unable to locate package python3.12 ...", stop here and follow the Alternative Python 3.12 Instructions below first, then return to this step.**
 
-# Verify installation
+**Verify the installation:**
+
+    # Verify installation
     python3.12 --version
 
-3. Create a new virtual environment with Python 3.12:
+**Step 4: Create the Python environment:**
 
     cd ~/MAi-RAG-PA
     python3.12 -m venv venv
     source venv/bin/activate
 
-4. Upgrade pip and install dependencies:
+**Step 5: Upgrade pip and install dependencies:**
 
     pip install --upgrade pip
     pip install -r requirements.txt
 
-5. Continue with the rest of the setup:
+**Step 6: Continue with the rest of the setup:**
 
-# Install frontend dependencies
+    # Install frontend dependencies
     cd frontend
     npm install
     npm run build
     cd ..
 
-# Initialize database
+    # Initialize database
     python3 first_launch.py
-    python3 prompt.py
 
-# Start the system
+    # Start the system
     ./start.sh
 
 
-## Alternative Python 3.12 Instructions
+### Alternative Python 3.12 Instructions
 
-Alternative: Use deadsnakes PPA (if Python 3.12 not in repos)
 **If python3.12 isn't available in their Ubuntu repos:**
 
     # Add deadsnakes PPA
@@ -391,12 +303,12 @@ Alternative: Use deadsnakes PPA (if Python 3.12 not in repos)
     python3.12 --version
     Python 3.12.3  <<---- new version
 
-**Then continue with steps 3-5 above**
+**Then return to Step 3 to verify, then continue with Steps 4-6.**
 
 
-## Why Python 3.14 Doesn't Work Yet
+### Why Python 3.14 Doesn't Work Yet
 
-**Python 3.14 is very new (released recently), and many packages like:**
+**Python 3.14 (released October 2025) is newer than the supported range (3.10-3.12), and many packages like:**
 
 - sentence-transformers
 - torch
@@ -404,11 +316,10 @@ Alternative: Use deadsnakes PPA (if Python 3.12 not in repos)
 - qdrant-client
 
 ...don't have pre-compiled wheels for Python 3.14 yet. This forces pip to try building them from source, which often fails due to missing C dependencies or API changes.
+The one-line installer enforces the supported range and refuses Python newer than 3.12.
 Python 3.12 is the sweet spot - it's stable, widely supported, and all your dependencies have pre-built wheels for it.
 
 -----------------------------------------------------------------------------------
-
-## Updating Dependencies
 
 ### Update Ollama
 
@@ -431,155 +342,118 @@ Python 3.12 is the sweet spot - it's stable, widely supported, and all your depe
 
 -----------------------------------------------------------------------------------
 
-## Environment Variables
+## System Requirements
 
-**MAi-RAG-PA uses environment variables for configuration. These can be set in your shell profile or in a .env file.**
+### Hardware Requirements
 
-### Core Environment Variables
+| Component | Minimum | Recommended | Notes |
+|-----------|---------|-------------|-------|
+| **RAM** | 8 GB | 16 GB+ | 8 GB minimum; 16 GB+ required for 14B+ models |
+| **Disk Space** | 15 GB | 30 GB+ | Plus model sizes (7B ≈ 4GB each) |
+| **CPU** | Intel Core i3 / AMD Ryzen 3 | Intel Core i5+ / AMD Ryzen 5+ | 64-bit processor (x86_64 or ARM64) |
+| **GPU** | Optional | NVIDIA with 8GB+ VRAM | For faster inference with GPU-enabled Ollama |
+| **Browsers** | Chrome 90+ / Edge 90+ / Firefox 88+ / Safari 14+ | Latest versions | For best experience |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| OLLAMA_URL | http://localhost:11434 | Ollama API endpoint |
-| QDRANT_URL | http://localhost:6333 | Qdrant API endpoint |
-| MAI_PORT | 8000 | Web UI port |
-| MAI_HOST | 0.0.0.0 | Bind address (0.0.0.0 = all interfaces) |
-| PYTHONPATH | ~/MAi-RAG-PA | Python module path |
+### Required Software Versions
 
-### Optional Environment Variables
+| Software | Minimum Version | Recommended | Check Command |
+|----------|----------------|-------------|---------------|
+| **Python** | 3.10 | 3.12 | `python3 --version` |
+| **Node.js** | 20+ (LTS) | 20+ | `node --version` |
+| **Git** | 2.0+ | Latest | `git --version` |
+| **Ollama** | 0.30+ | Latest | `ollama --version` |
+| **Qdrant** | 1.17+ | Latest | `./qdrant --version` |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| MAI_LOG_LEVEL | INFO | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| MAI_MAX_WORKERS | 4 | Number of worker threads |
-| MAI_CONTEXT_WINDOW | 4096 | Default context window size |
-| MAI_TEMPERATURE | 0.7 | Default model temperature |
-| MAI_AUTO_SAVE | true | Auto-save workspace files |
-| MAI_BACKUP_DIR | ~/MAi-RAG-PA-Backups | Backup directory location |
+**Installation Order:**
+1. The one-line installer (**Quick Install** above) performs every step automatically - nothing to install first
+2. **Manual installs only:** install the prerequisites above, start Ollama (`ollama serve`), start Qdrant (`./qdrant`), then run one of the options under Alternative Installation Methods
 
-### Setting Environment Variables
+**Python packages** (installed automatically):
+- Core: FastAPI, Uvicorn, Qdrant client, Sentence Transformers, SpaCy
+- Document processing: python-docx, python-pptx, openpyxl, striprtf, odfpy, pylatexenc, docutils
+- PDF processing: pdfplumber, PyMuPDF
+- EPUB processing: ebooklib
+- Voice recognition: faster-whisper, vosk
+- Web: BeautifulSoup, frontmatter
 
-**Method 1: Shell Profile (Recommended)**
+**All database document processing is handled automatically - no additional system packages required.**
 
-**Add to ~/.bashrc or ~/.zshrc:**
+**Document Format Support:**
+MAi-RAG-P.A. supports 17 document formats for knowledge base ingestion:
+- PDF, EPUB, DOCX, TXT, RTF, ODT
+- HTML, HTM, MD (Markdown)
+- CSV, TSV, JSON, XML
+- PPTX, XLSX
+- TEX (LaTeX), RST (reStructuredText)
 
-    # MAi-RAG-PA Configuration
-    export OLLAMA_URL="http://localhost:11434"
-    export QDRANT_URL="http://localhost:6333"
-    export MAI_PORT="8000"
-    export MAI_HOST="0.0.0.0"
-    export MAI_LOG_LEVEL="INFO"
+### Network Requirements
 
-**Then reload:**
-
-    source ~/.bashrc  # or source ~/.zshrc
-
-**Method 2: .env File (Already Created)**
-
-**Create ~/MAi-RAG-PA/.env:**
-
-    OLLAMA_URL=http://localhost:11434
-    QDRANT_URL=http://localhost:6333
-    MAI_PORT=8000
-    MAI_HOST=0.0.0.0
-    MAI_LOG_LEVEL=INFO
-    MAI_MAX_WORKERS=4
+- **Initial Setup**: Internet connection required for downloading dependencies
+- **Daily Use**: No internet required (fully offline operation)
 
 -----------------------------------------------------------------------------------
 
-## Configuration Files
+## Operating System Support
 
-### Configuration File Locations
+### Fully Supported (Tested)
 
-| File | Location | Purpose |
-|------|----------|---------|
-| **System Prompt** | ~/MAi-RAG-PA/config/system_prompt.txt | Default AI system prompt |
-| **App Config** | ~/MAi-RAG-PA/config/config.yaml | Application settings |
-| **Model Config** | ~/MAi-RAG-PA/config/models.yaml | Model preferences and settings |
-| **API Keys** | ~/MAi-RAG-PA/config/api_keys.env | External API keys (if used) |
-| **User Preferences** | ~/MAi-RAG-PA/config/user_prefs.json | User-specific settings |
+**Linux Distributions:**
+- **Debian-based**: Ubuntu 22.04+, Debian 12+, Linux Mint 21+, Rhino Linux, Pop!_OS 22.04+, Elementary OS 7+, Zorin OS 17+
+- **RPM-based**: Fedora 38+, RHEL 9+, CentOS Stream 9+, Rocky Linux 9+, AlmaLinux 9+
+- **Arch-based**: Arch Linux, Manjaro 23+, EndeavourOS
+- **SUSE-based**: openSUSE Leap 15.5+, openSUSE Tumbleweed, SLES 15+
 
-### Editing Configuration
+**macOS:**
+- macOS 12 (Monterey) and later
+- macOS 13 (Ventura)
+- macOS 14 (Sonoma)
+- macOS 15 (Sequoia)
+- Apple Silicon (M1/M2/M3/M4) fully supported
 
-**Edit System Prompt:**
+**Windows (via WSL2 only):**
+- Windows 10 (version 2004+, Build 19041+)
+- Windows 11 (all versions)
+- Requires WSL2 with Ubuntu 22.04+
 
-    nano ~/MAi-RAG-PA/config/system_prompt.txt
+### Partially Supported (May Require Manual Setup)
 
-**Edit App Config:**
+> **The one-line installer supports only the fully tested systems above. On partially supported systems use one of the Alternative Installation Methods and expect extra manual setup.**
 
-    nano ~/MAi-RAG-PA/config/config.yaml
+**BSD Variants:**
+- FreeBSD 13+ (limited Ollama support)
+- OpenBSD 7.3+ (limited Ollama support)
+- Other Unix-like systems may require manual dependency installation
 
-**Reset to Defaults:**
+**Other Systems:**
+- Haiku (R1/beta4+) - Limited, requires manual compilation
+- OpenIndiana/illumos - Limited support
+- Solaris 11+ - Not officially supported
 
-    # Backup current config
-    cp ~/MAi-RAG-PA/config/config.yaml ~/MAi-RAG-PA/config/config.yaml.backup
+### Not Supported
 
-    # Reset (will recreate on next start)
-    rm ~/MAi-RAG-PA/config/config.yaml
-    ~/MAi-RAG-PA/start.sh
-
------------------------------------------------------------------------------------
-
-## Multiple Instances Warning
-
-**Running multiple instances of MAi-RAG-PA on the same machine is NOT recommended.**
-
-### Why Multiple Instances Cause Problems
-
-1. **Port Conflicts**: Multiple instances will try to bind to the same ports (8000, 11434, 6333)
-2. **Database Locks**: SQLite doesn't handle concurrent writes well from multiple processes
-3. **Resource Overload**: Each instance consumes significant RAM and CPU
-4. **Qdrant Conflicts**: Multiple Qdrant instances will conflict on port 6333
-5. **Data Corruption**: Concurrent access to the same database can corrupt data
-
-### If You Must Run Multiple Instances
-
-If you absolutely need multiple instances (not recommended), you must:
-
-1. **Use Different Ports:**
-
-    # Instance 1
-    MAI_PORT=8000 OLLAMA_URL=http://localhost:11434 QDRANT_URL=http://localhost:6333 ./start.sh
-
-    # Instance 2 (different ports)
-    MAI_PORT=8001 OLLAMA_URL=http://localhost:11435 QDRANT_URL=http://localhost:6334 ./start.sh
-
-2. **Use Separate Data Directories:**
-
-    # Create separate directories
-    mkdir ~/MAi-RAG-PA-instance2
-    cp -r ~/MAi-RAG-PA/* ~/MAi-RAG-PA-instance2/
-
-    # Edit config to use different paths
-    nano ~/MAi-RAG-PA-instance2/config/config.yaml
-
-3. **Monitor Resources:**
-
-    # Monitor RAM usage
-    watch -n 1 'free -h'
-
-    # Monitor CPU usage
-    htop
-
-**Recommendation**: Use a single instance and leverage the multi-threaded chat system instead.
+- Windows native (without WSL2)
+- Windows 3.1 / 98 / XP / 2000 / Vista / 7 / 8 / 8.1
+- macOS 11 (Big Sur) and earlier
+- Linux distributions older than listed above
+- 32-bit systems (requires 64-bit)
 
 -----------------------------------------------------------------------------------
 
-## Starting MAi-RAG-PA
+## Starting MAi-RAG-P.A.
 
-**MAi-RAG-PA provides 3 ways to start the application, depending on your needs:**
+**MAi-RAG-P.A. provides 3 ways to start the application, depending on your needs:**
 
-### Method 1: Desktop Launcher Icon (Linux - Recommended for Daily Use)
+### Method 1: Desktop Launcher Icon (Linux - Daily Use)
 
-**After installation, MAi-RAG-PA appears in your application menu:**
-1. Search for "MAi-RAG-PA" in your application launcher
-2. Click the MAi-RAG-PA icon
-3. Your default browser opens automatically to http://localhost:8000
+**After installation, MAi-RAG-P.A. appears in your application menu:**
+1. Search for "MAi-RAG-PA" in your application launcher (the installed menu name)
+2. Click the launcher icon
 
 **What happens:**
-- Terminal window opens with colored status output
-- All services start automatically (Qdrant, backend)
-- Browser opens when ready
-- Press Ctrl+C in terminal to stop all services
+- A terminal window opens with colored status output
+- Ollama, Qdrant and the backend start automatically - each only if it is not already running
+- macOS: your browser opens when the backend is ready; Linux: the terminal prints the address
+- Press Ctrl+C in the terminal to stop everything
 
 **If icon doesn't appear:**
 
@@ -597,10 +471,10 @@ If you absolutely need multiple instances (not recommended), you must:
     ./start.sh
 
 **The start.sh script:**
-- Starts Qdrant vector database
-- Starts the watchdog process
-- Launches FastAPI backend on http://localhost:8000
-- Opens your default browser
+- Checks that Ollama is running first and exits with instructions if it is not
+- Starts Qdrant if it is not already running (warns if the ./qdrant binary is missing)
+- Activates the virtual environment and prints your API key
+- Runs the backend with uvicorn on http://localhost:8000 in the foreground - Ctrl+C stops it
 
 ### Method 3: Advanced - Running Without Scripts
 
@@ -610,26 +484,56 @@ If you absolutely need multiple instances (not recommended), you must:
 
     cd ~/MAi-RAG-PA
 
-2. **Start Qdrant:**
+2. **Start Ollama and Qdrant (only if they are not already running):**
 
+    ollama serve &
     ./qdrant &
-
-3. **Start watchdog (optional):**
-
-    python3 watchdog.py &
-
-4. **Activate virtual environment:**
+3. **Activate virtual environment:**
 
     source venv/bin/activate
 
-5. **Set environment variables:**
+4. **Set environment variables:**
 
     export OLLAMA_URL="http://localhost:11434"
     export PYTHONPATH="$(pwd)"
 
-6. **Start backend:**
+5. **Start backend:**
 
     uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+-----------------------------------------------------------------------------------
+
+## Stopping MAi-RAG-P.A.
+
+### Method 1: Web UI
+
+**Click the Stop button in the header of the Web UI - it runs stop.sh for you.**
+
+### Method 2: Linux/macOS Terminal
+
+    cd ~/MAi-RAG-PA
+    ./stop.sh
+
+### Method 3: Windows
+
+**Close the launcher console window (or press Ctrl+C in it).**
+
+### Method 4: Manual Process Kill
+
+**Linux/macOS Manual:**
+
+    pkill -f "uvicorn app.main:app"
+    pkill -f "./qdrant"
+    pkill -f "ollama"
+
+**Windows:**
+
+    taskkill /F /IM uvicorn.exe
+    taskkill /F /IM qdrant.exe
+
+### Method 5: Ctrl+C
+
+If you started MAi-RAG-P.A. with start.sh in the foreground, press Ctrl+C to stop all services gracefully.
 
 -----------------------------------------------------------------------------------
 
@@ -654,7 +558,7 @@ If you absolutely need multiple instances (not recommended), you must:
     EOF
     chmod +x ~/Applications/MAi-RAG-PA.app/Contents/MacOS/MAi-RAG-PA
 
-**Now you can launch MAi-RAG-PA from ~/Applications or Spotlight.**
+**Now you can launch MAi-RAG-P.A. from ~/Applications or Spotlight.**
 
 -----------------------------------------------------------------------------------
 
@@ -662,34 +566,32 @@ If you absolutely need multiple instances (not recommended), you must:
 
 **Method 1: Batch File (Recommended)**
 
-After installation, Windows-specific batch files are created:
+After installation, Windows launcher files are created in the project folder:
 
-**Start MAi-RAG-PA:**
+**Start MAi-RAG-P.A.:**
 
     cd %USERPROFILE%\MAi-RAG-PA
-    start-windows.bat
+    launch.bat
 
 **What it does:**
-- Activates Python virtual environment
-- Starts Qdrant vector database
-- Starts FastAPI backend
-- Opens browser automatically
+- Activates the Python virtual environment
+- Starts Ollama and Qdrant if they are not already running
+- Opens your browser at http://localhost:8000
+- Runs the backend in the foreground
 
-**Stop MAi-RAG-PA:**
-
-    stop-windows.bat
+**Stop: close the launcher console window (or press Ctrl+C in it).**
 
 **Method 2: Create Desktop Shortcut**
 
-1. Navigate to your MAi-RAG-PA folder in File Explorer
-2. Right-click start-windows.bat
+1. Navigate to your MAi-RAG-P.A. folder in File Explorer
+2. Right-click launch.bat
 3. Select "Send to" → "Desktop (create shortcut)"
 4. Right-click the new shortcut → Properties
 5. Click "Change Icon"
 6. Browse to frontend\public\mai-rag-logo.png
 7. Click OK to apply
 
-**Now you can double-click the desktop icon to start MAi-RAG-PA.**
+**Now you can double-click the desktop icon to start MAi-RAG-P.A.**
 
 **Method 3: WSL Terminal**
 
@@ -700,42 +602,9 @@ After installation, Windows-specific batch files are created:
 
 -----------------------------------------------------------------------------------
 
-## Stopping MAi-RAG-PA
+## Updating MAi-RAG-P.A.
 
-### Method 1: Web UI
-
-**Click "Stop MAi-RAG-PA" button in the header in the WebUI**
-
-### Method 2: Linux/macOS Terminal
-
-    cd ~/MAi-RAG-PA
-    ./stop.sh
-
-### Method 3: Windows
-
-    stop-windows.bat
-
-### Method 4: Manual Process Kill
-
-**Linux/macOS Manual:**
-
-    pkill -f "uvicorn app.main:app"
-    pkill -f "watchdog.py"
-    pkill -f "./qdrant"
-    pkill -f "ollama"
-
-**Windows:**
-
-    taskkill /F /IM uvicorn.exe
-    taskkill /F /IM qdrant.exe
-
-### Method 5: Ctrl+C
-
-If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop all services gracefully.
-
------------------------------------------------------------------------------------
-
-## Updating MAi-RAG-PA
+### Update the Application
 
     cd ~/MAi-RAG-PA
 
@@ -758,34 +627,158 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
     npm run build
     cd ..
 
-**Restart MAi-RAG-PA:**
+**Restart MAi-RAG-P.A.:**
 
     ./stop.sh
     ./start.sh
 
 -----------------------------------------------------------------------------------
 
+## Environment Variables
+
+**MAi-RAG-P.A. is configured with environment variables. Priority, highest first: a real environment variable, then the .env file in the project root, then the built-in defaults (app/config.py).**
+
+### Core Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| OLLAMA_URL | http://localhost:11434 | Ollama API endpoint |
+| QDRANT_URL | http://localhost:6333 | Qdrant API endpoint |
+| PYTHONPATH | ~/MAi-RAG-PA | Python module path |
+
+### Optional Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| MAI_CONTEXT_WINDOW | 8192 | Context window size for chat |
+| MAI_RAG_TOP_K | 5 | Knowledge chunks retrieved per query |
+| MAI_EMBEDDING_MODEL | nomic-embed-text:latest | Embedding model - keep the default unless you know you need another |
+| MAI_BATCH_SIZE | 64 | Documents processed per ingestion batch |
+| MAI_ALLOW_REMOTE_AUTOKEY | unset | Set to 1 to let other devices fetch their API key (LAN only, see Accessing MAi-RAG-P.A. from Other Devices) |
+| CORS_ORIGINS | empty | Extra allowed browser origins, comma-separated - only needed when the UI is served from a different origin (reverse proxy) |
+
+### Setting Environment Variables
+
+**Method 1: Shell Profile (Recommended)**
+
+**Add to ~/.bashrc or ~/.zshrc:**
+
+    # MAi-RAG-PA Configuration
+    export OLLAMA_URL="http://localhost:11434"
+    export QDRANT_URL="http://localhost:6333"
+
+**Then reload:**
+
+    source ~/.bashrc  # or source ~/.zshrc
+
+**Method 2: .env File (optional - you create it)**
+
+**Create ~/MAi-RAG-PA/.env yourself (the installer does not create one):**
+
+    OLLAMA_URL=http://localhost:11434
+    QDRANT_URL=http://localhost:6333
+
+**Notes:**
+- Real environment variables always override .env values
+- `start.sh` sets `OLLAMA_URL` on every start, so an OLLAMA_URL from .env or your shell profile is ignored when you start with `./start.sh` - edit the `export OLLAMA_URL=...` line in start.sh instead
+- Plain `KEY=value`, no quotes or spaces; `#` starts a comment
+
+-----------------------------------------------------------------------------------
+
+## Configuration
+
+**There are no YAML/JSON configuration files - everything is set through environment variables (see Environment Variables above). Built-in defaults live in `app/config.py`.**
+
+### Where a Setting Comes From (highest priority wins)
+
+1. A real environment variable in the shell that starts the app
+2. `~/MAi-RAG-PA/.env` - if you created one
+3. The built-in defaults in `app/config.py`
+
+### Common Adjustments
+
+| Goal | How |
+|------|-----|
+| Different Ollama server | Edit the `export OLLAMA_URL=...` line in `start.sh` (it is set on every start) |
+| Different Qdrant server | `QDRANT_URL=http://host:6333` in `.env` or your shell profile |
+| Larger or smaller context window | `MAI_CONTEXT_WINDOW=4096` in `.env` or your shell profile |
+| Access from other devices | `MAI_ALLOW_REMOTE_AUTOKEY=1` - see Accessing MAi-RAG-P.A. from Other Devices below |
+| Different system prompt | Set it in the Web UI (prompt management); the built-in default is `DEFAULT_SYSTEM_PROMPT` in `app/agents/agent_core.py` |
+
+**Reset to defaults:** delete or rename `.env`, remove the `export` lines you added to your shell profile, then restart with `./stop.sh && ./start.sh`.
+-----------------------------------------------------------------------------------
+
+## Multiple Instances Warning
+
+**Running multiple instances of MAi-RAG-P.A. on the same machine is NOT recommended.**
+
+### Why Multiple Instances Cause Problems
+
+1. **Port Conflicts**: Multiple instances will try to bind to the same ports (8000, 11434, 6333)
+2. **Database Locks**: SQLite doesn't handle concurrent writes well from multiple processes
+3. **Resource Overload**: Each instance consumes significant RAM and CPU
+4. **Qdrant Conflicts**: Multiple Qdrant instances will conflict on port 6333
+5. **Data Corruption**: Concurrent access to the same database can corrupt data
+
+### If You Must Run Multiple Instances
+
+If you absolutely need multiple instances (not recommended), you must:
+
+1. **Use a Different App Port (the separate directories do the rest):**
+
+    # Instance 1 (normal start)
+    ./start.sh
+
+    # Instance 2 - shares Ollama and Qdrant, separate web port
+    cd ~/MAi-RAG-PA-instance2
+    OLLAMA_URL=http://localhost:11434 QDRANT_URL=http://localhost:6333 ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001
+2. **Use Separate Data Directories:**
+
+    # A full copy gets its own database, workspace and Qdrant storage
+    mkdir ~/MAi-RAG-PA-instance2
+    cp -r ~/MAi-RAG-PA/* ~/MAi-RAG-PA-instance2/
+
+    # Recreate the Python environment - a copied venv keeps the old paths and breaks
+    cd ~/MAi-RAG-PA-instance2
+    python3 -m venv venv
+    ./venv/bin/pip install -r requirements.txt
+3. **Monitor Resources:**
+
+    # Monitor RAM usage
+    watch -n 1 'free -h'
+
+    # Monitor CPU usage
+    htop
+
+**Note:** both instances share the one Ollama and the one Qdrant - the same models and the same knowledge base collections. A fully separate knowledge base needs a second Qdrant on its own port (advanced, not covered here).
+
+**Recommendation**: Use a single instance and leverage the multi-threaded chat system instead.
+
+-----------------------------------------------------------------------------------
+
 ## Firewall Configuration
 
-**MAi-RAG-PA requires specific ports to be open for full functionality. Configure your firewall according to your needs:**
+**MAi-RAG-P.A. requires specific ports to be open for full functionality. Configure your firewall according to your needs:**
 
 ### Required Ports
 
 | Port | Service | Protocol | Purpose | Required For |
 |------|---------|----------|---------|--------------|
-| 8000 | MAi-RAG-PA Web UI | TCP | Web interface access | LAN/Remote access |
-| 8001 | Watchdog Service | TCP | Start/Stop control | Web UI control buttons |
-| 11434 | Ollama | TCP | LLM inference API | Local operation |
-| 6333 | Qdrant | TCP | Vector database API | RAG features |
+| 8000 | MAi-RAG-P.A. Web UI | TCP | Web interface and API | Open for LAN/remote access |
+| 8001 | Second instance (optional) | TCP | Web port of a second copy | Only with multiple instances |
+| 11434 | Ollama | TCP | LLM inference API | Only when accessed from other machines |
+| 6333 | Qdrant | TCP | Vector database API | Only when accessed from other machines |
 | 22 | SSH | TCP | Remote access | SSH tunnel (optional) |
+
+**The Web UI Start/Stop buttons work over port 8000 - no extra port is needed for them.**
 
 ### UFW (Ubuntu/Debian)
 
-**Allow MAi-RAG-PA web interface (LAN access):**
+**Allow MAi-RAG-P.A. web interface (LAN access):**
 
     sudo ufw allow 8000/tcp
 
-**Allow Watchdog service (for WebUI control buttons)**
+**Allow a second instance (only if you run one):**
 
     sudo ufw allow 8001/tcp
 
@@ -811,11 +804,11 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 
 ### Firewalld (Fedora/RHEL/CentOS)
 
-**Allow MAi-RAG-PA web interface:**
+**Allow MAi-RAG-P.A. web interface:**
 
     sudo firewall-cmd --permanent --add-port=8000/tcp
 
-**Allow Watchdog service**
+**Allow a second instance (only if you run one):**
 
     sudo firewall-cmd --permanent --add-port=8001/tcp
 
@@ -843,8 +836,7 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 
 **For local-only use, you can restrict access to localhost:**
 
-# Only allow local connections (more secure)
-
+    # Only allow local connections (more secure)
     sudo ufw allow from 127.0.0.1 to any port 8000
     sudo ufw allow from 127.0.0.1 to any port 8001
     sudo ufw allow from 127.0.0.1 to any port 11434
@@ -852,11 +844,11 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 
 -----------------------------------------------------------------------------------
 
-## Accessing MAi-RAG-PA from Other Devices
+## Accessing MAi-RAG-P.A. from Other Devices
 
 ### Local Network Access (Same WiFi Network)
 
-1. **Find your computer's IP address that MAi-RAG-PA is running on:**
+1. **Find your computer's IP address that MAi-RAG-P.A. is running on:**
 
 **Linux/macOS:**
 
@@ -868,11 +860,18 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 
 **Look for something like 192.168.1.100**
 
-2. **On your tablet/phone (connected to same WiFi network):**
-   - Open browser
-   - Navigate to http://192.168.1.XX:8000 (replace XX with your computer's IP address suffix that MAi-RAG-PA is running on)
+2. **Let other devices fetch their API key (run on the computer running MAi-RAG-P.A.):**
 
-**That's it! No additional configuration needed.**
+   By default only the machine itself may fetch its key. Restart with:
+
+       MAI_ALLOW_REMOTE_AUTOKEY=1 ./start.sh
+
+   (or add `MAI_ALLOW_REMOTE_AUTOKEY=1` to `~/MAi-RAG-PA/.env` and restart with `./stop.sh && ./start.sh`)
+
+3. **On your tablet/phone (connected to the same WiFi network):**
+   - Open a browser and go to http://192.168.1.100:8000 - use the IP address you found in step 1
+
+**Security:** anyone on your network can now use your assistant. Do this only on networks you trust, and never expose port 8000 to the internet (see HTTPS/SSL below).
 
 -----------------------------------------------------------------------------------
 
@@ -901,7 +900,7 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 - Browser will show security warning
 - Not recommended for production
 
-**Security Warning**: Never expose MAi-RAG-PA directly to the internet over HTTP. Always use SSH tunnel or HTTPS.
+**Security Warning**: Never expose MAi-RAG-P.A. directly to the internet over HTTP. Always use SSH tunnel or HTTPS.
 
 -----------------------------------------------------------------------------------
 
@@ -933,6 +932,8 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 - Open browser on tablet/phone
 - Navigate to http://localhost:8000
 
+**No auto-key setting is needed with a tunnel: on the server the connection arrives from localhost, which is always allowed.**
+
 **See: [SSH & LAN](MAi-SSH-SETUP.md) for more detailed instructions.**
 
 -----------------------------------------------------------------------------------
@@ -959,18 +960,18 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
     └── manifests/       # Model metadata
         └── registry.ollama.ai/
             └── library/
-                └── qwen2.5-coder/
+                └── qwen2.5/
                     └── 7b
 
 ### Model Sizes (Approximate)
 
 | Model | Quantization | Size | RAM Required |
 |-------|--------------|------|--------------|
-| qwen2.5-coder:1.5b | q4_k_m | 1.1 GB | 2 GB |
+| qwen2.5:1.5b | q4_k_m | 1.1 GB | 2 GB |
 | llama3.2:3b | q4_k_m | 2.0 GB | 4 GB |
-| qwen2.5-coder:7b | q4_k_m | 4.4 GB | 8 GB |
-| qwen2.5-coder:14b | q4_k_m | 8.9 GB | 16 GB |
-| qwen2.5-coder:32b | q4_k_m | 20.2 GB | 32 GB |
+| qwen2.5:7b | q4_k_m | 4.4 GB | 8 GB |
+| qwen2.5:14b | q4_k_m | 8.9 GB | 16 GB |
+| qwen2.5:32b | q4_k_m | 20.2 GB | 32 GB |
 | llama3.3:70b | q4_k_m | 41.5 GB | 64 GB |
 
 ### Managing Models
@@ -981,11 +982,11 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 
 **Download a Model:**
 
-    ollama pull qwen2.5-coder:7b
+    ollama pull qwen2.5:7b
 
 **Remove a Model:**
 
-    ollama rm qwen2.5-coder:7b
+    ollama rm qwen2.5:7b
 
 **Check Disk Usage:**
 
@@ -1011,22 +1012,18 @@ If you started MAi-RAG-PA with start.sh in the foreground, press Ctrl+C to stop 
 
 **1. Use Smaller Models:**
 
-    # Recommended models for low-RAM systems
-    ollama pull qwen2.5-coder:1.5b  # 1GB RAM
-    ollama pull llama3.2:3b         # 2GB RAM
-    ollama pull granite3.1-moe:3b   # 2GB RAM
+    # Recommended chat models for low-RAM systems (what the installer suggests on 8 GB)
+    ollama pull qwen2.5:1.5b         # ~1-2 GB RAM
+    ollama pull qwen2.5:3b           # ~4 GB RAM
+    ollama pull llama3.2:3b          # alternative, ~4 GB RAM
 
 **2. Reduce Context Window:**
 
-Edit `~/MAi-RAG-PA/config/config.yaml`:
+Set a smaller window in `~/MAi-RAG-PA/.env` (the default is 8192):
 
-    context_window: 2048  # Reduce from 4096
+    MAI_CONTEXT_WINDOW=2048
 
-**3. Limit Concurrent Operations:**
-
-    export MAI_MAX_WORKERS=2  # Reduce from 4
-
-**4. Use Swap Space:**
+**3. Use Swap Space:**
 
     # Create 4GB swap file
     sudo fallocate -l 4G /swapfile
@@ -1087,7 +1084,7 @@ Ollama supports different quantization levels:
 **Use Specific Quantization:**
 
     # Pull specific quantization
-    ollama pull qwen2.5-coder:7b-q5_k_m
+    ollama pull qwen2.5:7b-q5_k_m
 
     # Check available quantizations
     ollama list
@@ -1100,109 +1097,6 @@ Ollama supports different quantization levels:
 | q5_k_m | Medium | Better | Medium |
 | q8_0 | Slow | Best | High |
 | f16 | Very Slow | Perfect | Very High |
-
------------------------------------------------------------------------------------
-
-## Common Error Messages
-
-### Error: "Port 8000 already in use"
-
-**Cause**: Another process is using port 8000
-
-**Solution:**
-
-    # Find what's using the port
-    lsof -i :8000
-
-    # Kill the process
-    pkill -f "uvicorn app.main:app"
-
-    # Or use a different port
-    export MAI_PORT=8001
-    ./start.sh
-
-### Error: "Ollama connection refused"
-
-**Cause**: Ollama is not running
-
-**Solution:**
-
-    # Start Ollama
-    ollama serve &
-
-    # Verify it's running
-    curl http://localhost:11434/api/tags
-
-    # If using systemd
-    sudo systemctl start ollama
-
-### Error: "Qdrant connection refused"
-
-**Cause**: Qdrant is not running
-
-**Solution:**
-
-    # Start Qdrant
-    cd ~/MAi-RAG-PA
-    ./qdrant &
-
-    # Verify it's running
-    curl http://localhost:6333/
-
-    # Check logs
-    cat qdrant.log
-
-### Error: "ModuleNotFoundError: No module named 'fastapi'"
-
-**Cause**: Python dependencies not installed
-
-**Solution:**
-
-    # Activate virtual environment
-    source venv/bin/activate
-
-    # Install dependencies
-    pip install -r requirements.txt
-
-    # Or run first_launch.py
-    python3 first_launch.py
-
-### Error: "Permission denied: './start.sh'"
-
-**Cause**: Script is not executable
-
-**Solution:**
-
-    chmod +x start.sh stop.sh install.sh
-    chmod +x qdrant
-
-### Error: "CUDA out of memory"
-
-**Cause**: GPU doesn't have enough VRAM for the model
-
-**Solution:**
-
-    # Use a smaller model
-    ollama pull qwen2.5-coder:7b  # Instead of 14b or 32b
-
-    # Or use CPU-only mode
-    export OLLAMA_NUM_GPU=0
-
-### Error: "Database is locked"
-
-**Cause**: Multiple processes trying to write to SQLite database
-
-**Solution:**
-
-    # Stop all MAi-RAG-PA instances
-    ./stop.sh
-    pkill -f "uvicorn app.main:app"
-
-    # Wait a few seconds
-    sleep 3
-
-    # Start again
-    ./start.sh
 
 -----------------------------------------------------------------------------------
 
@@ -1291,6 +1185,12 @@ Ollama supports different quantization levels:
 
 ## Troubleshooting
 
+**Work top to bottom:**
+
+1. **System Doctor** - Assistant Settings -> System Doctor checks Ollama, Qdrant, the database, the workspace, the frontend build, disk space and Python dependencies.
+2. **Restart cleanly** - `./stop.sh` then `./start.sh`.
+3. **Check the output** - terminal messages first; Qdrant startup failures are logged to `/tmp/qdrant.log`.
+
 ### Installation Issues
 
 **Issue: "Command not found: python3"**
@@ -1331,6 +1231,105 @@ Ollama supports different quantization levels:
 
 -----------------------------------------------------------------------------------
 
+### Startup Errors
+
+### Error: "Port 8000 already in use"
+
+**Cause**: Another process is using port 8000
+
+**Solution:**
+
+    # Find what's using the port
+    lsof -i :8000
+
+    # Stop MAi-RAG-PA cleanly, wait, start again
+    ./stop.sh
+    sleep 2
+    ./start.sh
+
+**Another program owns port 8000?** Run the backend on any free port and open that address instead:
+
+    ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
+
+`start.sh` itself always uses port 8000.
+
+**Issue: start.sh says "Ollama is not running"**
+
+**Start Ollama:**
+
+    ollama serve &
+
+**Verify it's running:**
+
+    curl http://localhost:11434/api/tags
+
+**Then try start.sh again:**
+
+    ./start.sh
+
+**Issue: Qdrant fails to start**
+
+**Check if Qdrant binary exists:**
+
+    ls -lh ./qdrant
+
+**Make it executable:**
+
+    chmod +x ./qdrant
+
+**Check logs:**
+
+    cat /tmp/qdrant.log
+
+**Try starting manually:**
+
+    ./qdrant &
+
+### Error: "ModuleNotFoundError: No module named 'fastapi'"
+
+**Cause**: Python dependencies not installed
+
+**Solution:**
+
+    # Activate virtual environment
+    source venv/bin/activate
+
+    # Install dependencies
+    pip install -r requirements.txt
+
+    # Or run first_launch.py
+    python3 first_launch.py
+
+### Error: "CUDA out of memory"
+
+**Cause**: GPU doesn't have enough VRAM for the model
+
+**Solution:**
+
+    # Use a smaller model
+    ollama pull qwen2.5:7b  # Instead of 14b or 32b
+
+    # Or use CPU-only mode
+    export OLLAMA_NUM_GPU=0
+
+### Error: "Database is locked"
+
+**Cause**: Multiple processes trying to write to SQLite database
+
+**Solution:**
+
+    # Stop all MAi-RAG-PA instances
+    ./stop.sh
+    pkill -f "uvicorn app.main:app"
+
+    # Wait a few seconds
+    sleep 3
+
+    # Start again
+    ./start.sh
+
+-----------------------------------------------------------------------------------
+
 ### Runtime Issues
 
 **Issue: Desktop icon doesn't appear in application menu**
@@ -1356,21 +1355,7 @@ Ollama supports different quantization levels:
 **Should be absolute path like:**
 **Icon=/home/username/MAi-RAG-PA/frontend/public/mai-rag-logo.png**
 
-**Issue: start.sh says "Ollama is not running"**
-
-**Start Ollama:**
-
-    ollama serve &
-
-**Verify it's running:**
-
-    curl http://localhost:11434/api/tags
-
-**Then try start.sh again:**
-
-    ./start.sh
-
-**Issue: MAi-RAG-PA won't start**
+**Issue: MAi-RAG-P.A. won't start**
 
 **Check the following:**
 
@@ -1386,7 +1371,7 @@ Ollama supports different quantization levels:
 
     python3 --version
 
-**(Must be 3.12 or higher)**
+**(must be 3.10-3.12, 3.12 recommended)**
 
 **3. Check Node.js version:**
 
@@ -1394,7 +1379,7 @@ Ollama supports different quantization levels:
 
 **(Must be 20 or higher)**
 
-**4. Run System Doctor from Assistant Settings in the MAi-RAG-PA WebUI**
+**4. Run System Doctor from Assistant Settings in the MAi-RAG-P.A. WebUI**
 
 **Issue: start.sh says "Virtual environment not found"**
 
@@ -1408,24 +1393,6 @@ Ollama supports different quantization levels:
     source venv/bin/activate
     pip install -r requirements.txt
 
-**Issue: Qdrant fails to start**
-
-**Check if Qdrant binary exists:**
-
-    ls -lh ./qdrant
-
-**Make it executable:**
-
-    chmod +x ./qdrant
-
-**Check logs:**
-
-    cat ~/MAi-RAG-PA/qdrant.log
-
-**Try starting manually:**
-
-    ./qdrant &
-
 **Issue: Backend won't start after git pull**
 
 **Dependencies may have changed:**
@@ -1436,21 +1403,6 @@ Ollama supports different quantization levels:
 
     source venv/bin/activate
     pip install -r requirements.txt
-
-**Issue: Port 8000 already in use**
-
-**Find what's using the port:**
-
-    lsof -i :8000
-
-**Kill the process:**
-
-    pkill -f "uvicorn app.main:app"
-
-**Wait a moment, then try again:**
-
-    sleep 2
-    ./start.sh
 
 **Issue: Slow response times**
 
@@ -1467,32 +1419,11 @@ Ollama supports different quantization levels:
 
 2. Pull a model:
 
-    ollama pull qwen2.5-coder:7b
+    ollama pull qwen2.5:7b
 
-3. Restart MAi-RAG-PA:
+3. Restart MAi-RAG-P.A.:
 
     ./stop.sh && ./start.sh
-
-**Issue: Ollama connection refused**
-
-**Start Ollama:**
-
-    ollama serve &
-
-**Verify it's running:**
-
-    curl http://localhost:11434/api/tags
-
-**Issue: Qdrant not available**
-
-**Start Qdrant manually:**
-
-    cd ~/MAi-RAG-PA
-    ./qdrant &
-
-**Verify it's running:**
-
-    curl http://localhost:6333/
 
 **Issue: Voice transcription fails**
 
@@ -1517,6 +1448,15 @@ Ollama supports different quantization levels:
 **Issue: Verification rejects valid content**
 
 Review app/agents/verifier.py rules and adjust heuristics for your use case.
+
+-----------------------------------------------------------------------------------
+
+### Still Not Working?
+
+- System Doctor's JSON report (Assistant Settings) has the detailed findings
+- [GitHub Issues](https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues) - search before opening a new one
+- [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
+- Email: MAi-RAG-PA@proton.me
 
 -----------------------------------------------------------------------------------
 
@@ -1545,13 +1485,13 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 
 ### What to Back Up
 
-**MAi-RAG-PA stores important data in several locations:**
+**MAi-RAG-P.A. stores important data in several locations:**
 
 | Data Type | Location | Description |
 |-----------|----------|-------------|
-| SQLite Database | ~/MAi-RAG-PA/data/mai.db | Chat history, calendar, tasks, user preferences |
-| Qdrant Collections | ~/MAi-RAG-PA/qdrant_storage/ | Vector embeddings for RAG knowledge base |
-| Configuration | ~/MAi-RAG-PA/config/ | System prompts, settings, API keys |
+| SQLite Database | ~/MAi-RAG-PA/memory/memory_store.db | Chat history, calendar, tasks, user preferences |
+| Qdrant Collections | ~/MAi-RAG-PA/storage/ | Vector embeddings for RAG knowledge base |
+| Environment file | ~/MAi-RAG-PA/.env | Your settings, only if you created one |
 | Workspace | ~/MAi-RAG-PA/workspace/ | Generated files, notes, documents |
 | Ollama Models | ~/.ollama/models/ | Downloaded AI models (large, optional) |
 
@@ -1578,15 +1518,15 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 
     # Backup SQLite database
     echo "Backing up database..."
-    cp ~/MAi-RAG-PA/data/mai.db "$BACKUP_DIR/$BACKUP_NAME/"
+    cp -r ~/MAi-RAG-PA/memory "$BACKUP_DIR/$BACKUP_NAME/"
 
     # Backup Qdrant storage
     echo "Backing up Qdrant collections..."
-    cp -r ~/MAi-RAG-PA/qdrant_storage "$BACKUP_DIR/$BACKUP_NAME/"
+    cp -r ~/MAi-RAG-PA/storage "$BACKUP_DIR/$BACKUP_NAME/"
 
     # Backup configuration
-    echo "Backing up configuration..."
-    cp -r ~/MAi-RAG-PA/config "$BACKUP_DIR/$BACKUP_NAME/"
+    echo "Backing up .env (if present)..."
+    [ -f ~/MAi-RAG-PA/.env ] && cp ~/MAi-RAG-PA/.env "$BACKUP_DIR/$BACKUP_NAME/"
 
     # Backup workspace
     echo "Backing up workspace..."
@@ -1643,15 +1583,15 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
     BACKUP_DIR=$(basename "$BACKUP_FILE" .tar.gz)
 
     echo "Restoring database..."
-    cp /tmp/$BACKUP_DIR/mai.db ~/MAi-RAG-PA/data/
+    rm -rf ~/MAi-RAG-PA/memory
+    cp -r /tmp/$BACKUP_DIR/memory ~/MAi-RAG-PA/
 
     echo "Restoring Qdrant collections..."
-    rm -rf ~/MAi-RAG-PA/qdrant_storage
-    cp -r /tmp/$BACKUP_DIR/qdrant_storage ~/MAi-RAG-PA/
+    rm -rf ~/MAi-RAG-PA/storage
+    cp -r /tmp/$BACKUP_DIR/storage ~/MAi-RAG-PA/
 
-    echo "Restoring configuration..."
-    rm -rf ~/MAi-RAG-PA/config
-    cp -r /tmp/$BACKUP_DIR/config ~/MAi-RAG-PA/
+    echo "Restoring environment file (if it was backed up)..."
+    [ -f /tmp/$BACKUP_DIR/.env ] && cp /tmp/$BACKUP_DIR/.env ~/MAi-RAG-PA/
 
     echo "Restoring workspace..."
     rm -rf ~/MAi-RAG-PA/workspace
@@ -1717,9 +1657,11 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 
 -----------------------------------------------------------------------------------
 
-## Uninstalling MAi-RAG-PA
+## Uninstalling MAi-RAG-P.A.
 
-**To completely remove MAi-RAG-PA:**
+**Warning: this permanently deletes your local data too - chat history, knowledge base and generated files. Create a backup first (see Data Backup and Restore) if you want to keep anything.**
+
+**To completely remove MAi-RAG-P.A.:**
 
 **Stop all services:**
 
@@ -1731,19 +1673,15 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
     rm ~/.local/share/applications/MAi-RAG-PA.desktop
     update-desktop-database ~/.local/share/applications/
 
-**Remove MAi-RAG-PA directory:**
+**Remove MAi-RAG-P.A. directory:**
 
     cd ~
     rm -rf ~/MAi-RAG-PA
 
-**Optional: Remove Ollama:**
+**Optional: Remove Ollama and its models:**
 
     sudo rm /usr/local/bin/ollama
     rm -rf ~/.ollama
-
-**Optional: Remove Ollama models:**
-
-    rm -rf ~/.ollama/models
 
 -----------------------------------------------------------------------------------
 
@@ -1758,8 +1696,6 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 5. Join discussions - [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
 
 -----------------------------------------------------------------------------------
-
-## Documentation
 
 ## Documentation
 
@@ -1779,24 +1715,24 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 
 -----------------------------------------------------------------------------------
 
-## 💝 Support MAi-RAG-PA
+## Support MAi-RAG-P.A.
 
-MAi-RAG-PA is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
+MAi-RAG-P.A. is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
 
-MAi-RAG-PA is free for personal use. If you find it valuable, donations are greatly appreciated:
+MAi-RAG-P.A. is free for personal use. If you find it valuable, donations are greatly appreciated:
 
-- **PayPal**: <a href="https://www.paypal.com/ncp/payment/GSTCK29MSGCH4">Grateful for your Contributions</a>
+- **Stripe**: <a href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601">Grateful for your Contributions</a>
 
-Every donation helps keep MAi-RAG-PA free and continuously improving.
+Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 
 **Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
 
 -----------------------------------------------------------------------------------
 
 <p align="center">
-  <strong>MAi-RAG-PA — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
+  <strong>MAi-RAG-P.A. — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
 </p>
 
 <p align="center">
-  Version 1.0.0 | Released June 2026
+  Version 2.0.0 | Updated October 2026
 </p>

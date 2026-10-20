@@ -52,7 +52,7 @@ const cleanAIResponse = (text: string): string => {
 
 const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showToast }) => {
   const isMobile = useIsMobile();
-  const [citationsEnabled, setCitationsEnabled] = useState(true);
+  const [citationsEnabled, setCitationsEnabled] = useState(false);
   const [loadingHint, setLoadingHint] = useState<string>('');
 
   const [threads, setThreads] = useState<ChatThread[]>([]);
@@ -65,7 +65,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
   const [isRecording, setIsRecording] = useState(false);
   const [isLoadingThreads, setIsLoadingThreads] = useState(true);
   const [isRefreshingResources, setIsRefreshingResources] = useState(false);
-  const [ltmEnabled, setLtmEnabled] = useState(false);
+  const [ltmEnabled, setLtmEnabled] = useState(true);
   const [roles, setRoles] = useState<Role[]>([]);
   const [activeRoleId, setActiveRoleId] = useState<string>('');
   const [rolesModalOpen, setRolesModalOpen] = useState(false);
@@ -105,7 +105,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
     const wsUrl = `ws://${window.location.host}/ws`;
     const ws = new WebSocket(wsUrl);
     ws.onopen = () => {
-      console.log('✅ WebSocket connected to', wsUrl);
+      console.debug('✅ WebSocket connected to', wsUrl);
       heartbeatIntervalRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'ping' }));
@@ -116,14 +116,14 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'ingest_progress') {
-          console.log('📡 Ingest Progress:', data);
+          console.debug('📡 Ingest Progress:', data);
         } else if (data.type === 'ingest_complete') {
-          console.log('✅ Ingest complete:', data);
+          console.debug('✅ Ingest complete:', data);
           showToast(`✓ ${data.total_chunks} chunks from ${data.files_processed} file(s)`);
         } else if (data.type === 'notification') {
           showToast(`${data.title}: ${data.message}`);
         } else if (data.type === 'heartbeat') {
-          console.log('💓 Heartbeat:', data.status);
+          console.debug('💓 Heartbeat:', data.status);
         } else if (data.type === 'pong') {
           // Backend acknowledged ping
         }
@@ -132,7 +132,7 @@ const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showTo
       }
     };
     ws.onclose = () => {
-      console.log('⚠️ WebSocket disconnected, reconnecting in 5s...');
+      console.debug('⚠️ WebSocket disconnected, reconnecting in 5s...');
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
     };
@@ -358,7 +358,7 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
   // Fire a warmup request in the background. Non-blocking; ignore failures.
   apiClient
     .post('/api/models/warmup', { model: newModel }, { timeout: 240000 })
-    .then(() => console.log(`🔥 Model warmed: ${newModel}`))
+    .then(() => console.debug(`🔥 Model warmed: ${newModel}`))
     .catch((err: any) => console.warn(`🔥 Warmup failed (non-fatal):`, err?.message));
 
   const makeDefault = window.confirm(`Set "${newModel}" as your default model?`);
@@ -421,14 +421,14 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
       setThreads(threadsWithMessages);
       const savedThreadId = localStorage.getItem('mai-rag-current-thread-id');
       if (savedThreadId && threadsWithMessages.some(t => t.id === savedThreadId)) {
-        console.log("✅ Restored active thread from localStorage:", savedThreadId);
+        console.debug("✅ Restored active thread from localStorage:", savedThreadId);
         setCurrentThreadId(savedThreadId);
       } else if (threadsWithMessages.length > 0) {
-        console.log("⚠️ Saved thread not found, falling back to first available:", threadsWithMessages[0].id);
+        console.debug("⚠️ Saved thread not found, falling back to first available:", threadsWithMessages[0].id);
         setCurrentThreadId(threadsWithMessages[0].id);
         localStorage.setItem('mai-rag-current-thread-id', threadsWithMessages[0].id);
       } else {
-        console.log("🆕 No threads exist, creating new one.");
+        console.debug("🆕 No threads exist, creating new one.");
         await createNewThread();
       }
     } catch (err) {
@@ -438,7 +438,7 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
       if (!savedThreadId) {
         await createNewThread();
       } else {
-        console.log("🔄 Backend fetch failed, but trusting localStorage ID:", savedThreadId);
+        console.debug("🔄 Backend fetch failed, but trusting localStorage ID:", savedThreadId);
         setCurrentThreadId(savedThreadId);
       }
     } finally {
@@ -624,9 +624,9 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
   };
 
   const sendMessage = async () => {
-    console.log("SEND MESSAGE TRIGGERED");
-    console.log("currentThreadId is:", currentThreadId);
-    console.log("input is:", input);
+    console.debug("SEND MESSAGE TRIGGERED");
+    console.debug("currentThreadId is:", currentThreadId);
+    console.debug("input is:", input);
 
     if (!input.trim() || isLoading) return;
     if (!currentThreadId) {
@@ -634,7 +634,7 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
       return;
     }
 
-    console.log("📤 SENDING MESSAGE with thread_id:", currentThreadId);
+    console.debug("📤 SENDING MESSAGE with thread_id:", currentThreadId);
 
     abortControllerRef.current = new AbortController();
     const extractedFilename = extractFilename(input);
@@ -649,7 +649,7 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
           reader.readAsDataURL(selectedFile);
         });
         fileBase64 = dataUrl.split(',')[1];
-        console.log(`📎 File loaded: ${selectedFile.name} (${selectedFile.size} bytes)`);
+        console.debug(`📎 File loaded: ${selectedFile.name} (${selectedFile.size} bytes)`);
       } catch (err) {
         console.error('Failed to read file:', err);
         showToast('Failed to read file: ' + (err instanceof Error ? err.message : 'Unknown error'));

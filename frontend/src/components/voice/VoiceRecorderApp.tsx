@@ -1,12 +1,12 @@
 // src/components/voice/VoiceRecorder.tsx
 import React, { useEffect, useState, useRef } from "react";
+import apiClient from "../../api/client";
 
 interface VoiceRecorderProps {
   onTranscribe: (transcript: string) => void;
-  autoInsert?: boolean;
 }
 
-const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscribe, autoInsert = false }) => {
+const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscribe }) => {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -55,23 +55,19 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onTranscribe, autoInsert 
         formData.append("file", blob, "voice.webm");
 
         try {
-          const res = await fetch("/voice/transcribe", {
-            method: "POST",
-            body: formData,
+          const res = await apiClient.post("/api/voice/transcribe", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
           });
 
-          if (!res.ok) throw new Error("Transcription failed");
-
-          const data = await res.json();
-          if (data.transcript) {
-            if (autoInsert) {
-              onTranscribe(data.transcript);
-            }
+          const data = res.data;
+          if (data.text) {
+            onTranscribe(data.text);
           } else {
             alert("No speech detected.");
           }
-        } catch {
-          alert("Voice endpoint expects WAV in your backend. Add browser-side conversion or accept webm.");
+        } catch (e) {
+          const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+          alert(`Transcription failed: ${detail || (e instanceof Error ? e.message : "unknown error")}`);
         } finally {
           stopStreamTracks();
         }

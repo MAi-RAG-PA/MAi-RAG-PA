@@ -1,0 +1,27 @@
+MAi-RAG-PA — Proprietary License
+
+Copyright (c) 2026 MAi-RAG-PA. All Rights Reserved.
+
+This repository contains proprietary software. No part of this codebase may
+be copied, distributed, modified, or used without express permission from the
+copyright holder, except as explicitly permitted in:
+
+    MAi-LICENCE-LEGAL-NOTICE.md
+
+which is incorporated by reference and constitutes the full license terms of
+this project.
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+This project depends on third-party packages distributed under their own
+licenses, listed in requirements.txt and frontend/package.json. One
+dependency carries obligations relevant to deployments:
+
+- PyMuPDF (pymupdf) — GNU Affero General Public License v3.0 (AGPL-3.0):
+  https://www.gnu.org/licenses/agpl-3.0.html
+  Used for PDF parsing in app/documents/parser.py. Hosting or network
+  service deployments trigger the AGPL-3.0 terms for this component.
+  Commercial licensing questions: MAi-RAG-PA@proton.me (see
+  MAi-LICENCE-LEGAL-NOTICE.md).

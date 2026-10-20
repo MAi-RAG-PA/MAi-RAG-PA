@@ -15,6 +15,7 @@ Usage:
   ./super_audit.py --model qwen3:30b-a3b  # Override model selection
 
 """
+
 import json
 import os
 import re
@@ -76,7 +77,9 @@ def scan_static(filepath: Path) -> Dict:
         # debug prints
         if filepath.suffix == ".py":
             debug_count = sum(
-                1 for l in lines if "print(" in l and not l.strip().startswith("#")
+                1
+                for l in lines
+                if "print(" in l and not l.strip().startswith("#")  # noqa: T201
             )
         else:  # .ts, .tsx, .js
             debug_count = sum(
@@ -492,19 +495,21 @@ def trigger_self_healing(recommendations: str) -> None:
         sys.path.insert(0, str(PROJECT_ROOT))
         from app.agents.agent_core import process_request
     except ImportError:
-        print("⚠️ agent_core not available – self‑healing skipped.")
+        print("⚠️ agent_core not available – self‑healing skipped.")  # noqa: T201
         return
 
-    print("\n🧠 Triggering Self‑Healing System...")
+    print("\n🧠 Triggering Self‑Healing System...")  # noqa: T201
     query = f"""Based on the audit recommendations below, apply fixes to the relevant files using the self‑healing protocol: read live code, write fixes to sandbox, and generate a change log.
 
 Recommendations:
 {recommendations}
 """
-    print("   Sending request to self‑healing system...")
+    print("   Sending request to self‑healing system...")  # noqa: T201
     result = process_request(user_query=query, filename=None, model=None)
-    print(f"   Self‑healing response: {result.get('message', 'Done')}")
-    print("   Check the sandbox at ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/ for changes.")
+    print(f"   Self‑healing response: {result.get('message', 'Done')}")  # noqa: T201
+    print(  # noqa: T201
+        "   Check the sandbox at ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/ for changes."
+    )  # noqa: T201
 
 
 # =============================================================================
@@ -524,25 +529,25 @@ def main():
     parser.add_argument("--model", type=str, help="Override LLM model")
     args = parser.parse_args()
 
-    print("🔍 Super Audit starting...")
-    print("  1. Static scan (Python/TS/JS)...")
+    print("🔍 Super Audit starting...")  # noqa: T201
+    print("  1. Static scan (Python/TS/JS)...")  # noqa: T201
     static = run_static_scan()
-    print(f"     Scanned {len(static)} files.")
+    print(f"     Scanned {len(static)} files.")  # noqa: T201
 
-    print("  2. Runtime integration checks...")
+    print("  2. Runtime integration checks...")  # noqa: T201
     runtime = run_runtime_checks()
-    print(f"     Found {len(runtime)} runtime issues.")
+    print(f"     Found {len(runtime)} runtime issues.")  # noqa: T201
 
-    print("  3. React frontend audit...")
+    print("  3. React frontend audit...")  # noqa: T201
     react_report = run_react_audit()
-    print(f"     React audit complete.")
+    print(f"     React audit complete.")  # noqa: T201
 
-    print("  4. Building project summary...")
+    print("  4. Building project summary...")  # noqa: T201
     summary = build_project_summary(static, runtime, react_report)
 
     with open(AUDIT_REPORT_JSON, "w") as f:
         json.dump(summary, f, indent=2)
-    print(f"   JSON report saved to {AUDIT_REPORT_JSON}")
+    print(f"   JSON report saved to {AUDIT_REPORT_JSON}")  # noqa: T201
 
     # Build markdown report
     md_lines = [
@@ -579,13 +584,13 @@ def main():
     md_lines.append(f"- Duplicate file groups: {len(react.get('duplicate_files', []))}")
 
     if not args.no_llm:
-        print("  5. LLM analysis...")
+        print("  5. LLM analysis...")  # noqa: T201
         model = args.model or get_best_model()
-        print(f"     Using model: {model}")
+        print(f"     Using model: {model}")  # noqa: T201
         analysis = llm_analyze(summary, model)
         md_lines.append("\n## LLM Recommendations")
         md_lines.append(analysis)
-        print("   LLM analysis complete.")
+        print("   LLM analysis complete.")  # noqa: T201
         if args.fix:
             trigger_self_healing(analysis)
     else:
@@ -593,7 +598,7 @@ def main():
 
     with open(args.output, "w") as f:
         f.write("\n".join(md_lines))
-    print(f"✅ Full report saved to {args.output}")
+    print(f"✅ Full report saved to {args.output}")  # noqa: T201
 
 
 if __name__ == "__main__":

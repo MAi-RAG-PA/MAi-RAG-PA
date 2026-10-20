@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import viteImagemin from 'vite-plugin-imagemin';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     viteImagemin({
@@ -19,6 +19,10 @@ export default defineConfig({
       }
     })
   ],
+  // Strip console.* and debugger from PRODUCTION bundles only.
+  // (This used to sit inside `build`, where Vite ignores it, so debug logs shipped in dist.
+  // Gated on `command` so `npm run dev` keeps console output for troubleshooting.)
+  ...(command === 'build' && { esbuild: { drop: ['console', 'debugger'] } }),
   build: {
     rollupOptions: {
       output: {
@@ -30,9 +34,6 @@ export default defineConfig({
       }
     },
     minify: 'esbuild',
-    esbuild: {
-      drop: ['console', 'debugger']
-    },
     sourcemap: false,
     chunkSizeWarningLimit: 1000
   },
@@ -46,4 +47,4 @@ export default defineConfig({
       '/system_prompt': 'http://localhost:8000'
     }
   }
-});
+}));

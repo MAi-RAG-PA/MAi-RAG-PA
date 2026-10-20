@@ -34,7 +34,7 @@ class RAGCore:
             self.vector_size,
         )
 
-        self.client = QdrantClient(host="localhost", port=6333)
+        self.client = QdrantClient(url=Config.QDRANT_URL)  # MAI-PATCH config.py v1
         self._ensure_collection()
 
     def _embed(self, text: str) -> Optional[List[float]]:
@@ -147,9 +147,27 @@ class RAGCore:
         if vector is None:
             return []
 
-        results = self.client.search(
-            collection_name=self.collection_name,
-            query_vector=vector,
-            limit=limit,
-        )
+        results = self._search_points(vector, limit)
         return [r.payload.get("text", "") for r in results]
+
+    def _search_points(self, vector: list, limit: int):
+        """Vector search via query_points, with the legacy search() as fallback.
+
+        qdrant-client >= 1.12 removed client.search(); the installed 1.19.1 made every
+        /api/rag/query a 500 until this mirrored qdrant_manager's dual-API pattern.
+        """
+        try:
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=vector,
+                limit=limit,
+                with_payload=True,
+            )
+            return response.points
+        except AttributeError:
+            return self.client.search(
+                collection_name=self.collection_name,
+                query_vector=vector,
+                limit=limit,
+                with_payload=True,
+            )

@@ -99,23 +99,17 @@ if [ $READY -eq 1 ]; then
     echo "Opening Web UI..."
     if [[ "$OSTYPE" == "darwin"* ]]; then
         open http://localhost:8000
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        xdg-open http://localhost:8000 || sensible-browser http://localhost:8000 || true
     fi
 else
     echo "⚠️  Backend did not respond within ${MAX_WAIT}s"
     echo "    Opening browser anyway — you may need to refresh manually."
     if [[ "$OSTYPE" == "darwin"* ]]; then
         open http://localhost:8000
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        xdg-open http://localhost:8000 || sensible-browser http://localhost:8000 || true
     fi
 fi
 
 echo ""
-echo "MAi-RAG-PA is ready!"
-echo "   Close this window to STOP the application."
-echo "================================================"
+echo "MAi-RAG-P.A. is ready! Open Your Browser and Type this in the address bar: http://localhost:8000"
 
 # ============================================================
 # 7. Bring backend to foreground (blocks until Ctrl+C)

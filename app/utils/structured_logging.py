@@ -3,6 +3,7 @@
 Structured logging configuration for MAi-RAG.
 Outputs JSON logs in production, colored console logs in development.
 """
+
 import logging
 import sys
 

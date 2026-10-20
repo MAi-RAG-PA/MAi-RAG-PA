@@ -3,6 +3,7 @@
 Prometheus metrics for MAi-RAG-PA.
 Tracks request volume, latency, model usage, and errors.
 """
+
 from time import perf_counter
 
 from fastapi import Request, Response

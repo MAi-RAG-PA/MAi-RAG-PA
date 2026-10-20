@@ -239,7 +239,9 @@ def verify_content(
         dict with 'valid' (bool) and 'message' (str) keys.
     """
     if workspace is None:
-        workspace = Path.home() / "MAi-RAG-PA" / "workspace"
+        workspace = (
+            Path(__file__).resolve().parents[2] / "workspace"
+        )  # MAI-PATCH agent_core.py v1
 
     verifier = ContentVerifier(workspace)
     return verifier.verify_file(filename, content)

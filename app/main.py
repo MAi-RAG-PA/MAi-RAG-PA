@@ -15,18 +15,23 @@ os.environ["SENTENCE_TRANSFORMERS_HOME"] = str(
 
 import asyncio
 import hashlib
+import ipaddress
 import json
 import logging
 import re
+import secrets
 import shutil
+import sqlite3
 import subprocess
+import threading
 import urllib.request
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 # Now import everything else
 from typing import Any, List, Optional
+from urllib.parse import urlparse
 
 import ollama
 import psutil
@@ -76,6 +81,40 @@ WORKSPACE_PATH = PROJECT_ROOT / "workspace"
 WORKSPACE_PATH.mkdir(parents=True, exist_ok=True)
 DB_PATH = PROJECT_ROOT / "memory" / "memory_store.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+# Single source of truth for the Ollama endpoint (MAI_OLLAMA_URL, see app/config.py)
+OLLAMA_BASE_URL = Config.OLLAMA_URL.rstrip("/")
+# MAI-PATCH main.py v3: honours Config.QDRANT_URL once config.py defines it, else the local default.
+QDRANT_BASE_URL = getattr(Config, "QDRANT_URL", "http://127.0.0.1:6333").rstrip("/")
+
+# --- MAI-PATCH main.py v2 helpers ---------------------------------------------
+_sqlite_manager_lock = threading.Lock()
+
+
+def _ollama_get_json(path: str, timeout: float) -> dict:
+    """Blocking GET against the Ollama API. From async code: await asyncio.to_thread(...)."""
+    req = urllib.request.Request(f"{OLLAMA_BASE_URL}{path}", method="GET")
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        return json.loads(response.read().decode())
+
+
+def _http_get_ok(url: str, timeout: float) -> None:
+    """Blocking GET that raises on failure (reachability probe). Use via asyncio.to_thread."""
+    with urllib.request.urlopen(
+        urllib.request.Request(url, method="GET"), timeout=timeout
+    ):
+        pass
+
+
+def _parse_iso_local(value) -> datetime:
+    """Parse an ISO-8601 string into naive LOCAL time -- the format the planner stores.
+
+    'Z' and explicit offsets are converted to local time; naive values are taken as local.
+    (Mixing aware and naive datetimes raises TypeError, which the heartbeat swallowed,
+    so a reminder stored as '...+00:00' silently never fired.)
+    """
+    dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return dt.astimezone().replace(tzinfo=None) if dt.tzinfo is not None else dt
+
 
 # =============================================================================
 # Failsafe Responses
@@ -147,7 +186,9 @@ async def _phase1_chunk_text_to_disk(
     file_cache_dir = cache_dir / safe_source
     file_cache_dir.mkdir(parents=True, exist_ok=True)
 
-    chunks = chunk_text(text, max_words=chunk_size, overlap_sentences=2)
+    chunks = await asyncio.to_thread(
+        chunk_text, text, max_words=chunk_size, overlap_sentences=2
+    )
     if not chunks:
         return 0, []
 
@@ -252,7 +293,9 @@ async def _phase1_chunk_file_to_disk(
 
     chunk_index = 0
     for chunk in text_chunks:
-        sub_chunks = chunk_text(chunk, max_words=chunk_size, overlap_sentences=2)
+        sub_chunks = await asyncio.to_thread(
+            chunk_text, chunk, max_words=chunk_size, overlap_sentences=2
+        )
 
         for sub_chunk in sub_chunks:
             h = _content_hash(sub_chunk)
@@ -335,7 +378,7 @@ async def _phase2_ingest_from_disk(
     is_structured: bool,
 ) -> int:
     """Phase 2: Ingest from disk. Handles both text chunks and structured records."""
-    BATCH_SIZE = 64
+    BATCH_SIZE = Config.BATCH_SIZE  # MAI-PATCH config.py v1
     safe_source = sanitize_filename(source.replace("/", "_").replace("\\", "_"))
     file_cache_dir = cache_dir / safe_source
 
@@ -383,7 +426,9 @@ async def _phase2_ingest_from_disk(
                 if not documents:
                     continue
 
-                result = qm.ingest_documents(collection, documents)
+                result = await asyncio.to_thread(
+                    qm.ingest_documents, collection, documents
+                )
                 if result.get("status") == "success":
                     ingested += result.get("ingested", len(documents))
 
@@ -455,7 +500,9 @@ async def _phase2_ingest_from_disk(
                 if not documents:
                     continue
 
-                result = qm.ingest_documents(collection, documents)
+                result = await asyncio.to_thread(
+                    qm.ingest_documents, collection, documents
+                )
                 if result.get("status") == "success":
                     ingested += result.get("ingested", len(documents))
 
@@ -500,8 +547,8 @@ class EnvironmentChecker:
     def __init__(self):
         self.ollama_available = False
         self.qdrant_available = False
-        self.ollama_url = "http://127.0.0.1:11434"
-        self.qdrant_url = "http://127.0.0.1:6333"
+        self.ollama_url = OLLAMA_BASE_URL
+        self.qdrant_url = QDRANT_BASE_URL
 
     def check_ollama(self) -> bool:
         """Check if Ollama is running and accessible."""
@@ -585,15 +632,160 @@ app = FastAPI(
     description="Personal AI Assistant with RAG, Tool-Calling, and Agentic Workflows",
 )
 
-_cors_origins = (
-    os.environ.get("CORS_ORIGINS", "").split(",")
-    if os.environ.get("CORS_ORIGINS")
-    else None
+# =============================================================================
+# Network trust model  (MAI-PATCH main.py v1)
+# =============================================================================
+# MAi-RAG-PA is an offline, single-user assistant, so the defaults are:
+#   * browsers may only call the API from localhost / private-LAN origins
+#   * the API key is only handed out to the machine the server runs on
+#   * every /api/* route requires the key (see _mai_require_api_key)
+# Overrides (environment variables):
+#   CORS_ORIGINS=http://mypc.local:8000,https://x.example   extra trusted origins
+#                                                            ("*" trusts everything - NOT recommended)
+#   MAI_ALLOW_REMOTE_AUTOKEY=1   let other devices on your LAN fetch the key
+_CORS_EXTRA = [
+    o.strip().rstrip("/")
+    for o in os.environ.get("CORS_ORIGINS", "").split(",")
+    if o.strip()
+]
+_CORS_WILDCARD = "*" in _CORS_EXTRA
+_CORS_EXTRA = [o for o in _CORS_EXTRA if o != "*"]
+_ALLOW_REMOTE_AUTOKEY = os.environ.get(
+    "MAI_ALLOW_REMOTE_AUTOKEY", ""
+).strip().lower() in ("1", "true", "yes")
+
+_LOCAL_ORIGIN_REGEX = (
+    r"^https?://(localhost|127\.0\.0\.1|\[::1\]"
+    r"|10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}"
+    r"|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2})(:\d+)?$"
 )
+
+_BOOTSTRAP_DENIED_DETAIL = (
+    "The API key is only available from the machine running MAi-RAG-PA. "
+    "To allow other devices on your network, start the server with MAI_ALLOW_REMOTE_AUTOKEY=1."
+)
+
+# Routes that must work before the client holds a key. (generate-key and
+# auto-key enforce their own rules.)
+_AUTH_EXEMPT_PATHS = {
+    "/api/auth/auto-key",
+    "/api/auth/status",
+    "/api/auth/generate-key",
+    "/api/health",
+    "/api/health/live",
+    "/api/health/ready",
+}
+
+
+def _host_of(value: str) -> str:
+    """Bare lower-case hostname from a Host header ('localhost:8000') or an Origin URL."""
+    value = (value or "").strip()
+    if "://" in value:
+        value = urlparse(value).netloc
+    if value.startswith("["):  # [::1]:8000
+        end = value.find("]")
+        return (value[1:end] if end != -1 else value).lower()
+    if value.count(":") == 1:  # host:port
+        value = value.rsplit(":", 1)[0]
+    return value.lower()
+
+
+def _is_local_host(host: str) -> bool:
+    """'localhost' or a loopback / private-network IP literal -- never a public name."""
+    if host == "localhost":
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_private or ip.is_link_local
+
+
+def _host_trusted(host_header: str) -> bool:
+    """DNS-rebinding guard: the Host the client used must be local or explicitly allowed."""
+    if _CORS_WILDCARD:
+        return True
+    host = _host_of(host_header)
+    return _is_local_host(host) or any(_host_of(o) == host for o in _CORS_EXTRA)
+
+
+def _same_origin_trusted(origin: str, host_header: str) -> bool:
+    """A browser Origin must match the Host it connected to (or be explicitly allowed)."""
+    if not origin:
+        return True  # non-browser client, or a same-origin GET (no Origin header)
+    if _CORS_WILDCARD or origin.rstrip("/") in _CORS_EXTRA:
+        return True
+    return _host_of(origin) == _host_of(host_header) and _host_trusted(host_header)
+
+
+def _peer(scope) -> tuple:
+    """(client_ip, server_ip) of an ASGI connection."""
+    client = scope.get("client") or ("", 0)
+    server = scope.get("server") or ("", 0)
+    return client[0], server[0]
+
+
+def _is_same_machine(client_host: str, server_host: str) -> bool:
+    """True for loopback clients, or clients connecting from this machine's own address."""
+    try:
+        if ipaddress.ip_address(client_host).is_loopback:
+            return True
+    except ValueError:
+        return False
+    return bool(server_host) and client_host == server_host
+
+
+def _key_bootstrap_allowed(scope, headers) -> bool:
+    """May this request obtain / set the API key without already holding it?"""
+    client_host, server_host = _peer(scope)
+    if not (_ALLOW_REMOTE_AUTOKEY or _is_same_machine(client_host, server_host)):
+        return False
+    host_header = headers.get("host", "")
+    return _host_trusted(host_header) and _same_origin_trusted(
+        headers.get("origin", ""), host_header
+    )
+
+
+def _api_key_valid(provided: str) -> bool:
+    """Constant-time check of a key outside the HTTP dependency system (e.g. WebSocket)."""
+    if not provided:
+        return False
+    try:
+        stored = get_sqlite_manager().get("api_key")
+        return bool(stored) and secrets.compare_digest(
+            provided.encode(), str(stored).encode()
+        )
+    except Exception:
+        return False
+
+
+# NOTE: registered BEFORE CORSMiddleware so CORS stays outermost and 401 responses
+# still carry CORS headers (otherwise browsers report an opaque network error).
+@app.middleware("http")
+async def _mai_require_api_key(request: Request, call_next):
+    """Require a valid API key on every /api/* route (previously only 17 of ~87 did)."""
+    path = request.url.path
+    if (
+        request.method == "OPTIONS"
+        or not path.startswith("/api/")
+        or path in _AUTH_EXEMPT_PATHS
+    ):
+        return await call_next(request)
+    try:
+        await verify_api_key(request)
+    except HTTPException as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers or None,
+        )
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins or ["*"],
+    allow_origins=["*"] if _CORS_WILDCARD else _CORS_EXTRA,
+    allow_origin_regex=None if _CORS_WILDCARD else _LOCAL_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
@@ -614,11 +806,13 @@ shutdown_flag = False
 
 
 def get_sqlite_manager() -> SQLiteMemoryManager:
-    """Lazy initialization of SQLite manager."""
+    """Lazy, thread-safe initialization of the (single) SQLite manager."""
     global sqlite_manager
     if sqlite_manager is None:
-        sqlite_manager = SQLiteMemoryManager(db_path=DB_PATH)
-        logger.info(f"SQLite manager initialized at: {sqlite_manager.db_path}")
+        with _sqlite_manager_lock:
+            if sqlite_manager is None:
+                sqlite_manager = SQLiteMemoryManager(db_path=DB_PATH)
+                logger.info(f"SQLite manager initialized at: {sqlite_manager.db_path}")
     return sqlite_manager
 
 
@@ -633,7 +827,17 @@ def get_qdrant_manager() -> QdrantMemoryManager:
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: StarletteRequest, call_next):
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > 10 * 1024 * 1024:
+        try:
+            too_large = bool(content_length) and int(content_length) > 10 * 1024 * 1024
+        except ValueError:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "Bad request",
+                    "detail": "Invalid Content-Length header",
+                },
+            )
+        if too_large:
             return JSONResponse(
                 status_code=413,
                 content={
@@ -655,7 +859,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     import sys
     import traceback
 
-    logger.info(f"!!! GLOBAL EXCEPTION on {request.method} {request.url.path}: {exc}")
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}")
     traceback.print_exc(file=sys.stderr)
     return JSONResponse(
         status_code=500, content={"detail": f"Internal error: {str(exc)}"}
@@ -702,9 +906,9 @@ class AgentRequest(BaseModel):
     thread_id: Optional[str] = None
     file_content: Optional[str] = None
     file_name: Optional[str] = None
-    ltm_enabled: bool = False
+    ltm_enabled: bool = True
     ltm_collection: Optional[str] = None
-    citations_enabled: bool = True  # NEW
+    citations_enabled: bool = False  # NEW
     role_id: Optional[str] = None  # NEW
 
     @field_validator("query")
@@ -1368,11 +1572,9 @@ async def health_check(request: Request):
         overall_status = "unhealthy"
 
     try:
-        req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
-        with urllib.request.urlopen(req, timeout=3) as response:
-            data = json.loads(response.read().decode())
-            model_count = len(data.get("models", []))
-            checks["llm"] = {"status": "healthy", "models": model_count}
+        data = await asyncio.to_thread(_ollama_get_json, "/api/tags", 3)
+        model_count = len(data.get("models", []))
+        checks["llm"] = {"status": "healthy", "models": model_count}
     except Exception as e:
         checks["llm"] = {"status": "unhealthy", "error": str(e)}
         overall_status = "unhealthy"
@@ -1400,7 +1602,7 @@ async def health_check(request: Request):
     )
 
 
-@app.get("/api/health/ready")
+@app.get("/api/health/live")
 async def liveness_probe():
     """Fast liveness probe - no external dependencies."""
     return {"status": "alive"}
@@ -1453,18 +1655,6 @@ async def stop_system():
         return {"status": "error", "message": str(e)}
 
 
-@app.post("/api/system/start")
-async def start_system():
-    """Signal the watchdog to start MAi-RAG-PA"""
-    try:
-        flag_file = PROJECT_ROOT / "restart.flag"
-        flag_file.touch()
-        return {"status": "starting", "message": "Restart signal sent to watchdog."}
-    except Exception as e:
-        logger.error(f"Failed to create restart flag: {e}")
-        return {"status": "error", "message": str(e)}
-
-
 # =============================================================================
 # Ollama Model Management
 # =============================================================================
@@ -1474,11 +1664,9 @@ async def start_system():
 async def get_ollama_models():
     """Fetch available models from Ollama."""
     try:
-        req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            models = [model["name"] for model in data.get("models", [])]
-            return {"models": models}
+        data = await asyncio.to_thread(_ollama_get_json, "/api/tags", 5)
+        models = [model["name"] for model in data.get("models", [])]
+        return {"models": models}
     except Exception as e:
         logger.error(f"Failed to fetch Ollama models: {e}")
         return {"models": [], "error": str(e)}
@@ -1546,7 +1734,7 @@ async def warmup_model(request: Request):
                 }
             ).encode()
             req = _urlreq.Request(
-                "http://127.0.0.1:11434/api/generate",
+                f"{OLLAMA_BASE_URL}/api/generate",
                 data=payload,
                 headers={"Content-Type": "application/json"},
                 method="POST",
@@ -1648,7 +1836,7 @@ async def create_full_backup(api_key: str = Depends(verify_api_key)):
 @app.get("/api/system/backups")
 async def list_backups():
     """List all available backups."""
-    backup_dir = PROJECT_ROOT / "backups"
+    backup_dir = _backup_dir()
     if not backup_dir.exists():
         backup_dir.mkdir(parents=True, exist_ok=True)
         return {"backups": []}
@@ -1667,35 +1855,98 @@ async def list_backups():
     return {"backups": backups}
 
 
-@app.post("/api/system/restore/{backup_filename}")
-async def restore_backup(backup_filename: str, request: Request):
-    """Restore SQLite database from backup."""
-    api_key = request.headers.get("X-API-Key")
-    if not api_key:
-        raise HTTPException(status_code=401, detail="API key required")
+_BACKUP_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.db$")
 
-    mgr = get_sqlite_manager()
-    stored_key = mgr.get("api_key")
-    if stored_key != api_key:
-        raise HTTPException(status_code=401, detail="Invalid API key")
 
-    backup_path = PROJECT_ROOT / "backups" / backup_filename
-    if not backup_path.exists():
-        raise HTTPException(status_code=404, detail="Backup not found")
+def _backup_dir() -> Path:
+    """Where SQLiteMemoryManager.backup_database() writes: <db dir>/backups."""
+    return DB_PATH.parent / "backups"
 
+
+class _RestoreError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
+
+
+def _restore_database_file(backup_filename: str) -> str:
+    """Validate a backup and swap it in for the live database (blocking).
+
+    Returns the name of the safety snapshot taken of the database being replaced.
+    """
+    global sqlite_manager
+
+    if not _BACKUP_NAME_RE.match(backup_filename):
+        raise _RestoreError(400, "Invalid backup filename")
+    backup_dir = _backup_dir().resolve()
+    backup_path = (backup_dir / backup_filename).resolve()
+    if backup_path.parent != backup_dir or not backup_path.is_file():
+        raise _RestoreError(404, "Backup not found")
+
+    # 1. The backup itself must be a healthy SQLite database.
     try:
-        import shutil
+        check = sqlite3.connect(backup_path.as_uri() + "?mode=ro", uri=True)
+        try:
+            healthy = check.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        finally:
+            check.close()
+    except sqlite3.Error:
+        healthy = False
+    if not healthy:
+        raise _RestoreError(400, "Backup file is not a valid, healthy SQLite database")
 
-        shutil.copy2(backup_path, DB_PATH)
-        global sqlite_manager
-        sqlite_manager = None
-        return {
-            "status": "success",
-            "message": "Database restored. Restarting required.",
-        }
+    # 2. Snapshot the current database first (online backup API -- WAL-safe).
+    safety_path = backup_dir / f"pre_restore_{datetime.now():%Y%m%d_%H%M%S}.db"
+    try:
+        src = sqlite3.connect(str(DB_PATH))
+        try:
+            dst = sqlite3.connect(str(safety_path))
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+    except sqlite3.Error as e:
+        raise _RestoreError(500, f"Could not snapshot the current database first: {e}")
+
+    # 3. Release our connection, drop stale WAL/SHM files, swap the file in atomically.
+    with _sqlite_manager_lock:
+        mgr, sqlite_manager = sqlite_manager, None
+        if mgr is not None:
+            try:
+                mgr.close()
+            except Exception as e:
+                logger.warning(f"Closing SQLite manager before restore failed: {e}")
+        tmp_path = DB_PATH.with_name(DB_PATH.name + ".restore_tmp")
+        shutil.copy2(backup_path, tmp_path)
+        for suffix in ("-wal", "-shm"):
+            try:
+                Path(str(DB_PATH) + suffix).unlink()
+            except FileNotFoundError:
+                pass
+        os.replace(tmp_path, DB_PATH)
+    return safety_path.name
+
+
+@app.post("/api/system/restore/{backup_filename}")
+async def restore_backup(
+    backup_filename: str, request: Request, api_key: str = Depends(verify_api_key)
+):
+    """Restore the SQLite database from a backup in <memory dir>/backups."""
+    try:
+        safety_name = await asyncio.to_thread(_restore_database_file, backup_filename)
+    except _RestoreError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         logger.error(f"Restore failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "status": "success",
+        "message": "Database restored. Restart MAi-RAG-PA to finish.",
+        "safety_backup": safety_name,
+    }
 
 
 @app.get("/api/settings/system-prompt")
@@ -1892,22 +2143,12 @@ async def save_default_model_setting(
         if not model:
             raise HTTPException(status_code=400, detail="Model name is required")
 
-        import sqlite3
-
-        db_path = PROJECT_ROOT / "memory" / "memory_store.db"
-        try:
-            with sqlite3.connect(str(db_path), timeout=10.0) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT OR REPLACE INTO short_term_memory (key, value, updated_at) "
-                    "VALUES (?, ?, CURRENT_TIMESTAMP)",
-                    ("default_model", model),
-                )
-                conn.commit()
-        except Exception as db_err:
-            logger.error(f"Direct SQLite save failed: {db_err}", exc_info=True)
+        # Through the manager: shared lock, the right DB path and the real column names.
+        # (This used to INSERT into a non-existent `updated_at` column and always failed.)
+        mgr = get_sqlite_manager()
+        if not mgr.set("default_model", model):
             raise HTTPException(
-                status_code=500, detail=f"Database save failed: {db_err}"
+                status_code=500, detail="Database save failed (see server log)"
             )
 
         clear_model_cache()
@@ -1969,23 +2210,30 @@ async def auth_status(request: Request):
     has_key = bool(mgr.get("api_key"))
     return {
         "enabled": has_key,
-        "message": "API key authentication is active"
-        if has_key
-        else "No API key configured - system is open",
+        "message": (
+            "API key authentication is active"
+            if has_key
+            else "No API key configured - system is open"
+        ),
     }
 
 
 @app.post("/api/auth/generate-key")
 async def generate_new_api_key(request: Request):
-    """Generate a new API key."""
+    """Generate a new API key (needs the current key; keyless bootstrap is local-only)."""
     mgr = get_sqlite_manager()
     existing_key = mgr.get("api_key")
 
     if existing_key:
         await verify_api_key(request)
+    elif not _key_bootstrap_allowed(request.scope, request.headers):
+        raise HTTPException(status_code=403, detail=_BOOTSTRAP_DENIED_DETAIL)
 
     new_key = generate_api_key()
-    mgr.set("api_key", new_key)
+    if not mgr.set("api_key", new_key):
+        raise HTTPException(
+            status_code=500, detail="Could not store the new API key (see server log)"
+        )
     logger.info("New API key generated")
 
     return {
@@ -1995,8 +2243,16 @@ async def generate_new_api_key(request: Request):
 
 
 @app.get("/api/auth/auto-key")
-async def get_auto_generated_key():
-    """Return the API key, generating one if missing."""
+async def get_auto_generated_key(request: Request):
+    """Hand the API key to the local UI / CLI, generating one if missing.
+
+    Only the machine running the server may call this (and only from a trusted
+    Host / Origin) -- otherwise any web page or LAN device could read the key.
+    See the "Network trust model" block for the MAI_ALLOW_REMOTE_AUTOKEY override.
+    """
+    if not _key_bootstrap_allowed(request.scope, request.headers):
+        raise HTTPException(status_code=403, detail=_BOOTSTRAP_DENIED_DETAIL)
+
     mgr = get_sqlite_manager()
     key = mgr.get("api_key")
 
@@ -2005,7 +2261,10 @@ async def get_auto_generated_key():
         from app.security.auth import generate_api_key
 
         key = generate_api_key()
-        mgr.set("api_key", key)
+        if not mgr.set("api_key", key):
+            raise HTTPException(
+                status_code=500, detail="Could not store the API key (see server log)"
+            )
         logger.info("Auto-generated new API key on first launch")
 
     return {"api_key": key}
@@ -2018,7 +2277,10 @@ async def revoke_api_key(request: Request):
     mgr = get_sqlite_manager()
     mgr.delete("api_key")
     logger.info("API key revoked")
-    return {"status": "revoked", "message": "API key deleted. System is now open."}
+    return {
+        "status": "revoked",
+        "message": "API key deleted. A new key is issued on next startup or via /api/auth/auto-key.",
+    }
 
 
 # =============================================================================
@@ -2074,7 +2336,7 @@ async def check_and_dispatch_notifications():
     pending_reminders = mgr.get_pending_reminders(limit=50)
     for reminder in pending_reminders or []:
         try:
-            due = datetime.fromisoformat(reminder.get("due_time", ""))
+            due = _parse_iso_local(reminder.get("due_time", ""))
             delta = (due - now).total_seconds()
 
             if 0 <= delta <= 300:
@@ -2104,7 +2366,7 @@ async def check_and_dispatch_notifications():
     upcoming_events = mgr.get_upcoming_events(limit=20)
     for event in upcoming_events or []:
         try:
-            start = datetime.fromisoformat(event.get("start_time", ""))
+            start = _parse_iso_local(event.get("start_time", ""))
             delta = (start - now).total_seconds()
 
             for interval in enabled_intervals:
@@ -2371,7 +2633,7 @@ def _build_stm_context(query: str) -> str:
                                 )
                                 if desc:
                                     pattern_lines.append(f"- {desc}")
-                        except:
+                        except Exception:
                             pass
                     continue
                 if key == "api_key_retrieved":
@@ -2490,6 +2752,7 @@ def detect_repetition(text: str, threshold: int = 5) -> bool:
 
 
 @app.post("/api/chat")
+@limiter.limit(Config.RATE_LIMIT_CHAT)
 async def chat_endpoint(request: Request, chat_request: AgentRequest):
     """Chat endpoint with file creation support and STM context injection."""
     incoming_thread_id = getattr(chat_request, "thread_id", None)
@@ -2504,6 +2767,7 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
         import uuid
 
         _model_start = _time.time()
+        _user_sent_ms = int(_model_start * 1000)
         loop = asyncio.get_event_loop()
 
         requested_model = chat_request.model or get_default_model()
@@ -2719,6 +2983,7 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
 
             user_content = chat_request.query
             ai_content = result.get("content", "")
+            _ai_done_ms = int(_time.time() * 1000)
 
             mgr = get_sqlite_manager()
             with mgr.get_cursor() as cur:
@@ -2738,13 +3003,14 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                 cur.execute(
                     "INSERT INTO chat_messages "
                     "(id, thread_id, role, content, model, role_id, timestamp) "
-                    "VALUES (?, ?, 'user', ?, ?, ?, CURRENT_TIMESTAMP)",
+                    "VALUES (?, ?, 'user', ?, ?, ?, ?)",
                     (
                         user_msg_id,
                         thread_id,
                         user_content,
                         resolved,
                         chat_request.role_id,
+                        _user_sent_ms,
                     ),
                 )
 
@@ -2752,13 +3018,14 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                 cur.execute(
                     "INSERT INTO chat_messages "
                     "(id, thread_id, role, content, model, role_id, timestamp) "
-                    "VALUES (?, ?, 'assistant', ?, ?, ?, CURRENT_TIMESTAMP)",
+                    "VALUES (?, ?, 'assistant', ?, ?, ?, ?)",
                     (
                         ai_msg_id,
                         thread_id,
                         ai_content,
                         resolved,
                         chat_request.role_id,
+                        _ai_done_ms,
                     ),
                 )
 
@@ -2897,7 +3164,7 @@ async def get_chat_messages(thread_id: str):
                 SELECT id, role, content, timestamp, model, filename
                 FROM chat_messages
                 WHERE thread_id = ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp ASC, rowid ASC
             """,
                 (thread_id,),
             )
@@ -2911,8 +3178,14 @@ async def get_chat_messages(thread_id: str):
                             timestamp = int(row[3])
                         else:
                             # 2. Otherwise, parse it as an ISO string (legacy format)
-                            dt_str = str(row[3]).replace(" ", "T")
+                            dt_str = (
+                                str(row[3]).replace(" ", "T").replace("Z", "+00:00")
+                            )
                             dt = datetime.fromisoformat(dt_str)
+                            if dt.tzinfo is None:
+                                # SQLite's CURRENT_TIMESTAMP (what /api/chat stores) is UTC. A naive
+                                # .timestamp() would read it as LOCAL time -> off by the UTC offset.
+                                dt = dt.replace(tzinfo=timezone.utc)
                             timestamp = int(dt.timestamp() * 1000)
                     except Exception:
                         # 3. Last resort: try converting the string directly to an int
@@ -2970,7 +3243,9 @@ async def get_upcoming_events(request: Request, limit: int = 20):
     """Get upcoming events."""
     try:
         mgr = get_sqlite_manager()
-        events = mgr.get_upcoming_events(limit=limit)
+        # include_earlier_today: the calendar / events panel keep showing events that
+        # started earlier today (alerts and LLM context use the strict default).
+        events = mgr.get_upcoming_events(limit=limit, include_earlier_today=True)
         return {"events": events or []}
     except Exception as e:
         logger.error(f"Failed to get upcoming events: {e}")
@@ -3000,6 +3275,21 @@ async def delete_event(event_id: str, api_key: str = Depends(verify_api_key)):
         return {"status": "deleted"}
     except Exception as e:
         logger.error(f"Failed to delete event: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/memory/sqlite/events/recurring/{base_id}")
+async def delete_recurring_event_series(
+    base_id: str, api_key: str = Depends(verify_api_key)
+):
+    """Delete a recurring event and every generated instance (the calendar's 'delete series')."""
+    try:
+        mgr = get_sqlite_manager()
+        deleted = mgr.delete_event_series(base_id)
+        logger.info(f"Deleted recurring event series {base_id}: {deleted} row(s)")
+        return {"status": "deleted", "deleted_count": deleted}
+    except Exception as e:
+        logger.error(f"Failed to delete recurring event series: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -3054,6 +3344,29 @@ async def delete_reminder(reminder_id: str):
         return {"status": "deleted", "deleted_count": deleted_count}
     except Exception as e:
         logger.error(f"Failed to delete reminder: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/memory/sqlite/export")
+async def export_stm_data(api_key: str = Depends(verify_api_key)):
+    """Export all STM content tables (full history) as a versioned JSON payload."""
+    try:
+        return get_sqlite_manager().export_stm()
+    except Exception as e:
+        logger.error(f"STM export failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/memory/sqlite/import")
+async def import_stm_data(payload: dict, api_key: str = Depends(verify_api_key)):
+    """Merge an STM export payload back into the database (idempotent, by key)."""
+    try:
+        counts = get_sqlite_manager().import_stm(payload)
+        return {"status": "success", "restored": counts}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"STM import failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -3162,7 +3475,8 @@ async def save_chat_message(request: Request, api_key: str = Depends(verify_api_
                     role,
                     content,
                     model,
-                    timestamp or datetime.now().isoformat(),
+                    timestamp
+                    or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
                 ),
             )
 
@@ -3194,9 +3508,9 @@ async def get_token_usage(days: int = 7):
         "totals": {
             "tokens": total_tokens,
             "requests": total_requests,
-            "avg_tokens_per_request": total_tokens / total_requests
-            if total_requests > 0
-            else 0,
+            "avg_tokens_per_request": (
+                total_tokens / total_requests if total_requests > 0 else 0
+            ),
         },
     }
 
@@ -3244,19 +3558,96 @@ async def get_sqlite_stats():
         return {"error": str(e), "total_entries": 0}
 
 
-@app.post("/api/chat/stream")
-async def chat_stream_endpoint(chat_request: AgentRequest):
-    """Stream response tokens in real-time."""
+@app.post("/api/chat/stream", include_in_schema=False)
+@limiter.limit(Config.RATE_LIMIT_CHAT)
+async def _mai_chat_stream_governed(request: Request, chat_request: AgentRequest):
+    """
+    Governed streaming facade.
+
+    This preserves:
+      - role model override
+      - role hooks
+      - VERIFIED TEMPORAL DATA injection
+      - temporal_strict profile
+      - tool suppression
+      - citation mode handling
+
+    It currently pseudo-streams the governed non-stream result so the route
+    cannot bypass agent_core governance.
+
+    (A second, unreachable POST /api/chat/stream handler used to follow this one;
+    it was removed. True token streaming that keeps governance is a future item.)
+    """
+
+    def _run():
+        kwargs = {
+            "user_query": chat_request.query,
+            "model": getattr(chat_request, "model", None),
+            "role_id": getattr(chat_request, "role_id", None),
+            "ltm_enabled": bool(getattr(chat_request, "ltm_enabled", False)),
+            "ltm_collection": getattr(chat_request, "ltm_collection", None),
+            "citations_enabled": bool(
+                getattr(chat_request, "citations_enabled", False)
+            ),
+            "filename": getattr(chat_request, "filename", None),
+        }
+
+        try:
+            import inspect
+
+            params = inspect.signature(process_request).parameters
+            filtered = {k: v for k, v in kwargs.items() if k in params}
+
+            # Ensure the primary query parameter is present under one accepted name.
+            if not any(
+                k in filtered for k in ("user_query", "query", "message", "prompt")
+            ):
+                for alias in ("user_query", "query", "message", "prompt"):
+                    if alias in params:
+                        filtered[alias] = chat_request.query
+                        break
+        except Exception:
+            # Could not introspect the signature: use the known-current shape.
+            filtered = dict(kwargs)
+
+        # Exactly ONE call. (It used to sit inside the try above, so any failure in
+        # process_request was retried -- running the LLM twice.)
+        return process_request(**filtered)
+
+    try:
+        result = await asyncio.to_thread(_run)
+    except Exception as exc:
+        logger.exception("[MAI-CHAT-STREAM] governed stream failed")
+        result = {
+            "status": "error",
+            "content": f"Governed stream failed: {exc}",
+            "model": getattr(chat_request, "model", None),
+        }
+
+    content = str(result.get("content") or result.get("message") or "")
+
+    meta = {
+        "type": "meta",
+        "status": result.get("status", "success"),
+        "model": result.get("model"),
+        "role_id": getattr(chat_request, "role_id", None),
+        "rag_used": result.get("rag_used", False),
+        "tools_available": result.get("tools_available", False),
+    }
 
     async def generate():
-        # Use the existing run_chat logic but yield tokens as they're generated
-        # This requires modifying the LLM invocation to use streaming
-        llm = _get_llm(chat_request.model or get_default_model(), streaming=True)
+        yield "data: " + json.dumps(meta) + "\n\n"
 
-        async for token in llm.astream(chat_request.query):
-            yield f"data: {json.dumps({'token': token.content})}\n\n"
+        chunk_size = 120
+        for i in range(0, len(content), chunk_size):
+            payload = {
+                "type": "token",
+                "content": content[i : i + chunk_size],
+            }
+            yield "data: " + json.dumps(payload) + "\n\n"
+            await asyncio.sleep(0)
 
-        yield f"data: {json.dumps({'done': True})}\n\n"
+        yield "data: " + json.dumps({"type": "done"}) + "\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -3421,13 +3812,19 @@ def generate_sql_from_natural_language(user_query: str) -> str:
 
     schema_context = get_stm_schema_context()
 
-    few_shot_examples = """
-Examples:
+    # Planner times (reminders.due_time, events.start_time) are LOCAL 'YYYY-MM-DDTHH:MM' strings;
+    # chat_messages.timestamp is UTC. Tell the model the local "now" instead of datetime('now').
+    now_local = datetime.now()
+    now_s = now_local.strftime("%Y-%m-%dT%H:%M")
+    week_s = (now_local + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M")
+
+    few_shot_examples = f"""
+Examples (the current local time is {now_s}):
 User: "Show my upcoming reminders"
-SQL: SELECT * FROM reminders WHERE completed = 0 AND due_time > datetime('now') ORDER BY due_time ASC;
+SQL: SELECT * FROM reminders WHERE completed = 0 AND due_time >= '{now_s}' ORDER BY due_time ASC;
 
 User: "What events do I have this week?"
-SQL: SELECT * FROM events WHERE start_time >= datetime('now') AND start_time <= datetime('now', '+7 days') ORDER BY start_time ASC;
+SQL: SELECT * FROM events WHERE start_time >= '{now_s}' AND start_time <= '{week_s}' ORDER BY start_time ASC;
 
 User: "Find all my chat messages about Python"
 SQL: SELECT * FROM chat_messages WHERE content LIKE '%Python%' ORDER BY timestamp DESC;
@@ -3436,7 +3833,7 @@ User: "Show my incomplete todos sorted by priority"
 SQL: SELECT * FROM todos WHERE completed = 0 ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, due_date ASC;
 
 User: "Count how many messages I sent today"
-SQL: SELECT COUNT(*) as message_count FROM chat_messages WHERE role = 'user' AND date(timestamp) = date('now');
+SQL: SELECT COUNT(*) as message_count FROM chat_messages WHERE role = 'user' AND date(timestamp, 'localtime') = date('now', 'localtime');
 """
 
     prompt = f"""You are an expert SQL developer. Convert the user's natural language request into a valid SQLite SQL query.
@@ -3451,7 +3848,8 @@ Rules:
 - Always include WHERE clauses to filter appropriately
 - Use ORDER BY for sorted results
 - Use LIMIT for large result sets
-- Handle date/time comparisons correctly with datetime() functions
+- reminders.due_time, events.start_time and todos.due_date are LOCAL time strings like 'YYYY-MM-DDTHH:MM': compare them with such strings (as in the examples), never with datetime('now') (which is UTC)
+- chat_messages.timestamp is UTC: use date(timestamp, 'localtime') / date('now', 'localtime') for local-day questions
 - Return only executable SQL
 
 User Request: "{user_query}"
@@ -3476,9 +3874,9 @@ SQL:"""
             logger.warning(f"Generated invalid SQL: {sql}")
             return None
 
-        if "DROP" in sql.upper() or "TRUNCATE" in sql.upper():
-            logger.warning(f"Dangerous SQL blocked: {sql}")
-            return None
+        # DDL / PRAGMA / ATTACH and the settings table are enforced by the SQLite
+        # authorizer in _run_guarded_nl_sql (a substring blocklist both missed
+        # unbounded DELETEs and rejected harmless text such as LIKE '%dropbox%').
 
         return sql
     except Exception as e:
@@ -3495,7 +3893,7 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
             raise HTTPException(status_code=400, detail="Text is required")
 
         # Parse with regex (instant) or codeqwen:7b (~10s)
-        parsed = parse_stm_with_llm(text)
+        parsed = await asyncio.to_thread(parse_stm_with_llm, text)
 
         if not parsed:
             logger.error(f"LLM returned None for: {text}")
@@ -3535,10 +3933,8 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
             # Parse due_time
             if due_time_str:
                 try:
-                    due_time = datetime.fromisoformat(
-                        due_time_str.replace("Z", "+00:00")
-                    )
-                except:
+                    due_time = _parse_iso_local(due_time_str)
+                except Exception:
                     due_time = datetime.now() + timedelta(minutes=30)
             else:
                 due_time = datetime.now() + timedelta(minutes=30)
@@ -3644,18 +4040,106 @@ async def stm_quick_entry(request: dict, api_key: str = Depends(verify_api_key))
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# SQLite authorizer action codes (https://www.sqlite.org/c3ref/c_alter_table.html)
+_NL_SQL_ALLOWED_ACTIONS = frozenset(
+    {
+        9,  # DELETE
+        18,  # INSERT
+        20,  # READ
+        21,  # SELECT
+        22,  # TRANSACTION
+        23,  # UPDATE
+        31,  # FUNCTION
+        32,  # SAVEPOINT
+        33,  # RECURSIVE
+    }
+)
+_NL_SQL_TABLE_ACTIONS = frozenset({9, 18, 20, 23})
+_NL_SQL_HIDDEN_TABLES = frozenset(
+    {"short_term_memory", "alembic_version"}
+)  # settings (API key!) + schema version
+_NL_SQL_ROW_LIMIT = 1000
+
+
+def _nl_sql_authorizer(action, arg1, arg2, db_name, source):
+    """Return 0 (allow) / 1 (deny). Anything not explicitly allowed is denied."""
+    if action not in _NL_SQL_ALLOWED_ACTIONS:
+        return 1  # DDL, PRAGMA, ATTACH, ...
+    table = str(arg1 or "").lower()
+    if action in _NL_SQL_TABLE_ACTIONS and table in _NL_SQL_HIDDEN_TABLES:
+        return 1
+    if action in (9, 18, 23) and table.startswith("sqlite_"):
+        return 1
+    if action == 31 and str(arg2 or "").lower() == "load_extension":
+        return 1
+    return 0
+
+
+def _run_guarded_nl_sql(db_path, sql: str) -> dict:
+    """Run LLM-generated SQL on its own connection under _nl_sql_authorizer (blocking)."""
+    stmt = sql.strip().rstrip(";").strip()
+    verb = stmt.split(None, 1)[0].upper() if stmt else ""
+    if verb not in ("SELECT", "INSERT", "UPDATE", "DELETE"):
+        return {
+            "status": "error",
+            "message": "Only SELECT, INSERT, UPDATE and DELETE statements are allowed.",
+        }
+    if verb in ("UPDATE", "DELETE") and not re.search(
+        r"\bWHERE\b", stmt, re.IGNORECASE
+    ):
+        return {
+            "status": "error",
+            "message": f"Refusing to run {verb} without a WHERE clause.",
+        }
+
+    is_select = verb == "SELECT"
+    uri = Path(db_path).resolve().as_uri() + ("?mode=ro" if is_select else "?mode=rw")
+    conn = None
+    try:
+        conn = sqlite3.connect(uri, uri=True, timeout=5)
+        conn.set_authorizer(_nl_sql_authorizer)
+        cur = conn.execute(stmt)  # one statement only; the driver rejects more
+        if is_select:
+            columns = [d[0] for d in cur.description] if cur.description else []
+            rows = cur.fetchmany(_NL_SQL_ROW_LIMIT + 1)
+            truncated = len(rows) > _NL_SQL_ROW_LIMIT
+            results = [dict(zip(columns, row)) for row in rows[:_NL_SQL_ROW_LIMIT]]
+            out = {"status": "success", "results": results, "count": len(results)}
+            if truncated:
+                out["truncated"] = True
+                out["message"] = f"Showing the first {_NL_SQL_ROW_LIMIT} rows."
+            return out
+        conn.commit()
+        return {
+            "status": "success",
+            "rows_affected": cur.rowcount,
+            "message": f"Query executed successfully. {cur.rowcount} row(s) affected.",
+        }
+    except (sqlite3.Error, sqlite3.Warning) as e:
+        logger.error(f"SQL execution error: {e}")
+        return {"status": "error", "message": f"SQL execution failed: {e}"}
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 @app.post("/api/memory/sqlite/query")
 async def execute_natural_language_query(
     request: dict, api_key: str = Depends(verify_api_key)
 ):
-    """Execute a natural language query against the STM database using codeqwen:7b."""
+    """Execute a natural language query against the STM database using codeqwen:7b.
+
+    The generated SQL is never trusted: see _run_guarded_nl_sql (authorizer allows only
+    SELECT/INSERT/UPDATE/DELETE, no DDL/PRAGMA/ATTACH, settings table hidden,
+    UPDATE/DELETE need a WHERE clause, SELECT runs on a read-only connection).
+    """
     try:
         user_query = request.get("query", "").strip()
         if not user_query:
             raise HTTPException(status_code=400, detail="Query is required")
 
         # Generate SQL from natural language
-        sql = generate_sql_from_natural_language(user_query)
+        sql = await asyncio.to_thread(generate_sql_from_natural_language, user_query)
 
         if not sql:
             return {
@@ -3664,47 +4148,8 @@ async def execute_natural_language_query(
                 "query": user_query,
             }
 
-        # Execute the SQL query
-        mgr = get_sqlite_manager()
-        try:
-            with mgr.get_cursor() as cur:
-                cur.execute(sql)
-
-                # Check if this is a SELECT query
-                if sql.strip().upper().startswith("SELECT"):
-                    rows = cur.fetchall()
-                    columns = (
-                        [description[0] for description in cur.description]
-                        if cur.description
-                        else []
-                    )
-                    results = [dict(zip(columns, row)) for row in rows]
-
-                    return {
-                        "status": "success",
-                        "query": user_query,
-                        "sql": sql,
-                        "results": results,
-                        "count": len(results),
-                    }
-                else:
-                    # For INSERT/UPDATE/DELETE
-                    mgr.conn.commit()
-                    return {
-                        "status": "success",
-                        "query": user_query,
-                        "sql": sql,
-                        "rows_affected": cur.rowcount,
-                        "message": f"Query executed successfully. {cur.rowcount} row(s) affected.",
-                    }
-        except sqlite3.Error as e:
-            logger.error(f"SQL execution error: {e}")
-            return {
-                "status": "error",
-                "message": f"SQL execution failed: {str(e)}",
-                "query": user_query,
-                "sql": sql,
-            }
+        outcome = await asyncio.to_thread(_run_guarded_nl_sql, DB_PATH, sql)
+        return {**outcome, "query": user_query, "sql": sql}
 
     except HTTPException:
         raise
@@ -3719,6 +4164,7 @@ async def execute_natural_language_query(
 
 
 @app.post("/api/memory/qdrant/chunk-and-ingest")
+@limiter.limit(Config.RATE_LIMIT_INGEST)
 async def chunk_and_ingest(
     request: Request,
 ):
@@ -3747,8 +4193,7 @@ async def chunk_and_ingest(
         uploaded_files = []
 
     logger.info(
-        f"!!! CHUNK_AND_INGEST: collection='{effective_collection}', dir='{directory}'",
-        flush=True,
+        f"!!! CHUNK_AND_INGEST: collection='{effective_collection}', dir='{directory}'"
     )
 
     if not effective_collection:
@@ -3758,8 +4203,9 @@ async def chunk_and_ingest(
     if not qm.qdrant_available:
         raise HTTPException(status_code=503, detail="Qdrant not available")
 
-    if effective_collection not in qm.list_collections():
-        qm.create_collection(effective_collection)
+    existing_collections = await asyncio.to_thread(qm.list_collections)
+    if effective_collection not in existing_collections:
+        await asyncio.to_thread(qm.create_collection, effective_collection)
 
     try:
         qm.client.create_payload_index(
@@ -3931,7 +4377,7 @@ async def chunk_and_ingest(
             "errors": errors,
         }
 
-    logger.info(f"    Processing {len(source_files)} files", flush=True)
+    logger.info(f"    Processing {len(source_files)} files")
 
     phase1_results: list[tuple[str, int, bool]] = []
     total_files = len(source_files)
@@ -3967,7 +4413,7 @@ async def chunk_and_ingest(
                 file_path, source_label, cache_dir, chunk_size, chunk_overlap
             )
             phase1_results.append((source_label, count, is_struct))
-            logger.info(f"    Phase1: {source_label} -> {count} chunks", flush=True)
+            logger.info(f"    Phase1: {source_label} -> {count} chunks")
 
         except Exception as e:
             import traceback
@@ -4023,11 +4469,13 @@ async def chunk_and_ingest(
     status_msg = (
         "duplicate"
         if total_ingested == 0 and total_skipped > 0
-        else "partial"
-        if total_ingested > 0 and total_skipped > 0
-        else "success"
-        if total_ingested > 0
-        else "no_files"
+        else (
+            "partial"
+            if total_ingested > 0 and total_skipped > 0
+            else "success"
+            if total_ingested > 0
+            else "no_files"
+        )
     )
     try:
         await ws_manager.broadcast(
@@ -4062,7 +4510,9 @@ async def search_qdrant(request: SearchRequest):
         if not qm.qdrant_available:
             raise HTTPException(status_code=503, detail="Qdrant not available")
 
-        results = qm.search(request.collection, request.query, top_k=request.top_k)
+        results = await asyncio.to_thread(
+            qm.search, request.collection, request.query, top_k=request.top_k
+        )
         return {"results": results, "count": len(results)}
     except HTTPException:
         raise
@@ -4080,10 +4530,10 @@ async def manage_qdrant_collection(request: CollectionRequest):
             raise HTTPException(status_code=503, detail="Qdrant not available")
 
         if request.action == "create":
-            qm.create_collection(request.name)
+            await asyncio.to_thread(qm.create_collection, request.name)
             return {"status": "created", "collection": request.name}
         if request.action == "delete":
-            qm.delete_collection(request.name)
+            await asyncio.to_thread(qm.delete_collection, request.name)
             return {"status": "deleted", "collection": request.name}
         raise HTTPException(status_code=400, detail=f"Unknown action: {request.action}")
     except HTTPException:
@@ -4118,7 +4568,9 @@ async def delete_qdrant_documents(request: DeleteDocumentRequest):
         if not qm.qdrant_available:
             raise HTTPException(status_code=503, detail="Qdrant not available")
 
-        deleted_count = qm.delete_documents(request.collection, request.document_ids)
+        deleted_count = await asyncio.to_thread(
+            qm.delete_documents, request.collection, request.document_ids
+        )
         return {
             "status": "success",
             "deleted_count": deleted_count,
@@ -4249,7 +4701,9 @@ Begin:""",
                 )
 
         if verified_docs:
-            qm.ingest_documents(synthetic_request.collection, verified_docs)
+            await asyncio.to_thread(
+                qm.ingest_documents, synthetic_request.collection, verified_docs
+            )
             logger.info(
                 f"Ingested {len(verified_docs)}/{len(documents)} verified documents"
             )
@@ -4258,9 +4712,11 @@ Begin:""",
             "status": "success",
             "documents_generated": len(documents),
             "documents_verified": len(verified_docs),
-            "compliance_rate": round((len(verified_docs) / len(documents)) * 100, 1)
-            if documents
-            else 0,
+            "compliance_rate": (
+                round((len(verified_docs) / len(documents)) * 100, 1)
+                if documents
+                else 0
+            ),
             "collection": synthetic_request.collection,
             "purpose": synthetic_request.purpose,
         }
@@ -4520,19 +4976,15 @@ async def run_system_doctor():
 
     try:
         try:
-            req = urllib.request.Request(
-                "http://127.0.0.1:11434/api/tags", method="GET"
+            data = await asyncio.to_thread(_ollama_get_json, "/api/tags", 3)
+            model_count = len(data.get("models", []))
+            report["checks"].append(
+                {
+                    "name": "Ollama Connection",
+                    "status": "pass",
+                    "details": f"Connected with {model_count} models",
+                }
             )
-            with urllib.request.urlopen(req, timeout=3) as response:
-                data = json.loads(response.read().decode())
-                model_count = len(data.get("models", []))
-                report["checks"].append(
-                    {
-                        "name": "Ollama Connection",
-                        "status": "pass",
-                        "details": f"Connected with {model_count} models",
-                    }
-                )
         except Exception as e:
             report["checks"].append(
                 {"name": "Ollama Connection", "status": "fail", "details": str(e)}
@@ -4540,15 +4992,14 @@ async def run_system_doctor():
             report["errors"].append("Ollama is not running. Start with: ollama serve")
 
         try:
-            req = urllib.request.Request("http://127.0.0.1:6333/", method="GET")
-            with urllib.request.urlopen(req, timeout=3):
-                report["checks"].append(
-                    {
-                        "name": "Qdrant Connection",
-                        "status": "pass",
-                        "details": "Connected successfully",
-                    }
-                )
+            await asyncio.to_thread(_http_get_ok, f"{QDRANT_BASE_URL}/", 3)
+            report["checks"].append(
+                {
+                    "name": "Qdrant Connection",
+                    "status": "pass",
+                    "details": "Connected successfully",
+                }
+            )
         except Exception as e:
             report["checks"].append(
                 {"name": "Qdrant Connection", "status": "fail", "details": str(e)}
@@ -4693,9 +5144,9 @@ async def run_system_doctor():
             "total_checks": total_count,
             "passed": pass_count,
             "failed": total_count - pass_count,
-            "health_score": round((pass_count / total_count) * 100)
-            if total_count > 0
-            else 0,
+            "health_score": (
+                round((pass_count / total_count) * 100) if total_count > 0 else 0
+            ),
         }
 
         report_file = (
@@ -4721,6 +5172,21 @@ async def run_system_doctor():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """Real-time WebSocket connection for live updates."""
+    # Cross-site WebSocket hijacking / DNS-rebinding guard.
+    host_header = websocket.headers.get("host", "")
+    if not (
+        _host_trusted(host_header)
+        and _same_origin_trusted(websocket.headers.get("origin", ""), host_header)
+    ):
+        await websocket.close(code=1008)
+        return
+    # Clients on OTHER machines must present the key (?api_key=...); the local UI need not.
+    client_host, server_host = _peer(websocket.scope)
+    if not _is_same_machine(client_host, server_host) and not _api_key_valid(
+        websocket.query_params.get("api_key", "")
+    ):
+        await websocket.close(code=1008)
+        return
     await ws_manager.connect(websocket)
     try:
         await ws_manager.send_personal(
@@ -4793,8 +5259,12 @@ async def startup_event():
             from app.security.auth import generate_api_key
 
             new_key = generate_api_key()
-            mgr.set("api_key", new_key)
-            logger.info("API key auto-generated on first launch")
+            if mgr.set("api_key", new_key):
+                logger.info("API key auto-generated on first launch")
+            else:
+                logger.error(
+                    "Could not store the auto-generated API key; the UI cannot authenticate"
+                )
         else:
             logger.info("Existing API key found")
     except Exception as e:
@@ -4937,11 +5407,24 @@ async def serve_frontend():
     )
 
 
+def _safe_public_file(base: Path, relative: str) -> Optional[Path]:
+    """Resolve `relative` under `base`; None if it escapes `base` or is not a regular file."""
+    try:
+        base_resolved = base.resolve()
+        candidate = (base_resolved / relative).resolve()
+        candidate.relative_to(base_resolved)
+    except (ValueError, RuntimeError, OSError):
+        return None
+    return candidate if candidate.is_file() else None
+
+
 @app.get("/sounds/{filename}")
 async def serve_sound(filename: str):
     """Serve sound files."""
-    sound_path = PROJECT_ROOT / "frontend" / "public" / "sounds" / filename
-    if sound_path.exists():
+    sound_path = _safe_public_file(
+        PROJECT_ROOT / "frontend" / "public" / "sounds", filename
+    )
+    if sound_path:
         return FileResponse(str(sound_path))
     raise HTTPException(status_code=404, detail="Sound file not found")
 
@@ -4949,8 +5432,8 @@ async def serve_sound(filename: str):
 @app.get("/fonts/{path:path}")
 async def serve_font(path: str):
     """Serve font files."""
-    font_path = PROJECT_ROOT / "frontend" / "public" / "fonts" / path
-    if font_path.exists():
+    font_path = _safe_public_file(PROJECT_ROOT / "frontend" / "public" / "fonts", path)
+    if font_path:
         return FileResponse(str(font_path))
     raise HTTPException(status_code=404, detail="Font file not found")
 

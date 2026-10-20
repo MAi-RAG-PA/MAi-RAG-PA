@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-P.A. Personal Assistant" width="150">
 </p>
 
-<h1 align="center">MAi-RAG-PA</h1>
+<h1 align="center">MAi-RAG-P.A.</h1>
 <h3 align="center">Your Offline Privacy, Self-Healing, Personal Assistant</h3>
 
 <p align="center">
-  <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
+  <strong>MAi-RAG-P.A. (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
 </p>
 
 <p align="center">
@@ -24,17 +24,17 @@
 
 
 <p align="center">
-  <strong>Version 1.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
-<h3 align="center">Complete guide for accessing your MAi-RAG-PA instance from other devices on your network or remotely via SSH tunnel.</h3>
+<h3 align="center">Complete guide for accessing your MAi-RAG-P.A. instance from other devices on your network or remotely via SSH tunnel.</h3>
 
 -----------------------------------------------------------------------------------
 
 ## Quick Setup (5 minutes)
 
-### On Your Main Computer Where MAi-RAG-PA is Running (Server):
+### On Your Main Computer Where MAi-RAG-P.A. is Running (Server):
 
 1. **Find your IP address:**
 
@@ -44,19 +44,19 @@
 
    **Look for something like 192.168.1.100**
 
-2. **Ensure MAi-RAG-PA is running:**
+2. **Ensure MAi-RAG-P.A. is running:**
 
     cd ~/MAi-RAG-PA
     ./start.sh
 
-3. **Note the port: MAi-RAG-PA runs on port 8000 by default**
+3. **Note the port: MAi-RAG-P.A. runs on port 8000 by default**
 
 ### On Your Tablet/Phone:
 
 **Option 1: Direct LAN Access (Same WiFi Network)**
 
 1. Connect tablet/phone to the same WiFi as your computer
-2. Open browser and go to: http://192.168.1.XX:8000 (replace XX with the IP running MAi-RAG-PA)
+2. Open browser and go to: http://192.168.1.XX:8000 (replace XX with the IP running MAi-RAG-P.A.)
 3. That's it! No SSH needed for local network access.
 
 **Option 2: SSH Tunnel (Remote Access)**
@@ -101,27 +101,22 @@
 
 ## Firewall Configuration
 
-**MAi-RAG-PA requires specific ports to be open for full functionality. Configure your firewall according to your needs:**
+**MAi-RAG-P.A. requires specific ports to be open for full functionality. Configure your firewall according to your needs:**
 
 ### Required Ports
 
 | Port | Service | Protocol | Purpose | Required For |
 |------|---------|----------|---------|--------------|
-| 8000 | MAi-RAG-PA Web UI | TCP | Web interface access | LAN/Remote access |
-| 8001 | Watchdog Service | TCP | Start/Stop control | Web UI control buttons |
+| 8000 | MAi-RAG-P.A. Web UI | TCP | Web interface access | LAN/Remote access |
 | 11434 | Ollama | TCP | LLM inference API | Local operation |
 | 6333 | Qdrant | TCP | Vector database API | RAG features |
 | 22 | SSH | TCP | Remote access | SSH tunnel (optional) |
 
 ### UFW (Ubuntu/Debian)
 
-**Allow MAi-RAG-PA web interface (LAN access):**
+**Allow MAi-RAG-P.A. web interface (LAN access):**
 
     sudo ufw allow 8000/tcp
-
-**Allow Watchdog service (for WebUI control buttons)**
-
-    sudo ufw allow 8001/tcp
 
 **Allow Ollama (only needed if accessing from other machines):**
 
@@ -145,13 +140,9 @@
 
 ### Firewalld (Fedora/RHEL/CentOS)
 
-**Allow MAi-RAG-PA web interface:**
+**Allow MAi-RAG-P.A. web interface:**
 
     sudo firewall-cmd --permanent --add-port=8000/tcp
-
-**Allow Watchdog service**
-
-    sudo firewall-cmd --permanent --add-port=8001/tcp
 
 **Allow Ollama:**
 
@@ -177,10 +168,7 @@
 
 **For local-only use, you can restrict access to localhost:**
 
-# Only allow local connections (more secure)
-
     sudo ufw allow from 127.0.0.1 to any port 8000
-    sudo ufw allow from 127.0.0.1 to any port 8001
     sudo ufw allow from 127.0.0.1 to any port 11434
     sudo ufw allow from 127.0.0.1 to any port 6333
 
@@ -190,7 +178,7 @@
 
 **Can't connect?**
 
-**Check firewall:**
+**Make sure the ports are open:**
 
     sudo ufw allow 22        #SSH
     sudo ufw allow 8000      #MAi-RAG-PA
@@ -356,18 +344,18 @@
 
 ### Port Forwarding (For External Access)
 
-If you want to access MAi-RAG-PA from outside your network:
+If you want to access MAi-RAG-P.A. from outside your network:
 
 1. Access your router admin panel (usually 192.168.1.1)
 2. Find Port Forwarding section
 3. Create new rule:
-   - Service Name: MAi-RAG-PA
+   - Service Name: MAi-RAG-P.A.
    - External Port: 8000 (or custom port)
    - Internal IP: 192.168.1.100 (your computer's IP)
    - Internal Port: 8000
    - Protocol: TCP
 
-**Security Warning:** Exposing MAi-RAG-PA to the internet is not recommended. Use SSH tunnel or VPN instead.
+**Security Warning:** Exposing MAi-RAG-P.A. to the internet is not recommended. Use SSH tunnel or VPN instead.
 
 -----------------------------------------------------------------------------------
 
@@ -394,7 +382,7 @@ If you want to access MAi-RAG-PA from outside your network:
 - Browser will show security warning
 - Not recommended for production
 
-**Security Warning**: Never expose MAi-RAG-PA directly to the internet over HTTP. Always use SSH tunnel or HTTPS.
+**Security Warning**: Never expose MAi-RAG-P.A. directly to the internet over HTTP. Always use SSH tunnel or HTTPS.
 
 ### Setting Up Nginx Reverse Proxy with SSL
 
@@ -508,11 +496,9 @@ If you set up Nginx or Apache as a reverse proxy, enable HTTP/2 for better perfo
 
 ### Monitor Network Traffic
 
-    sudo netstat -an | grep :8000
+    sudo ss -tlnp | grep :8000
 
 -----------------------------------------------------------------------------------
-
-## Documentation
 
 ## Documentation
 
@@ -532,24 +518,24 @@ If you set up Nginx or Apache as a reverse proxy, enable HTTP/2 for better perfo
 
 -----------------------------------------------------------------------------------
 
-## 💝 Support MAi-RAG-PA
+## Support MAi-RAG-P.A.
 
-MAi-RAG-PA is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
+MAi-RAG-P.A. is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
 
-MAi-RAG-PA is free for personal use. If you find it valuable, donations are greatly appreciated:
+MAi-RAG-P.A. is free for personal use. If you find it valuable, donations are greatly appreciated:
 
-- **PayPal**: <a href="https://www.paypal.com/ncp/payment/GSTCK29MSGCH4">Grateful for your Contributions</a>
+- **Stripe**: <a href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601">Grateful for your Contributions</a>
 
-Every donation helps keep MAi-RAG-PA free and continuously improving.
+Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 
 **Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
 
 -----------------------------------------------------------------------------------
 
 <p align="center">
-  <strong>MAi-RAG-PA — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
+  <strong>MAi-RAG-P.A. — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>
 </p>
 
 <p align="center">
-  Version 1.0.0 | Released June 2026
+  Version 2.0.0 | Updated October 2026
 </p>

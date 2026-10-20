@@ -3,6 +3,7 @@
 RAG Retriever with Graceful Qdrant Degradation
 Works with or without Qdrant running - logs warnings but never crashes
 """
+
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -195,9 +196,9 @@ class AdvancedRetriever:
         return {
             "qdrant_available": self.qdrant_available,
             "available_collections": self.available_collections,
-            "best_collection": self.get_best_collection()
-            if self.qdrant_available
-            else None,
+            "best_collection": (
+                self.get_best_collection() if self.qdrant_available else None
+            ),
         }
 
 

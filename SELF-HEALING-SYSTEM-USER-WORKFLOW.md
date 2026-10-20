@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="assets/MAi-RAG.png" alt="MAi-RAG-PA Personal Assistant" width="150">
+  <img src="assets/MAi-RAG.png" alt="MAi-RAG-P.A. Personal Assistant" width="150">
 </p>
 
-<h1 align="center">MAi-RAG-PA</h1>
+<h1 align="center">MAi-RAG-P.A.</h1>
 <h3 align="center">Your Offline Privacy, Self-Healing, Personal Assistant</h3>
 
 <p align="center">
-  <strong>MAi-RAG-PA (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
+  <strong>MAi-RAG-P.A. (Memory-Augmented Intelligence with Retrieval-Augmented Generation - Personal Assistant)</strong> is a privacy-focused personal AI assistant that runs entirely on your local machine. No cloud. No subscriptions. No data leaving your computer.
 </p>
 
 <p align="center">
@@ -24,13 +24,13 @@
 
 
 <p align="center">
-  <strong>Effective Date: June 2026</strong><br />
+  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
 ---
 
-# MAi-RAG-PA Self-Healing System User Workflow Guide
+# MAi-RAG-P.A. Self-Healing System User Workflow Guide
 
 ## Table of Contents
 
@@ -50,13 +50,13 @@
 - [Troubleshooting](#troubleshooting)
 - [Complete Workflow Example](#complete-workflow-example)
 - [Proactive Self-Healing Workflow (The MAi-RAG Way)](#proactive-self-healing-workflow-the-mai-rag-way)
-- [Updating MAi-RAG-PA](#updating-mai-rag-pa)
+- [Updating MAi-RAG-P.A.](#updating-mai-rag-pa)
 
 ---
 
 ## Overview
 
-The MAi-RAG-PA self-healing system lets the AI assistant read, analyze, and fix code inside a controlled sandbox. It is designed to diagnose errors, identify bugs, and produce corrections safely while preserving the privacy and local-only operation of the assistant.
+The MAi-RAG-P.A. self-healing system lets the AI assistant read, analyze, and fix code inside a controlled sandbox. It is designed to diagnose errors, identify bugs, and produce corrections safely while preserving the privacy and local-only operation of the assistant.
 
 ## At a Glance
 
@@ -71,8 +71,9 @@ The MAi-RAG-PA self-healing system lets the AI assistant read, analyze, and fix 
 
 **You do not need to know any code, file names, or special commands.** The Self-Healing System is triggered naturally through everyday language in the Chat Console.
 
-The AI listens for conversational keywords related to troubleshooting or creation, such as:
-**`fix` • `broken` • `error` • `diagnose` • `not working` • `create` • `write` • `backup`**
+The AI listens for the trigger keywords configured in the system (from `tool_keywords` in `agent_core.py`):
+
+**`create file` • `write file` • `save` • `calendar` • `event` • `reminder` • `todo` • `read` • `fix` • `diagnose` • `sandbox` • `error` • `search` • `backup`**
 
 ### Scenario 1: The Non-Technical User (System Malfunction)
 If the system is acting up, simply describe the symptom. The AI will guide you.
@@ -124,16 +125,22 @@ curl -X POST http://localhost:8000/api/system/dev-sandbox/init \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
-This command copies necessary dependencies and files to the sandbox from the live running MAi-RAG-PA system.
+This command copies necessary dependencies and files to the sandbox from the live running MAi-RAG-P.A. system.
 
-To get your API key:
+To get your API key, ask the system to issue one:
+
+```bash
+curl http://localhost:8000/api/auth/auto-key
+```
+
+Or read the stored key directly:
 
 ```bash
 sqlite3 ~/MAi-RAG-PA/memory/memory_store.db \
   "SELECT value FROM short_term_memory WHERE key='api_key';"
 ```
 
-Then, in the MAi-RAG-PA WebUI chat console, ask a qualified model to fix an issue. Review the sandbox at ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/ and deploy fixed files manually.
+Then, in the MAi-RAG-P.A. WebUI chat console, ask a qualified model to fix an issue. Review the sandbox at ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/ and deploy fixed files manually.
 
 
 ### Method 2: Automatic on First Self-Healing Request
@@ -147,14 +154,24 @@ Only models in this list receive the SELF_HEALING_PROTOCOL instructions:
 
 ### Supported Capable Models
 
+**Dense models:**
+
 - `qwen2.5-coder:32b`
 - `qwen2.5-coder:14b`
-- `qwen2.5-coder:7b`
 - `codeqwen:7b`
 - `devstral:24b`
 - `mistral-small:24b`
 - `qwen3-coder-30b`
 - `gemma3:27b`
+
+**MoE models:**
+
+- `qwen3-235b-a22b`
+- `qwen3-30b-a3b`
+- `qwen3.6-35b-a3b`
+- `mixtral-8x7b`
+- `mixtral-8x22b`
+- `deepseek-v2`
 
 ## Hardware Requirements
 
@@ -173,7 +190,7 @@ When a user makes a request that requires code modification:
 
 ### 2. System Prompt Injection: The system automatically checks the current model capability.
 
-### 3. AI Reads ARCHITECTURE.md: The capable model reads the architecture docs to understand the project structure.
+### 3. Reference Materials: `ARCHITECTURE.md` is copied into the sandbox at initialization so the model can reference the project structure; the protocol requires diagnosing against the live source files.
 
 ### 4. AI Works in Sandbox:
     - Reads files from the main project in read-only mode.
@@ -181,7 +198,7 @@ When a user makes a request that requires code modification:
     - Provides backup commands for the user to run.
     - Suggests verification commands.
 
-### 5. User Review and Deploy: The user reviews the changes in the sandbox and can Deploy, Revert, or Reset.
+### 5. User Review and Deploy: The user reviews the changes and the `SELF_HEALING_LOG.md` instructions, then deploys manually with the provided commands; the sandbox can be reset at any time via the reset API.
 
 
 ## Tool Activation & Available Tools
@@ -219,11 +236,14 @@ When fixing an issue, the system follows this sequence:
 All file operations in the sandbox are validated to ensure they stay within allowed boundaries.
 You can check the sandbox status at any time in the terminal:
 
+```bash
 curl http://localhost:8000/api/system/dev-sandbox/status \
   -H "X-API-Key: YOUR_API_KEY"
+```
 
-## Example response:
+### Example response
 
+```json
 {
   "status": "initialized",
   "path": "/home/user/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV",
@@ -231,6 +251,7 @@ curl http://localhost:8000/api/system/dev-sandbox/status \
   "directory_count": 23,
   "message": "Sandbox is ready for self-healing operations"
 }
+```
 
 
 ## Capabilities & Model Guidance
@@ -256,8 +277,8 @@ curl http://localhost:8000/api/system/dev-sandbox/status \
 
 | Model | Size | Tool Support | Speed | Notes |
 |---|---:|---|---|---|
+| `devstral:24b` | 24B | Yes | 45–90 min | Open coding agent model, strong tool use. |
 | `qwen2.5-coder:14b` | 14B | Yes | 30–60 min | Best accuracy, slower on CPU. |
-| `qwen2.5-coder:7b` | 7B | Yes | 15–25 min | Good balance. |
 | `codeqwen:7b` | 7B | No | 10–15 min | Fast, but may hallucinate tool calls. |
 
 *Note: codeqwen:7b lacks native tool support, but the MAi-RAG system includes a JSON-interception fallback to parse and execute tool calls safely.
@@ -270,7 +291,8 @@ The AI must not access, read, or write to:
 
 - `venv/`, `env/`, `.venv/`
 - `node_modules/`
-- `.git/`
+- `.git/`, `.env`
+- `dist/`, `build/`, `public/`
 - `__pycache__/`
 - `memory/`
 - `storage/`
@@ -279,6 +301,7 @@ The AI must not access, read, or write to:
 - `alembic/`
 - `tests/`
 - `scripts/`
+- `backups/`
 
 ### Safety Protocols (NON-NEGOTIABLE)
 
@@ -312,8 +335,9 @@ The AI must not access, read, or write to:
 **Fix:** Use a model with tools support, and fall back to JSON interception if needed.
 
 
-## Complete Workflow Example:
+## Complete Workflow Example
 
+```bash
 # 1. Initialize sandbox
 curl -X POST http://localhost:8000/api/system/dev-sandbox/init \
   -H "X-API-Key: YOUR_API_KEY"
@@ -335,6 +359,7 @@ cp ~/MAi-RAG-PA/dev-sandbox/MAi-RAG-DEV/app/main.py ~/MAi-RAG-PA/app/main.py
 # 6. Reset sandbox if needed
 curl -X DELETE http://localhost:8000/api/system/dev-sandbox/reset \
   -H "X-API-Key: YOUR_API_KEY"
+```
 
 
 ## Proactive Self-Healing Workflow (The MAi-RAG Way)
@@ -407,21 +432,24 @@ The script is designed to be safe, read‑only by default, and gives you full co
 ########################################################################
 ########################################################################
 
-## Updating MAi-RAG-PA
+## Updating MAi-RAG-P.A.
 
 ### If You Haven't Modified Source Code, or just want to reinstall from scratch:
 You will need to specifically backup your databases, and any created files saved in workspace:
 
+```bash
 mkdir -p ~/MAi-RAG-BKP && cp -r ~/MAi-RAG-PA/workspace ~/MAi-RAG-PA/storage ~/MAi-RAG-PA/memory ~/MAi-RAG-BKP/
 
 cd ~/
 
 curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
+```
 
 
 
 ### If You Have previously Modified Source Code
 
+```bash
 cd ~/MAi-RAG-PA
 
 # Save your changes
@@ -437,6 +465,7 @@ git stash pop
 # Then restart
 ./stop.sh
 ./start.sh
+```
 
 
 
@@ -450,12 +479,34 @@ git stash pop
 - [Changelog](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/CHANGELOG.md) - Version history and updates
 - [License & Legal](https://github.com/MAi-RAG-PA/MAi-RAG-PA/blob/main/MAi-LICENCE-LEGAL-NOTICE.md) - Terms of use and commercial licensing
 
+-----------------------------------------------------------------------------------
 
+## Support & Contact
+
+**Issues**: [GitHub Issues](https://github.com/MAi-RAG-PA/MAi-RAG-PA/issues)
+**Discussions**: [GitHub Discussions](https://github.com/MAi-RAG-PA/MAi-RAG-PA/discussions)
+**Email**: MAi-RAG-PA@proton.me
+
+-----------------------------------------------------------------------------------
+
+## Support MAi-RAG-P.A.
+
+MAi-RAG-P.A. is a labor of love developed over thousands of hours. If this software brings value to your life or work, **donations are deeply appreciated** and help fund continued development.
+
+MAi-RAG-P.A. is free for personal use. If you find it valuable, donations are greatly appreciated:
+
+- **Stripe**: <a href="https://donate.stripe.com/28EeVd4lT4iP0Zbfs43F601">Grateful for your Contributions</a>
+
+Every donation helps keep MAi-RAG-P.A. free and continuously improving.
+
+**Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
+
+-----------------------------------------------------------------------------------
 
 <p align="center">
-<strong>MAi-RAG-PA Architecture — Privacy-First, Self-Healing, Production-Ready</strong>
+<strong>MAi-RAG-P.A. Self-Healing System — Privacy-First, Sandboxed, Production-Ready</strong>
 </p>
 
 <p align="center">
-Version 1.0.0 | Updated July 2026
+Version 2.0.0 | Updated October 2026
 </p>
