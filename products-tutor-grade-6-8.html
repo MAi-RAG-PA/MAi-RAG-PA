@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- PRIMARY SEO -->
+<title>Tutor Grade 6–8 — Middle School Socratic Tutor — MAi-RAG-P.A.</title>
+<meta name="description" content="MAi-RAG-P.A. Tutor Grade 6-8: an offline, framework-bound Socratic tutor for middle school. Strict anti-hallucination charter, DB-backed student profiles, Qdrant-verified knowledge base. Runs in browser with WiFi off.">
+<meta name="keywords" content="MAi-RAG-P.A., Tutor Grade 6-8, middle school tutor, Socratic tutor, offline AI tutoring, anti-hallucination framework, Qdrant RAG, qwen2.5, Plato's Allegory of the Cave, student profile DB, child-safe AI">
+<meta name="author" content="MAi-RAG-P.A.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0d1117">
+<link rel="canonical" href="https://mai-rag-pa.github.io/MAi-RAG-PA/products-tutor-grade-6-8.html">
+<link rel="icon" href="favicon.ico" sizes="any"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- OPEN GRAPH -->
+<meta property="og:type" content="product">
+<meta property="og:url" content="https://mai-rag-pa.github.io/MAi-RAG-PA/products-tutor-grade-6-8.html">
+<meta property="og:title" content="Tutor Grade 6-8 — Middle School Socratic Tutor — MAi-RAG-P.A.">
+<meta property="og:description" content="A commercial middle-school tutor role for grades 6-8. Offline. Verified. No distractions. Strict framework keeps answers inside the knowledge base, never in unverified memory.">
+<meta property="og:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/Tutor_grade_6_8.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="1200">
+
+<!-- TWITTER -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tutor Grade 6-8 — Middle School Socratic Tutor">
+<meta name="twitter:description" content="Offline middle-school AI tutor. Framework-bound. Verified Qdrant knowledge base. No distractions for your child's learning time.">
+<meta name="twitter:image" content="https://mai-rag-pa.github.io/MAi-RAG-PA/assets/Tutor_grade_6_8.png">
+
+<style>
+:root { --bg-primary:#0d1117; --bg-secondary:#161b22; --bg-tertiary:#21262d; --text-primary:#f0f6fc; --text-secondary:#8b949e; --accent-blue:#58a6ff; --accent-blue-hover:#79c0ff; --accent-green:#238636; --accent-green-hover:#2ea043; --accent-gold:#d29922; --accent-gold-bright:#e8b84a; --border-color:#30363d; --shadow-color:rgba(0,0,0,0.5); }
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body { background:var(--bg-primary); color:var(--text-primary); font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height:1.6; }
+.container { max-width:1100px; margin:0 auto; padding:0 1.5rem; }
+
+header { position:sticky; top:0; z-index:100; background:rgba(13,17,23,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border-color); padding:0.6rem 0; }
+.header-content { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; }
+.logo-area { display:flex; align-items:center; gap:0.8rem; text-decoration:none; color:var(--text-primary); }
+.logo-area span { font-size:1.3rem; font-weight:700; letter-spacing:-0.5px; }
+.nav-links { display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center; }
+.nav-links a { color:var(--text-secondary); font-weight:500; font-size:0.95rem; }
+.nav-links a:hover, .nav-links a.active { color:var(--accent-blue); }
+
+.grad { background:linear-gradient(135deg,#22d3ee 0%,#FF9E57 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; font-weight:700; display:inline-block; }
+.gold { background:linear-gradient(135deg,#e8b84a 0%,#d29922 50%,#FF9E57 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; font-weight:700; display:inline-block; }
+
+.product-hero { display:grid; grid-template-columns:420px 1fr; gap:2.5rem; align-items:center; padding:3.5rem 0 2rem; }
+@media (max-width:860px) { .product-hero { grid-template-columns:1fr; text-align:center; } }
+.product-hero img { width:100%; max-width:420px; border-radius:16px; border:1px solid rgba(56,189,248,0.4); box-shadow:0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(56,189,248,0.2); margin:0 auto; display:block; }
+.hero-badge { display:inline-block; background:rgba(210,153,34,0.12); color:var(--accent-gold-bright); border:1px solid rgba(210,153,34,0.4); padding:4px 16px; border-radius:30px; font-size:0.85rem; font-weight:600; margin-bottom:1.2rem; }
+.product-hero h1 { font-size:2.4rem; letter-spacing:-1px; line-height:1.12; margin-bottom:1rem; }
+.product-hero .subtitle { color:var(--text-secondary); font-size:1.1rem; max-width:600px; margin-bottom:1.4rem; }
+.product-hero .subtitle strong { color:var(--text-primary); }
+
+.trust-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin:2rem 0; padding:1.6rem 1rem; background:var(--bg-tertiary); border-radius:12px; border:1px solid rgba(34,211,238,0.35); transition:border-color 0.4s ease, box-shadow 0.4s ease; }
+.trust-strip:hover { border-color:#22d3ee; box-shadow:0 0 20px rgba(34,211,238,0.25); }
+.trust-item { text-align:center; padding:0.6rem 0.4rem; border-radius:8px; transition:all 0.3s ease; }
+.trust-item:hover { transform:translateY(-3px); background:rgba(34,211,238,0.06); box-shadow:0 0 14px rgba(34,211,238,0.35); }
+.trust-item .lbl { font-size:0.85rem; color:var(--text-secondary); }
+
+.section { padding:2.5rem 0; }
+.section-title { text-align:center; font-size:2rem; letter-spacing:-0.5px; margin-bottom:0.5rem; }
+.section-subtitle { text-align:center; color:var(--text-secondary); max-width:720px; margin:0 auto 2rem; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+@media (max-width:800px) { .two-col { grid-template-columns:1fr; } }
+.card { background:var(--bg-secondary); border:1px solid rgba(34,211,238,0.30); border-radius:14px; padding:1.8rem; position:relative; overflow:hidden; transition:transform 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease; }
+.card:hover { transform:translateY(-4px); border-color:#22d3ee; box-shadow:0 12px 28px var(--shadow-color), 0 0 20px rgba(34,211,238,0.25); }
+.card h3 { font-size:1.25rem; margin-bottom:0.6rem; }
+.card p, .card li { color:var(--text-secondary); font-size:0.96rem; }
+.card ul { list-style:none; padding:0; margin-top:0.6rem; }
+.card li { padding-left:1.5rem; position:relative; margin-bottom:0.5rem; }
+.card li::before { content:"→"; color:var(--accent-blue); position:absolute; left:0; font-weight:700; }
+.card strong { color:var(--text-primary); }
+
+.warning-box { background:rgba(248,81,73,0.08); border:1px solid rgba(248,81,73,0.35); border-radius:12px; padding:1.5rem 1.8rem; margin:1.5rem 0; }
+.warning-box strong { color:#f0b7b7; }
+.warning-box p { color:var(--text-secondary); margin-top:0.4rem; }
+
+.spec-table { width:100%; border-collapse:collapse; background:var(--bg-secondary); border-radius:12px; overflow:hidden; border:1px solid var(--border-color); margin:1.5rem 0; }
+.spec-table th, .spec-table td { padding:0.9rem 1.1rem; text-align:left; border-bottom:1px solid var(--border-color); font-size:0.93rem; }
+.spec-table th { background:var(--bg-tertiary); color:var(--text-primary); }
+.spec-table td { color:var(--text-secondary); }
+.spec-table tr:last-child td { border-bottom:none; }
+.spec-table td:first-child { color:var(--text-primary); font-weight:600; white-space:nowrap; }
+
+.faq { max-width:800px; margin:0 auto; }
+.faq details { background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:10px; padding:1.1rem 1.4rem; margin-bottom:0.8rem; }
+.faq summary { font-weight:600; cursor:pointer; color:var(--text-primary); }
+.faq p { color:var(--text-secondary); margin-top:0.6rem; font-size:0.94rem; }
+
+.final-cta { text-align:center; padding:3rem 1rem 2rem; }
+.final-cta h2 { font-size:2rem; margin-bottom:1rem; }
+.final-cta p { color:var(--text-secondary); max-width:680px; margin:0 auto 2rem; }
+.btn-group { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin:1rem 0; }
+.btn { display:inline-flex; align-items:center; gap:0.6rem; background:var(--accent-green); color:#fff; padding:14px 28px; border-radius:8px; font-weight:600; font-size:1.05rem; transition:all 0.2s ease; }
+.btn:hover { background:var(--accent-green-hover); transform:translateY(-2px); color:#fff; }
+.btn-secondary { background:var(--bg-tertiary); color:var(--text-primary); border:1px solid var(--border-color); }
+.btn-secondary:hover { background:var(--border-color); color:var(--text-primary); }
+.micro-note { font-size:0.85rem; color:var(--text-secondary); margin-top:0.8rem; }
+
+footer { text-align:center; padding:3rem 1rem 2rem; color:var(--text-secondary); font-size:0.9rem; border-top:1px solid var(--border-color); margin-top:3rem; }
+footer .footer-links { display:flex; justify-content:center; gap:1.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+footer a { color:var(--accent-blue); }
+
+@media (max-width:768px) { .bg-circuit { opacity:0.16; } .bg-hex-grid { opacity:0.4; } }
+
+        .card::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(34,211,238,0.10), transparent); transition: left 0.6s ease; pointer-events: none; }
+        .card:hover::before { left: 100%; }
+        .card.gold-border { border-color: rgba(210,153,34,0.5); }
+        .card.gold-border:hover { border-color: var(--accent-gold-bright); box-shadow: 0 12px 28px var(--shadow-color), 0 0 20px rgba(210,153,34,0.35); }
+        .trust-strip:hover { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.25); }
+        .trust-strip { position: relative; overflow: hidden; transition: border-color 0.4s ease, box-shadow 0.4s ease; }
+        .trust-strip::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(34,211,238,0.10), transparent); transition: left 0.6s ease; pointer-events: none; }
+        .trust-strip:hover::before { left: 100%; }
+        .price-row { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; margin: 1.4rem 0; }
+        .price-now { font-size: 2.2rem; font-weight: 700; line-height: 1; }
+        .price-note { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+        pre.output { background: #0a0e14; border: 1px solid var(--border-color); border-left: 3px solid var(--accent-gold); border-radius: 10px; padding: 1.4rem 1.6rem; overflow-x: auto; font-size: 0.88rem; line-height: 1.6; color: #c9d1d9; margin: 1.2rem 0; white-space: pre-wrap; }
+        .one-col { max-width: 720px; margin: 0 auto; }
+        .nav-cta { background: var(--accent-green) !important; color: #fff !important; padding: 6px 14px !important; border-radius: 6px; }
+        .nav-cta:hover { background: var(--accent-green-hover) !important; color: #fff !important; }
+        .essay-link:hover { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.25); }
+        .essay-link { position: relative; overflow: hidden; transition: border-color 0.4s ease, box-shadow 0.4s ease; }
+        .essay-link::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(34,211,238,0.10), transparent); transition: left 0.6s ease; pointer-events: none; }
+        .essay-link:hover::before { left: 100%; }
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { color: var(--accent-blue-hover); }
+        .bg-hex-grid, .bg-circuit { position: fixed; inset: 0; pointer-events: none; }
+        .bg-hex-grid {
+            z-index: 0;
+            background-image:
+                linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
+                linear-gradient(150deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
+                linear-gradient(30deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
+                linear-gradient(150deg, rgba(255,255,255,0.03) 12%, transparent 12.5%, transparent 87%, rgba(255,255,255,0.03) 87.5%, rgba(255,255,255,0.03)),
+                linear-gradient(60deg, rgba(255,255,255,0.03) 25%, transparent 25.5%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03)),
+                linear-gradient(60deg, rgba(255,255,255,0.03) 25%, transparent 25.5%, transparent 75%, rgba(255,255,255,0.03) 75%, rgba(255,255,255,0.03));
+            background-size: 40px 70px; background-position: 0 0, 0 0, 20px 35px, 20px 35px, 0 0, 20px 35px;
+            opacity: 0.35;
+            -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 85%);
+            mask-image: radial-gradient(circle at center, black 40%, transparent 85%);
+        }
+        .bg-circuit { z-index: 0; opacity: 0.28; }
+        .bg-circuit svg { width: 100%; height: 100%; display: block; }
+        .bg-circuit .circuit-path { fill: none; stroke: #22d3ee; stroke-width: 1; stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: bgCircuitFlow 8s linear infinite; filter: drop-shadow(0 0 3px #22d3ee); }
+        .bg-circuit .circuit-path:nth-child(2) { animation-delay: 1s; }
+        .bg-circuit .circuit-path:nth-child(3) { animation-delay: 2s; }
+        .bg-circuit .circuit-path:nth-child(4) { animation-delay: 3s; }
+        .bg-circuit .circuit-path:nth-child(5) { animation-delay: 4s; }
+        .bg-circuit .circuit-path:nth-child(6) { animation-delay: 5s; }
+        @keyframes bgCircuitFlow { 0% { stroke-dashoffset: 1000; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+        .bg-circuit .circuit-node { fill: #22d3ee; filter: drop-shadow(0 0 5px #22d3ee); animation: bgNodePulse 2s ease-in-out infinite; }
+        .bg-circuit .circuit-node:nth-child(odd) { animation-delay: 0.5s; }
+        @keyframes bgNodePulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        main, footer { position: relative; z-index: 1; }
+        @media (max-width: 768px) { .bg-circuit { opacity: 0.16; } .bg-hex-grid { opacity: 0.4; } }
+        @media (prefers-reduced-motion: reduce) { .bg-circuit .circuit-path, .bg-circuit .circuit-node { animation: none; } }
+</style>
+</head>
+<body>
+<div class="bg-hex-grid" aria-hidden="true"></div>
+    <div class="bg-circuit" aria-hidden="true">
+        <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+            <path class="circuit-path" d="M 0 200 L 300 200 L 350 250 L 600 250 L 650 200 L 1200 200" />
+            <path class="circuit-path" d="M 0 400 L 200 400 L 250 350 L 500 350 L 550 400 L 1200 400" />
+            <path class="circuit-path" d="M 0 600 L 400 600 L 450 550 L 700 550 L 750 600 L 1200 600" />
+            <path class="circuit-path" d="M 200 0 L 200 300 L 250 350 L 250 500 L 200 550 L 200 800" />
+            <path class="circuit-path" d="M 600 0 L 600 200 L 650 250 L 650 450 L 600 500 L 600 800" />
+            <path class="circuit-path" d="M 1000 0 L 1000 400 L 950 450 L 950 650 L 1000 700 L 1000 800" />
+            <circle class="circuit-node" cx="300" cy="200" r="4" />
+            <circle class="circuit-node" cx="600" cy="250" r="4" />
+            <circle class="circuit-node" cx="200" cy="400" r="4" />
+            <circle class="circuit-node" cx="500" cy="350" r="4" />
+            <circle class="circuit-node" cx="400" cy="600" r="4" />
+            <circle class="circuit-node" cx="700" cy="550" r="4" />
+            <circle class="circuit-node" cx="600" cy="200" r="4" />
+            <circle class="circuit-node" cx="650" cy="450" r="4" />
+            <circle class="circuit-node" cx="1000" cy="400" r="4" />
+            <circle class="circuit-node" cx="950" cy="650" r="4" />
+        </svg>
+    </div>
+
+<header>
+<div class="container header-content">
+<a href="index.html" class="logo-area" aria-label="MAi-RAG-P.A. home"><span>MAi-RAG-P.A.</span></a>
+<nav class="nav-links" aria-label="Main navigation">
+<a href="index.html">Home</a>
+<a href="roles.html">Roles</a>
+<a href="products.html" class="active">Products</a>
+<a href="blog/index.html">Blog</a>
+<a href="about.html">About</a>
+<a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">GitHub</a>
+<a href="products.html#roles" class="nav-cta">Request a Role</a></nav>
+</div>
+</header>
+
+<main>
+<div class="container">
+
+<!-- HERO -->
+<section class="product-hero">
+<img src="assets/Tutor_grade_6_8.png" alt="Tutor Grade 6–8 — Socratic Tutor Role">
+<div>
+<span class="hero-badge">★ Tutor Role · Grades 6–8 · Commercial Tier</span>
+<h1><span class="grad">Tutor Grade 6–8</span></h1>
+<p class="subtitle">A verified cognizant Socratic guide for middle-school students (ages 11–14). It keeps every factual answer inside a verified knowledge base, remembers your child's profile across sessions, and refuses to invent anything it cannot source — so practice time is spent on thinking, not on hallucinated facts.</p>
+<div class="price-row">
+<a href="https://buy.stripe.com/3cI4gzaKhbLhcHTcfS3F603" class="btn">Buy Now</a><span class="price-now">$72</span>
+<span class="price-note">One-time · Yours forever<br>No subscription</span>
+</div>
+<div class="micro-note">🔒 Offline by design · ⚡ Verified Qdrant KB · 👤 Remembers your child · 📵 No cloud, no ads</div>
+</div>
+</section>
+
+<!-- WHAT IT IS -->
+<section class="section">
+<h2 class="section-title"><span class="grad">What this really is</span></h2>
+<p class="section-subtitle">A portable specialist — with memory, knowledge, and behavior rules — packaged for ages 11–14 (Grade 6–8). Not a prompt taped onto a model.</p>
+<div class="card">
+<h3><span class="grad">What it is</span></h3>
+<ul><li><strong>Socratic guide for ages 11–14</strong> — asks one clarifying question at a time, validates the student's reasoning, and refuses to deflect when the student goes deep (philosophy, history, argument).</li><li><strong>Framework-bound by a strict charter</strong> — the Strict Non-Hallucinatory Charter requires answers to come from retrieved Qdrant chunks. If zero chunks match, it says exactly: "I don't have that information in my records." No fabricated sources, no invented prior sessions.</li><li><strong>DB-backed student profile</strong> — a persistent SQLite profile (<code>tutor_grade_6_8.db</code>) records name, grade, strengths, weaknesses, interests, fears, next steps, and career hints.</li><li><strong>Verified Qdrant collection</strong> — <code>Tutor-Grade-6-8</code> (1,714 chunks from framework + subject files) is the only knowledge source for factual answers. Zero cross-contamination with the elementary or high-school collections.</li><li><strong>Grade-level calibration</strong> — automatic tone shift: Grade 6 leans on concrete reasoning, Grade 8 expects multi-step analytical reasoning and follows an argument through to a conclusion.</li></ul>
+</div>
+<div class="warning-box">
+<strong>Best part:</strong> MAi-RAG-P.A. runs in your browser — turn off WiFi and it still works. Your child's profile, strengths, interests, stay on your machine. No ads, no notifications, no other tabs to wander into. Just the child and the learning.
+</div>
+</section>
+
+<!-- LIVE EXAMPLE -->
+<section class="section">
+<h2 class="section-title"><span class="grad">See the method hold</span></h2>
+<p class="section-subtitle">A real exchange. The tutor asks one clarifying question, validates the reasoning, and escalates — it does not lecture, and it does not drift off thread.</p>
+<pre class="output">Student: Im looking to study for my science test, we are currently learning chemistry and biology. Just shoot me some various questions to see if I can answer
+
+Tutor: Of course! Let's start with a few questions to see how you're doing in both chemistry and biology.
+
+### Chemistry Questions:
+1. **What is the difference between an element and a compound?**
+2. **Explain the process of photosynthesis in plants.**
+3. **Define the term "mole" in chemistry and provide an example of its use.**
+
+### Biology Questions:
+1. **Describe the structure of a eukaryotic cell.**
+2. **What are the main functions of DNA?**
+3. **Explain the process of cellular respiration.**
+
+Feel free to answer any of these questions, and we can go deeper into the concepts if needed!
+qwen2.5:7b
+
+Student: 
+1. A compound is a composition of several components, and an element is a base component 
+2. Sunlight to energy
+3. I dont know what a chemestry mole is, I know the other moles, one on the skin, the small blind animal, and an undercover spy.
+
+1. I dont know what a eukaryotic cell is
+2. DNA is the building blocks of organic matter, it is the instruction set/code of the organism
+3. cellular respiration is how the cell breathes.
+
+→ Thread continuity held · Contribution validated · Socratic escalation applied · KB-grounded</pre>
+</section>
+
+<!-- WHAT'S INSIDE -->
+<section class="section">
+<h2 class="section-title"><span class="grad">What's inside the Role</span></h2>
+<p class="section-subtitle">Every component packaged — not scattered across the system.</p>
+<table class="spec-table">
+<tr><th>Component</th><th>What you get</th></tr>
+<tr><td>Concise system prompt</td><td>4,613 characters — strict charter, 5 mandatory mechanisms, framework references. Small enough for consumer CPU speed.</td></tr>
+<tr><td>Encrypted SQLite DB</td><td><code>tutor_grade_6_8.db</code> — student profile, strengths, weaknesses, interests, career hints, session continuity.</td></tr>
+<tr><td>Qdrant knowledge base</td><td><code>Tutor-Grade-6-8</code> — 1,714 chunks covering framework rules (01-framework through 05-), history, science, and mathematics.</td></tr>
+<tr><td>Anti-hallucination charter</td><td>Strict rules: KB primary, training memory supplementary, "I don't have that" when zero chunks retrieved, no citation fabrication.</td></tr>
+<tr><td>Grade-level calibration</td><td>Automatic tone shift: Grade 6 (concrete reasoning) → Grade 8 (multi-step analytical reasoning).</td></tr>
+<tr><td>Local installer / package</td><td>Manifests with <code>model_override: None</code>, <code>rag_collections: ["Tutor-Grade-6-8"]</code>, <code>rag_top_k: 4</code>, version 1.0.1.</td></tr>
+</table>
+</section>
+
+<!-- REQUIREMENTS -->
+<section class="section">
+<h2 class="section-title"><span class="grad">Requirements — read first</span></h2>
+<p class="section-subtitle">Local inference via Ollama. Designed for private, distraction-free operation.</p>
+<table class="spec-table">
+<tr><th>Component</th><th>Requirement</th></tr>
+<tr><td>Host</td><td>MAi-RAG-P.A. installed locally · Browser WebUI</td></tr>
+<tr><td>Model</td><td><code>qwen2.5:7b</code> default · upgrade for stronger hardware</td></tr>
+<tr><td>Embedding</td><td><code>nomic-embed-text</code> loaded in Ollama</td></tr>
+<tr><td>Qdrant</td><td>Local instance running (<code>http://localhost:6333</code>)</td></tr>
+<tr><td>DB + package</td><td>Role DB, manifest, and role tools packaged in a single tar.gz</td></tr>
+</table>
+<p style="color:var(--text-secondary);font-size:0.92rem;text-align:center;">Prerequisites: MAi-RAG-P.A. installed · Ollama + Qdrant running locally · one-time setup, then fully offline.</p>
+</section>
+
+<!-- LICENSING -->
+<section class="section">
+<h2 class="section-title"><span class="grad">License and offline use</span></h2>
+<div class="one-col">
+<div class="card">
+<h3><span class="grad">Single-user, single-device · Offline by design</span></h3>
+<p>This Role runs entirely in your local browser through MAi-RAG-P.A. There is no cloud dependency after initial setup. Turn off WiFi and it still functions. Your child's data — profile, strengths, interests, never leave your computer.</p>
+</div>
+</div>
+</section>
+
+<!-- FAQ -->
+<section class="section">
+<h2 class="section-title"><span class="grad">Questions parents ask</span></h2>
+<div class="faq">
+<details><summary>Does this replace a real teacher?</summary><p>No — it complements them. The Socratic method guides the student to discover answers themselves, but complex emotional or behavioral challenges still need human educators. This Role handles structured, knowledge-bound tutoring with strict verification.</p></details>
+<details><summary>Is it safe for my child?</summary><p>Yes. The charter requires verified answers, no fabrication, no inappropriate content. The DB stores only educational profiles — no external cloud storage. The role has no internet access once installed.</p></details>
+<details><summary>Can it work without WiFi?</summary><p>Yes — <strong>after initial setup</strong>. Once MAi-RAG-P.A., Ollama, Qdrant, and the role package are installed locally, turn off WiFi. The tutor continues to function entirely offline. No distractions, no notifications, no ads — just guided learning.</p></details>
+<details><summary>Will it just give my child the answers?</summary><p>No. That is the whole design. The tutor asks clarifying questions and validates reasoning instead of handing over solutions — the exact habit that builds independent problem-solving. It answers direct questions when the student asks, but the default mode is guided thinking.</p></details>
+<details><summary>How is this different from asking ChatGPT?</summary><p>Cloud models answer from memory, invent sources, and forget your child between sessions. This Role answers only from its verified Qdrant collection, remembers your child in a local database, and tells the truth when it has no record. It also works with the WiFi off, and your child's data never leaves your machine.</p></details>
+<details><summary>What happens with a tricky philosophical question?</summary><p>The tutor holds the thread and validates the student's interpretation, then escalates the question. It does not dodge. But it also does not fabricate — if the knowledge base returns nothing on the specific claim, the charter requires the tutor to say it has no information in its records rather than inventing support.</p></details>
+</div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta">
+<h2><span class="grad">Give your child a verified, offline Socratic guide</span></h2>
+<p>Not a chatbot. Not a subscription. A framework-bound tutor for ages 11–14 — verified answers, remembered progress, zero cloud. $99 one-time, yours forever.</p>
+<div class="btn-group">
+<a href="https://buy.stripe.com/3cI4gzaKhbLhcHTcfS3F603" class="btn">Get the Tutor — $72 →</a>
+<a href="products.html" class="btn btn-secondary">Back to Products</a>
+</div>
+<p class="micro-note">Requires <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">MAi-RAG-P.A. (free)</a> + Ollama · Full license terms included · Built for Grades 6–8 (ages 11–14)</p>
+</section>
+
+</div>
+</main>
+<footer>
+<div class="container">
+<div class="footer-links">
+<a href="index.html">Home</a>
+<a href="roles.html">Roles</a>
+<a href="products.html">Products</a>
+<a href="blog/index.html">Blog</a>
+<a href="about.html">About</a>
+<a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">GitHub</a>
+</div>
+<p><strong>MAi-RAG-P.A.</strong> — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</p>
+<p style="margin-top:0.5rem; font-size:0.8rem; opacity:0.7;">Copyright © 2026 MAi-RAG-P.A. All rights reserved.</p>
+</div>
+</footer>
+
+</body>
+</html>
