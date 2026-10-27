@@ -225,7 +225,9 @@ CONTEXT / RELEVANCE: In synthetic-data generation a GMM defines the per-record d
 </div>
 <div class="card">
 <h3><span class="grad">Privacy &amp; Compliance</h3>
-<p>Differential privacy (ε,δ), membership-inference resistance, GDPR/HIPAA/CCPA alignment, synthetic-data cards, audit trails, versioned provenance.</p>
+<p>Differential privacy (ε,δ), membership-inference resistance, GDPR/HIPAA/CCPA alignment, synthetic-data cards, audit trails, versioned provenance.
+<div class="card h"><h3><span class="grad">Dataset Generation — generate_synthetic_dataset()</span></h3>
+<p>Flagship tool for creating synthetic datasets ready for Qdrant ingestion. Parameters: dataset_type (healthcare, finance, scientific, autonomous), record_count, privacy_budget (ε-DP), distribution (gmm/vae/gan/diffusion/bayesian), output_format (json/csv/qdrant). Returns structured records + metadata + Qdrant ingestion instructions. Datasets can expand πAi, feed other roles in your MAi-RAG-PA system, or be re-used for training downstream models.</p></p>
 </div>
 </div>
 </section>
