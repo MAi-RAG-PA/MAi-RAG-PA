@@ -158,7 +158,9 @@ main,footer{position:relative;z-index:1}
 <div>
 <span class="hero-badge">⚛ Research-Grade · Professional Tier</span>
 <h1><span class="grad">πAi Synthetic Data Specialist</span></h1>
-<p class="subtitle">Formula-first, verified, offline. A probabilistic synthetic-data specialist for researchers, data engineers, and analysts who need numbers they can defend — not guesses from a cloud model.</p>
+<p class="subtitle">Formula-first, verified, offline. 
+<br><strong>Generate your own datasets for re-sale or for your own usage.</strong> 
+<br>πAi is a <strong>Probabilistic Synthetic Data Specialist</strong> for researchers, data engineers, and analysts who need numbers they can defend — not guesses from a cloud model.</p>
 <div class="price-row">
 <a href="https://buy.stripe.com/4gM9ATdWtbLhdLX93G3F607"  class="btn">Buy Now</a><span class="price-now">$189</span>
 <span class="price-note">One-time · Yours forever<br>No subscription</span>
@@ -182,7 +184,7 @@ main,footer{position:relative;z-index:1}
 <div class="card h">
 <h3><span class="grad">What πAi does</span></h3>
 <ul>
-<li>Answers drawn from <strong>Synthetic-Data</strong> Qdrant KB (768-dim, verified chunks).</li>
+<li>Answers drawn from its own Qdrant Knowledge base collection - 768-dim, 58 total verified chunks, (The Knowledge base can be expanded to the users liking).</li>
 <li>If zero chunks match → exactly: <em>"I don't have that information in my records."</em></li>
 <li>Formula first, plain English after — reproducible, checkable.</li>
 </ul>
@@ -225,9 +227,10 @@ CONTEXT / RELEVANCE: In synthetic-data generation a GMM defines the per-record d
 </div>
 <div class="card">
 <h3><span class="grad">Privacy &amp; Compliance</h3>
-<p>Differential privacy (ε,δ), membership-inference resistance, GDPR/HIPAA/CCPA alignment, synthetic-data cards, audit trails, versioned provenance.
+<p>Differential privacy (ε,δ), membership-inference resistance, GDPR/HIPAA/CCPA alignment, synthetic-data cards, audit trails, versioned provenance.</p>
+</div>
 <div class="card h"><h3><span class="grad">Dataset Generation — generate_synthetic_dataset()</span></h3>
-<p>Flagship tool for creating synthetic datasets ready for Qdrant ingestion. Parameters: dataset_type (healthcare, finance, scientific, autonomous), record_count, privacy_budget (ε-DP), distribution (gmm/vae/gan/diffusion/bayesian), output_format (json/csv/qdrant). Returns structured records + metadata + Qdrant ingestion instructions. Datasets can expand πAi, feed other roles in your MAi-RAG-PA system, or be re-used for training downstream models.</p></p>
+<p>Flagship tool for creating synthetic datasets ready for Qdrant ingestion. Parameters: dataset_type (healthcare, finance, scientific, autonomous), record_count, privacy_budget (ε-DP), distribution (gmm/vae/gan/diffusion/bayesian), output_format (json/csv/qdrant). Returns structured records + metadata + Qdrant ingestion instructions. Datasets can expand πAi, feed other roles in your MAi-RAG-PA system, or be re-used for training downstream models.</p>
 </div>
 </div>
 </section>
@@ -236,11 +239,11 @@ CONTEXT / RELEVANCE: In synthetic-data generation a GMM defines the per-record d
 <h2 class="section-title"><span class="grad">What's inside</span></h2>
 <table class="spec-table">
 <tr><th>Component</th><th>What you get</th></tr>
-<tr><td>Encrypted SQLite DB</td><td><code>synthetic_data.db</code> — role config, capabilities, research_topics, user_profiles, sessions</td></tr>
-<tr><td>System charter</td><td>Formula-first contract (~5,263 chars): KB primary, citations OFF, "I don't have that" rule, formula before prose</td></tr>
-<tr><td>Qdrant KB</td><td><code>Synthetic-Data</code> — 768-dim embeddings, 37 chunks from thesis + framework rules</td></tr>
-<tr><td>Role tools (9)</td><td>Deterministic retrieval, formula rendering, case-study lookup, privacy-check, math-render</td></tr>
-<tr><td>Installer</td><td>Watermarked <code>install-piai-synthetic-data.sh</code>; binds license to device; self-deletes</td></tr>
+<tr><td>SQLite DB</td><td><code>synthetic_data.db</code>, role config, capabilities, research_topics, user_profiles, sessions.</td></tr>
+<tr><td>System charter</td><td>Formula-first contract (~5,263 chars): KB primary, citations OFF, "I don't have that" rule, formula before prose.</td></tr>
+<tr><td>Qdrant KB</td><td><code>Synthetic-Data</code>, 768-dim embeddings, 37 chunks from <a href="Utilization_of_Probabilistic_Synthetic_Data_for_Training_AI_Models.html" target="_blank">thesis</a> + 21 chunks from the framework rules.</td></tr>
+<tr><td>Role tools (9)</td><td>Deterministic retrieval, formula rendering, case-study lookup, privacy-check, math-render.</td></tr>
+<tr><td>Installer</td><td>Watermarked <code>install-piai-synthetic-data.sh</code>; binds license to device; self-deletes.</td></tr>
 </table>
 </section>
 
@@ -250,7 +253,7 @@ CONTEXT / RELEVANCE: In synthetic-data generation a GMM defines the per-record d
 <table class="spec-table">
 <tr><th>Tier</th><th>Model</th><th>Best for</th></tr>
 <tr><td>Lite / CPU</td><td><code>qwen2.5:7b</code></td><td>Quick formula checks, smoke tests, basic method descriptions (10–20+ min query)</td></tr>
-<tr><td>Preferred / CPU</td><td><code>qwen3:30b-a3b</code> (MoE, 3B active/token)</td><td>Full charter + case-study metrics + formula accuracy (recommended default)</td></tr>
+<tr><td>Preferred / CPU</td><td><code>qwen3:30b-a3b</code> (MoE, 3.3B active/token)</td><td>Full charter + case-study metrics + formula accuracy (recommended default)</td></tr>
 <tr><td>Pro / GPU</td><td><code>qwen3-coder:30b</code> (dense 30B)</td><td>Deep multi-method comparison, synthetic-corpus generation, premium synthesis</td></tr>
 <tr><td>Special / Aftermarket</td><td>Custom variants (e.g. Unsloth 30B)</td><td>Use only if verified against official release; excellent but not generic</td></tr>
 </table>
@@ -289,7 +292,7 @@ CONTEXT / RELEVANCE: In synthetic-data generation a GMM defines the per-record d
 <h2><span class="grad">Run the verification mirror on your machine</span></h2>
 <p>Formula first. Verified second. Local always. The specialist that answers only from records — and tells the truth when it has none.</p>
 <div class="btn-group">
-<a href="https://buy.stripe.com/4gM9ATdWtbLhdLX93G3F607" class="btn">Buy πAi — $189 → <span style="font-weight:400;font-size:.85rem">(Stripe link coming)</span></a>
+<a href="https://buy.stripe.com/4gM9ATdWtbLhdLX93G3F607" class="btn">Buy πAi Now $189</a>
 <a href="products.html#roles" class="btn btn-sec">Back to Products</a>
 </div>
 <p class="micro-note">Requires <a href="https://github.com/MAi-RAG-PA/MAi-RAG-PA">MAi-RAG-P.A. (free)</a> + Ollama · 365-day license · Single-device · Research-grade</p>
