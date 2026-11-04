@@ -24,7 +24,7 @@
 
 
 <p align="center">
-  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 2.1.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -1229,6 +1229,19 @@ Ollama supports different quantization levels:
     rm -rf node_modules package-lock.json
     npm install
 
+
+**Issue: 403 on every request**
+
+Issue: Every API request returns 403 Forbidden
+Cause: .encryption_key was lost or replaced; stored api_key can no longer be decrypted.
+
+Solution:
+  curl http://localhost:8000/api/auth/auto-key
+  # Then hard-refresh the WebUI (Ctrl+Shift+R)
+Prevention: always back up .encryption_key alongside memory/
+
+The first request after boot loads the model from disk into RAM. On CPU-only systems this can take 30–60 seconds for a 7B model before any text is generated. This is normal, not a hang. Subsequent requests are fast while the model stays resident (ollama ps shows the loaded model and its expiry). Use POST /api/models/warmup to pre-load.
+
 -----------------------------------------------------------------------------------
 
 ### Startup Errors
@@ -1494,6 +1507,8 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 | Environment file | ~/MAi-RAG-PA/.env | Your settings, only if you created one |
 | Workspace | ~/MAi-RAG-PA/workspace/ | Generated files, notes, documents |
 | Ollama Models | ~/.ollama/models/ | Downloaded AI models (large, optional) |
+| Encryption key | ~/MAi-RAG-PA/.encryption_key | Required to decrypt stored secrets. Restoring a database without its matching key makes encrypted settings (API key, tokens, passwords) unreadable. |
+
 
 ### Backup Script
 
@@ -1602,6 +1617,11 @@ Review app/agents/verifier.py rules and adjust heuristics for your use case.
 
     echo "Restore complete. Starting MAi-RAG-PA..."
     ~/MAi-RAG-PA/start.sh
+
+
+⚠️ Restore .encryption_key together with memory/. A database restored without its original key will load, but encrypted settings cannot be decrypted — MAi-RAG-P.A. will treat them as unset and issue a new API key.
+
+[ -f ~/MAi-RAG-PA/.encryption_key ] && cp ~/MAi-RAG-PA/.encryption_key "$BACKUP_DIR/$BACKUP_NAME/"
 
 -----------------------------------------------------------------------------------
 
@@ -1734,5 +1754,5 @@ Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 </p>
 
 <p align="center">
-  Version 2.0.0 | Updated October 2026
+  Version 2.1.0 | Updated November 2026
 </p>

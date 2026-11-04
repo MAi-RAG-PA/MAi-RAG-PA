@@ -53,6 +53,7 @@ const cleanAIResponse = (text: string): string => {
 const ChatConsoleApp: React.FC<{ showToast: (msg: string) => void }> = ({ showToast }) => {
   const isMobile = useIsMobile();
   const [citationsEnabled, setCitationsEnabled] = useState(false);
+  const [toolsEnabled, setToolsEnabled] = useState<boolean>(false);
   const [loadingHint, setLoadingHint] = useState<string>('');
 
   const [threads, setThreads] = useState<ChatThread[]>([]);
@@ -688,7 +689,8 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         model: selectedModel,
         ltm_enabled: ltmEnabled,
         citations_enabled: citationsEnabled,
-        role_id: activeRoleId || undefined,   // ← NEW
+        tools_enabled: toolsEnabled,
+        role_id: activeRoleId || undefined,
       };
       if (activeRoleId) {
         payload.role_id = activeRoleId;
@@ -1246,6 +1248,31 @@ const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
                   }}
                 >
                   Citations {citationsEnabled ? 'ON' : 'OFF'}
+                </button>
+
+                {/* 🛠️ TOOLS ON/OFF TOGGLE */}
+                <button
+                  onClick={() => setToolsEnabled(!toolsEnabled)}
+                  title={toolsEnabled ? "Disable tool usage (faster, chat-only)" : "Enable tool usage (file creation, calendar, etc.)"}
+                  className="chip"
+                  style={{
+                    padding: isMobile ? '4px 10px' : '6px 12px',
+                    borderRadius: '8px',
+                    border: toolsEnabled ? '1px solid var(--accent)' : '1px solid var(--line)',
+                    background: toolsEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
+                    color: toolsEnabled ? '#000' : 'var(--text)',
+                    fontSize: isMobile ? '0.8rem' : '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {toolsEnabled ? '🛠️ Tools: ON' : '💬 Tools: OFF'}
                 </button>
 
 				{filename && (

@@ -613,5 +613,5 @@ async def example_endpoint(request: ExampleRequest, api_key: str = Depends(verif
 </p>
 
 <p align="center">
-  Version 2.0.0 | Updated October 2026
+  Version 2.1.0 | Updated November 2026
 </p>

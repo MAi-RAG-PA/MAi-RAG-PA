@@ -42,8 +42,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("role_id", sa.String(length=64), nullable=True))
 
     # ---- Seed a default role ----
-    op.execute(
-        """
+    op.execute("""
         INSERT OR IGNORE INTO roles
             (id, name, system_prompt, collection_name, citations_enabled, model_override, is_active)
         VALUES (
@@ -55,8 +54,7 @@ def upgrade() -> None:
             NULL,
             1
         )
-    """
-    )
+    """)
 
 
 def downgrade() -> None:

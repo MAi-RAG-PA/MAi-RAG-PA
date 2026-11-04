@@ -12,7 +12,7 @@ const getBaseUrl = () => {
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: getBaseUrl(),
-  timeout: 1800000,
+  timeout: 7200000,
   headers: {
     'Content-Type': 'application/json',
   },

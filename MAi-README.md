@@ -24,7 +24,7 @@
 
 
 <p align="center">
-  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 2.1.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -166,6 +166,8 @@
 - **User Facts**: Information learned from conversations (preferences, role, context)
 - **System Settings**: Custom prompts, heartbeat intervals, notifications
 
+**Backup & Merge Restore**: Full-history STM export/import. Re-importing is idempotent — chat messages are additive, threads upsert without cascading deletes, and user facts dedupe on content. Live configuration keys are deliberately excluded so a restore never overwrites your current settings.
+
 **Automatic Learning:**
 - Observes patterns in conversations
 - Extracts facts like name, role, preferences
@@ -183,9 +185,9 @@
 
 **Event Management:**
 - Create/Edit/Delete events with rich metadata
-- Recurring events (daily, weekly, monthly, yearly)
-- End date or indefinite recurrence
+- Recurring events (daily, weekly, monthly, yearly) with a required end date. Up to 365 instances are generated per series.
 - Edit or delete all instances at once
+- **Monthly and yearly series clamp to the last valid day of shorter months** — a series starting Jan 31 lands on Feb 28, Apr 30, Jun 30, and returns to the 31st where it exists. Feb 29 yearly events fall on Feb 28 in non-leap years.
 
 **Alerts & Notifications:**
 - Customizable reminders (24h, 1h, 30m, 15m, 5m, at time)
@@ -436,5 +438,5 @@ Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 </p>
 
 <p align="center">
-  Version 2.0.0 | Updated October 2026
+  Version 2.1.0 | Updated November 2026
 </p>

@@ -99,7 +99,7 @@ curl -fsSL https://github.com/MAi-RAG-PA/MAi-RAG-PA/raw/main/install.sh | bash
 - **Complete Data Sovereignty**: No accounts, no registration, no data collection
 - **Local Storage**: SQLite database and Qdrant vectors live on your filesystem
 - **No Telemetry**: Zero tracking or analytics
-- **Encryption Ready**: Database encryption and SSH tunneling supported
+- **Field-Level Encryption: Sensitive settings** (API keys, passwords, tokens) are encrypted at rest; SSH tunneling supported for remote access.
 
 ### Open Source
 - **Full transparency of code**
@@ -404,6 +404,7 @@ If required system models are missing, a warning appears under the model selecto
 - **Month View**: Detailed grid with event pills
 - **Week View**: 7-day cards with hour-by-hour breakdown
 - **Day View**: Full hourly timeline with action buttons
+- **Monthly and yearly series clamp to the last valid day of shorter months** — a series starting Jan 31 lands on Feb 28, Apr 30, Jun 30, and returns to the 31st where it exists. Feb 29 yearly events fall on Feb 28 in non-leap years.
 
 **Event Management:**
 
@@ -412,8 +413,7 @@ If required system models are missing, a warning appears under the model selecto
 </p>
 
 - Create/Edit/Delete events with rich metadata
-- Recurring events (daily, weekly, monthly, yearly)
-- End date or indefinite recurrence
+- Recurring events (daily, weekly, monthly, yearly) with a required end date. Up to 365 instances are generated per series.
 - Edit or delete all instances at once
 
 **Alerts & Notifications:**

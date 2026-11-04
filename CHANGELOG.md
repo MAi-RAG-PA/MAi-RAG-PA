@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <strong>Current Version 2.0.0 | Effective Initial Release Date: June 2026</strong><br />
+  <strong>Current Version 2.1.0 | Effective Initial Release Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -32,7 +32,53 @@
 All notable changes to MAi-RAG-P.A. will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.1.0.html).
+
+
+## [2.1.0] - 2026-11-04
+
+### Fixed
+- **Recurring events on month-end dates.** Monthly and yearly series previously
+  stepped day-by-day and matched on `current.day == start_time.day`, so a series
+  starting on the 29th, 30th or 31st silently skipped every shorter month
+  (a Jan 31 rent reminder produced no February, April, June, September or
+  November instance). Monthly now steps month-by-month and yearly steps
+  year-by-year, clamping the target day to `calendar.monthrange(y, m)[1]`.
+  Jan 31 → Feb 28 → Mar 31 → Apr 30; Feb 29 yearly → Feb 28 in non-leap years.
+  Side benefit: 12 iterations per year instead of 365.
+- **Short-term memory accessors.** `set()` / `get()` are restored as proper
+  `SQLiteMemoryManager` methods with consistent 4-space indentation. A malformed
+  edit had pushed them to module scope, causing
+  `AttributeError: 'SQLiteMemoryManager' object has no attribute 'get'`
+  in `verify_api_key()` and rejecting every authenticated request.
+- **Undecryptable secrets are treated as unset.** When a stored value has the
+  shape of a Fernet token but cannot be decrypted with the current
+  `.encryption_key`, `get()` now logs and returns `None` instead of handing
+  callers ciphertext. Startup and `/api/auth/auto-key` can then regenerate the
+  API key rather than failing with a permanent 403.
+
+### Documentation
+- Documented `.encryption_key` in backup, restore and uninstall procedures.
+- Corrected recurring-event documentation: an end date is required;
+  "indefinite recurrence" was never supported.
+- Clarified that encryption is field-level (sensitive settings), not whole-database.
+- Resolved contradictions between README and MAi-README (System Doctor scope,
+  editor file-type count, resource refresh interval, voice engine defaults).
+- Removed unverified model tags from the Ollama recommendations.
+
+**Reminder Ordering**: Improved `get_pending_reminders()` to show upcoming reminders first (soonest first), then overdue ones (most recently due first), preventing old uncompleted reminders from crowding out new ones in limited result sets.
+
+**Date Comparison**: Ensured local-time comparisons in `get_upcoming_events()` use consistent ISO format with "T" separator, preventing ASCII comparison bugs that could show past events as "upcoming."
+
+### Improved
+- Monthly recurrence now uses month-by-month stepping instead of day-by-day iteration (12 iterations vs 365 per year)
+- Yearly recurrence properly handles leap year edge cases
+
+### Acknowledgments
+**Thanks to Matt Abate who reported the month-end recurrence bug with
+a precise failing input and the correct `calendar.monthrange` remedy.
+**https://github.com/mattabate/**
+
 
 ## [2.0.0] - 2026-10-19
 
@@ -616,8 +662,6 @@ MAi-RAG-P.A. is free for personal use. If you find it valuable, donations are gr
 Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 
 **Commercial Licensing**: For business deployments or enterprise support, please contact: MAi-RAG-PA@proton.me
-
-{SEP}
 
 <p align="center">
   <strong>MAi-RAG-P.A. — Your Personal Assistant, Your Data, Your Machine, No Subscriptions!</strong>

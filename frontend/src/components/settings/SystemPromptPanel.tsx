@@ -26,6 +26,9 @@ const SystemPromptPanel: React.FC<SystemPromptPanelProps> = ({ showToast }) => {
   const [rolePromptBackup, setRolePromptBackup] = useState<string>("");
   const [globalPromptBackup, setGlobalPromptBackup] = useState<string>("");
   const isSavingRef = useRef(false);
+  const editModeRef = useRef<EditMode>("global");
+  const roleBackupRef = useRef<string>("");
+  const globalBackupRef = useRef<string>("");
 
   // ---- Load active role + global prompt on mount ----
   useEffect(() => {
@@ -43,13 +46,17 @@ const SystemPromptPanel: React.FC<SystemPromptPanelProps> = ({ showToast }) => {
 
         setActiveRole(role);
         setGlobalPromptBackup(globalPrompt);
+        globalBackupRef.current = globalPrompt;
 
         if (role) {
           setEditMode("role");
+          editModeRef.current = "role";
           setPrompt(role.system_prompt);
           setRolePromptBackup(role.system_prompt);
+          roleBackupRef.current = role.system_prompt;
         } else {
           setEditMode("global");
+          editModeRef.current = "global";
           setPrompt(globalPrompt);
         }
       } catch (error) {
@@ -62,14 +69,83 @@ const SystemPromptPanel: React.FC<SystemPromptPanelProps> = ({ showToast }) => {
     init();
   }, []);
 
+  // ---- Auto-sync when the active role changes (e.g. via chat console dropdown) ----
+  const activeRoleIdRef = useRef<string | null>(null);
+  const activePromptRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await apiClient.get("/api/v1/roles/active");
+        if (cancelled) return;
+
+        const role: ActiveRole | null =
+          res.data && res.data.id ? res.data : null;
+
+        const roleId = role ? role.id : null;
+        const rolePrompt = role ? role.system_prompt : null;
+
+        // Nothing changed — avoid clobbering what the user is typing.
+        if (
+          roleId === activeRoleIdRef.current &&
+          rolePrompt === activePromptRef.current
+        ) {
+          return;
+        }
+
+        const roleChanged = roleId !== activeRoleIdRef.current;
+        activeRoleIdRef.current = roleId;
+        activePromptRef.current = rolePrompt;
+
+        setActiveRole(role);
+
+        if (!role) {
+          // No active role — fall back to the global prompt.
+          setEditMode("global");
+          editModeRef.current = "global";
+          setPrompt(globalBackupRef.current);
+          return;
+        }
+
+        // Role changed underneath us — load its prompt into the editor.
+        if (roleChanged) {
+          editModeRef.current = "role";
+          setEditMode("role");
+          setPrompt(role.system_prompt);
+          setRolePromptBackup(role.system_prompt);
+        } else if (role.system_prompt !== roleBackupRef.current) {
+          // Same role, prompt edited server-side — refresh in place.
+          setRolePromptBackup(role.system_prompt);
+          roleBackupRef.current = role.system_prompt;
+          if (editModeRef.current === "role") {
+            setPrompt(role.system_prompt);
+          }
+        }
+      } catch {
+        // Transient network/API errors are non-fatal; the next tick retries.
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
   // ---- Toggle between role and global edit mode ----
   const switchMode = (newMode: EditMode) => {
     if (newMode === editMode) return;
 
     if (editMode === "role") {
       setRolePromptBackup(prompt);
+      roleBackupRef.current = prompt;
     } else {
       setGlobalPromptBackup(prompt);
+      globalBackupRef.current = prompt;
     }
 
     if (newMode === "role" && activeRole) {

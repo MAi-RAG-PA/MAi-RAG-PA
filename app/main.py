@@ -18,6 +18,7 @@ import hashlib
 import ipaddress
 import json
 import logging
+logging.basicConfig(level=logging.DEBUG)  # Add this line at the very top of main.py
 import re
 import secrets
 import shutil
@@ -900,16 +901,17 @@ async def user_friendly_error_handler(request: Request, exc: UserFriendlyError):
 
 class AgentRequest(BaseModel):
     query: str
-    filename: Optional[str] = None
     model: Optional[str] = None
-    hardware_tier: Optional[str] = None
+    filename: Optional[str] = None
     thread_id: Optional[str] = None
-    file_content: Optional[str] = None
-    file_name: Optional[str] = None
+    hardware_tier: Optional[str] = "medium"
+    role_id: Optional[str] = None
     ltm_enabled: bool = True
     ltm_collection: Optional[str] = None
-    citations_enabled: bool = False  # NEW
-    role_id: Optional[str] = None  # NEW
+    citations_enabled: bool = True
+    file_content: Optional[str] = None
+    file_name: Optional[str] = None
+    tools_enabled: bool = True
 
     @field_validator("query")
     @classmethod
@@ -2427,9 +2429,9 @@ async def run_heartbeat_check():
 
         heartbeat_state["last_check"] = datetime.now().isoformat()
         heartbeat_state["last_status"] = "OK"
-        heartbeat_state[
-            "last_message"
-        ] = f"Database healthy (checked at {datetime.now().strftime('%H:%M:%S')})"
+        heartbeat_state["last_message"] = (
+            f"Database healthy (checked at {datetime.now().strftime('%H:%M:%S')})"
+        )
         logger.info(
             f"Heartbeat check completed (SQLite OK) at {datetime.now().strftime('%H:%M:%S')}"
         )
@@ -2840,12 +2842,22 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                             filename=extracted_filename,
                             model=requested_model,
                             file_context=file_context,
+                            role_id=chat_request.role_id,
+                            tools_enabled=use_tools,
                         )
+
+                        # 🛡️ BULLETPROOF NULL CHECK
+                        if result is None or not isinstance(result, dict):
+                            return {
+                                "content": "System Error: File creation failed internally.",
+                                "model": requested_model,
+                                "tool_calls": []
+                            }
+
                         if "content" not in result or not result["content"]:
-                            result["content"] = result.get(
-                                "message", "File creation completed."
-                            )
+                            result["content"] = result.get("message", "File creation completed.")
                         return result
+
                     except Exception as file_err:
                         logger.error(
                             "[CHAT] File creation failed: %s", file_err, exc_info=True
@@ -2946,22 +2958,50 @@ async def chat_endpoint(request: Request, chat_request: AgentRequest):
                     }
 
             # ============================================================
+            # CHECK FOR EXPLICIT TOOL DISABLE
+            # ============================================================
+            # Force strict boolean conversion
+            use_tools = bool(getattr(chat_request, "tools_enabled", False))
+
+            if not use_tools:
+                logger.info("[CHAT] Tools explicitly disabled by user. Forcing simple chat mode via process_request.")
+
+            # ============================================================
             # NORMAL AGENT LOOP
             # ============================================================
-            result = process_request(
-                user_query=query_text,
-                model=resolved_model,
-                file_context=file_context,
-                ltm_enabled=chat_request.ltm_enabled,
-                ltm_collection=chat_request.ltm_collection,
-                citations_enabled=chat_request.citations_enabled,
-                role_id=chat_request.role_id,
-            )
+            try:
+                result = process_request(
+                    user_query=query_text,
+                    model=resolved_model,
+                    file_context=file_context,
+                    ltm_enabled=chat_request.ltm_enabled,
+                    ltm_collection=chat_request.ltm_collection,
+                    citations_enabled=chat_request.citations_enabled,
+                    role_id=chat_request.role_id,
+                    tools_enabled=use_tools,
+                )
+            except Exception as e:
+                logger.error(f"[CHAT] process_request crashed: {e}", exc_info=True)
+                result = None
+
+            # 🛡️ BULLETPROOF NULL CHECK (Prevents 'NoneType' API crashes)
+            if result is None:
+                logger.error("[CHAT] CRITICAL: process_request returned None.")
+                return {
+                    "content": "System Error: The backend failed to generate a response. Please check the server terminal logs.",
+                    "model": resolved_model,
+                    "tool_calls": [],
+                }
+
+            # Safely extract fields
+            content = ""
+            if isinstance(result, dict):
+                content = result.get("content", result.get("response", result.get("message", "")))
 
             return {
-                "content": result.get("content", ""),
-                "model": result.get("model", resolved_model),
-                "tool_calls": result.get("tool_calls", []),
+                "content": content or "System Error: Empty response received from backend.",
+                "model": result.get("model", resolved_model) if isinstance(result, dict) else resolved_model,
+                "tool_calls": result.get("tool_calls", []) if isinstance(result, dict) else [],
             }
 
         result = await loop.run_in_executor(executor, run_chat)
@@ -3094,12 +3134,10 @@ async def get_stm_size():
             total_entries = count_result[0] if count_result else 0
 
             # Get size
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT COALESCE(SUM(LENGTH(COALESCE(key, '')) + LENGTH(COALESCE(value, ''))), 0)
                 FROM short_term_memory
-            """
-            )
+            """)
             result = cursor.fetchone()
             size_bytes = result[0] if result else 0
 
@@ -4310,7 +4348,9 @@ async def chunk_and_ingest(
             )
 
             if suffix not in supported_lower:
-                logger.error("🩺 EXTENSION REJECTED: '%s' not in supported list", suffix)
+                logger.error(
+                    "🩺 EXTENSION REJECTED: '%s' not in supported list", suffix
+                )
                 errors.append(
                     f"{original_name}: unsupported extension '{suffix}'. "
                     f"Supported: {', '.join(sorted(supported_lower))}"
@@ -4472,9 +4512,7 @@ async def chunk_and_ingest(
         else (
             "partial"
             if total_ingested > 0 and total_skipped > 0
-            else "success"
-            if total_ingested > 0
-            else "no_files"
+            else "success" if total_ingested > 0 else "no_files"
         )
     )
     try:

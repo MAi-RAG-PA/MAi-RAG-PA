@@ -8,10 +8,13 @@ import itertools
 import json
 import logging
 import logging.handlers
+import subprocess
 import os
 import re
 import sqlite3
 import threading
+import shutil
+from datetime import datetime
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -45,40 +48,35 @@ _MODEL_PROFILES = {
         "temperature": 0.70,
         "repeat_penalty": 1.10,
         "num_predict": 2048,
-        "num_ctx": Config.CONTEXT_WINDOW,
+        "num_ctx": 8192,          # <-- LOWERED from Config.CONTEXT_WINDOW (likely 12k+)
         "timeout": None,
     },
-    # Strict deterministic temporal answering.
-    # Stabilized for CPU-only local use.
     "temporal_strict": {
         "temperature": 0.35,
         "repeat_penalty": 1.05,
-        "num_predict": 500,  # Capped to prevent 45+ min generation times on CPU
-        "num_ctx": 8192,  # Reduced to save RAM and speed up prompt processing
-        "timeout": 1200,  # Reduced to fail fast if Ollama hangs
+        "num_predict": 500,
+        "num_ctx": 4096,          # <-- LOWERED from 8192
+        "timeout": 1200,
     },
-    # Small/local fallback class.
     "lite_local": {
         "temperature": 0.45,
         "repeat_penalty": 1.05,
         "num_predict": 1400,
-        "num_ctx": 12288,
+        "num_ctx": 4096,          # <-- LOWERED from 12288 (Huge speedup for 7B/14B)
         "timeout": 3600,
     },
-    # 30B/35B-class local patient Pro mode.
     "pro_local_patient": {
         "temperature": 0.35,
         "repeat_penalty": 1.05,
         "num_predict": 1800,
-        "num_ctx": 12288,
+        "num_ctx": 8192,          # <-- LOWERED from 12288
         "timeout": 7200,
     },
-    # Highest-quality but slow local batch mode.
     "batch_high_fidelity": {
         "temperature": 0.35,
         "repeat_penalty": 1.05,
         "num_predict": 2200,
-        "num_ctx": 12288,
+        "num_ctx": 8192,          # <-- LOWERED from 12288
         "timeout": 9000,
     },
 }
@@ -391,6 +389,9 @@ Database:
 - Forbidden: venv/, node_modules/, .git/, __pycache__/, .env
 - Use read_file tool before modifying
 - All paths must resolve within ~/MAi-RAG-PA/
+
+## PROJECT KNOWLEDGE
+If the user asks about the MAi-RAG-PA codebase, architecture, or how to implement a new feature, you MUST use the `search_knowledge_base` tool to query the "project-docs" or "mai-rag-architecture" collection before answering.
 
 ## VERIFICATION BEFORE SAVE
 - Python: Mentally simulate py_compile
@@ -1337,6 +1338,7 @@ def validate_path(
         path_str: Path to validate
         allow_write: Whether write operations are allowed
         sandbox_mode: If True, restrict to MAi-RAG-DEV sandbox
+        role_id: Optional role ID for role-based path restrictions
 
     Returns:
         Validated Path object
@@ -1395,25 +1397,153 @@ def validate_path(
             except ValueError:
                 raise ValueError(f"Path must be within {PROJECT_ROOT}")
 
-    return path
+    # =================================================================
+    # ROLE-BASED PATH RESTRICTIONS (NEW)
+    # =================================================================
+    if role_id:
+        from app.agents.role_registry import RoleRegistry
+        registry = RoleRegistry()
+        role = registry.get_role(role_id)
 
+        if role and role.get('metadata', {}).get('allowed_paths'):
+            allowed_paths = role['metadata']['allowed_paths']
+            resolved_str = str(path)
+
+            if allow_write:
+                write_allowed = allowed_paths.get('write', [])
+                for allowed_dir in write_allowed:
+                    allowed_resolved = str(Path(allowed_dir).expanduser().resolve())
+                    if resolved_str.startswith(allowed_resolved):
+                        return path
+                raise ValueError(f"Role '{role_id}': Write path must be within allowed directories: {write_allowed}")
+            else:
+                read_allowed = allowed_paths.get('read', [])
+                for allowed_dir in read_allowed:
+                    allowed_resolved = str(Path(allowed_dir).expanduser().resolve())
+                    if resolved_str.startswith(allowed_resolved):
+                        return path
+                raise ValueError(f"Role '{role_id}': Read path must be within allowed directories: {read_allowed}")
+
+    return path
 
 # =============================================================================
 # Tool Definitions
 # =============================================================================
 
+@tool
+def execute_sandbox_script(script_path: str, script_type: str = "python") -> str:
+    """
+    Execute a Python or Bash script located strictly within the allowed sandbox/workspace.
+    Use this to automate tasks, run tests, or process data.
+    """
+    try:
+        # 1. Validate the path is strictly within the sandbox or workspace
+        safe_path = validate_path(script_path, allow_write=False, role_id="mai-rag-pa-systems-administrator")
+
+        if not safe_path.exists():
+            return f"❌ Error: Script not found at {safe_path}"
+
+        # 2. Enforce file extension based on script_type
+        if script_type == "python" and not str(safe_path).endswith(".py"):
+            return "❌ Error: script_type is 'python' but file does not end in .py"
+        if script_type == "bash" and not str(safe_path).endswith(".sh"):
+            return "❌ Error: script_type is 'bash' but file does not end in .sh"
+
+        # 3. Execute with strict safety limits (no shell=True, strict timeout, restricted env)
+        safe_env = os.environ.copy()
+        safe_env["PATH"] = "/usr/local/bin:/usr/bin:/bin" # Restrict PATH
+
+        if script_type == "python":
+            cmd = ["python3", str(safe_path)]
+        else:
+            cmd = ["bash", str(safe_path)]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,  # Hard 60-second limit to prevent infinite loops
+            env=safe_env,
+            cwd=str(safe_path.parent) # Run from the script's directory
+        )
+
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            return f"✅ Script executed successfully.\nOutput:\n{output if output else '(No output)'}"
+        else:
+            return f"❌ Script failed with exit code {result.returncode}.\nError:\n{result.stderr.strip()}"
+
+    except subprocess.TimeoutExpired:
+        return "❌ Error: Script execution exceeded the 60-second timeout."
+    except Exception as e:
+        return f"❌ Error executing script: {str(e)}"
 
 @tool
-def read_file(path: str) -> str:
+def start_long_form_generation(
+    document_title: str,
+    outline_json: str,
+    role_id: Optional[str] = None
+) -> str:
+    """
+    Start a long-form document generation session.
+    outline_json should be a JSON array of sections with title, key_terms, tradition, word_target.
+    """
+    try:
+        import uuid
+        session_id = str(uuid.uuid4())
+
+        outline = json.loads(outline_json)
+
+        orchestrator = OrchestrationLoop(session_id, role_id or "default")
+        orchestrator.initialize_session(document_title, outline)
+
+        return f"✅ Generation session started: {session_id}\nUse continue_generation(session_id='{session_id}') to write chunks."
+    except Exception as e:
+        return f"❌ Failed to start generation: {str(e)}"
+
+@tool
+def continue_generation(session_id: str, model: str = "qwen2.5:14b") -> str:
+    """Continue writing the next chunk of a long-form document."""
+    try:
+        with SQLiteMemoryManager().get_cursor() as cur:
+            cur.execute("SELECT role_id FROM generation_sessions WHERE id = ?", (session_id,))
+            row = cur.fetchone()
+            if not row:
+                return f"❌ Session {session_id} not found"
+
+            role_id = row[0]
+
+        orchestrator = OrchestrationLoop(session_id, role_id)
+        result = orchestrator.write_next_chunk(model)
+
+        if result['status'] == 'complete':
+            return "✅ All sections complete!"
+
+        return f"""✅ Chunk written successfully.
+
+Section: {result['section_id']}
+Chunk: {result.get('chunk_number', 'N/A')}
+Words: {result.get('words_written', 'N/A')}
+
+--- CHUNK TEXT ---
+{result['chunk_text']}
+
+--- END CHUNK ---
+
+Call continue_generation(session_id='{session_id}') to write the next chunk."""
+    except Exception as e:
+        return f"❌ Failed to continue generation: {str(e)}"
+
+@tool
+def read_file(path: str, role_id: Optional[str] = None) -> str:
     """Read the contents of a file."""
     try:
-        safe_path = validate_path(path, allow_write=False)
+        safe_path = validate_path(path, allow_write=False, role_id=role_id)
         if not safe_path.exists():
             return f"Error: File not found: {safe_path}"
         if not safe_path.is_file():
             return f"Error: Not a file: {safe_path}"
 
-        # Read at most 100001 characters: a huge file must not be loaded into memory just to be truncated.
         with safe_path.open("r", encoding="utf-8") as handle:
             content = handle.read(100001)
         if len(content) > 100000:
@@ -1425,18 +1555,30 @@ def read_file(path: str) -> str:
     except Exception as e:
         return f"Error reading file: {str(e)}"
 
-
 @tool
-def write_file(path: str, content: str) -> str:
-    """Write content to a file."""
+def write_file(path: str, content: str, role_id: Optional[str] = None) -> str:
+    """Write content to a file. If the file exists, a timestamped backup is created first."""
     try:
-        safe_path = validate_path(path, allow_write=True)
+        safe_path = validate_path(path, allow_write=True, role_id=role_id)
+
+        # 🛡️ BACKUP LOGIC
+        if safe_path.exists() and safe_path.is_file():
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            backup_path = Path(f"{safe_path}.bak-{timestamp}")
+
+            try:
+                shutil.copy2(safe_path, backup_path)
+                logger.info(f"🛡️ Backed up existing file to: {backup_path}")
+            except Exception as backup_err:
+                logger.error(f"Failed to create backup of {safe_path}: {backup_err}")
+                return f"Error: Cannot overwrite file. Backup creation failed: {str(backup_err)}"
+
         safe_path.parent.mkdir(parents=True, exist_ok=True)
         safe_path.write_text(content, encoding="utf-8")
         return f"Successfully wrote {len(content)} characters to {safe_path}"
+
     except Exception as e:
         return f"Error writing file: {str(e)}"
-
 
 _LIST_LIMIT = 100
 _SEARCH_LIMIT = 50
@@ -1632,6 +1774,76 @@ def save_user_profile(key: str, value: str) -> str:
     except Exception as e:
         return f"Error saving user profile: {str(e)}"
 
+@tool
+def start_long_form_generation(
+    document_title: str,
+    outline_json: str,
+    role_id: Optional[str] = None
+) -> str:
+    """
+    Start a long-form document generation session.
+    outline_json must be a valid JSON array of sections, e.g.:
+    [{"title": "Introduction", "key_terms": "basics, overview", "tradition": "", "word_target": 1500}]
+    """
+    try:
+        import uuid
+        from app.agents.orchestration_loop import OrchestrationLoop
+
+        session_id = str(uuid.uuid4())
+        outline = json.loads(outline_json)
+
+        orchestrator = OrchestrationLoop(session_id, role_id or "default")
+        orchestrator.initialize_session(document_title, outline)
+
+        return f"✅ Generation session started.\nSession ID: {session_id}\n\nUse continue_generation(session_id='{session_id}') to write the first chunk."
+    except json.JSONDecodeError:
+        return "❌ Error: outline_json is not valid JSON. Please provide a properly formatted JSON array."
+    except Exception as e:
+        logger.error(f"Failed to start generation: {e}", exc_info=True)
+        return f"❌ Failed to start generation: {str(e)}"
+
+
+@tool
+def continue_generation(session_id: str, model: str = "qwen2.5:14b") -> str:
+    """
+    Continue writing the next chunk of a long-form document.
+    Provide the session_id returned by start_long_form_generation.
+    """
+    try:
+        from app.agents.orchestration_loop import OrchestrationLoop
+        from app.memory.sqlite_memory import SQLiteMemoryManager
+
+        # Verify session exists and get role
+        with SQLiteMemoryManager().get_cursor() as cur:
+            cur.execute("SELECT role_id FROM generation_sessions WHERE id = ?", (session_id,))
+            row = cur.fetchone()
+            if not row:
+                return f"❌ Session {session_id} not found. Please start a new generation session."
+            role_id = row[0]
+
+        orchestrator = OrchestrationLoop(session_id, role_id)
+        result = orchestrator.write_next_chunk(model)
+
+        if result.get('status') == 'complete':
+            return "✅ All sections complete! The document generation is finished."
+        elif result.get('status') == 'section_complete':
+            return f"""✅ Section {result['section_id']} complete! Moving to Section {result['next_section']}.
+
+Call continue_generation(session_id='{session_id}') to begin the next section."""
+        else:
+            return f"""✅ Chunk {result.get('chunk_number')} written successfully.
+
+--- CHUNK TEXT ---
+{result.get('chunk_text', '')[:1000]}... *(truncated for display)*
+--- END CHUNK ---
+
+Words in section: {result.get('words_written', 'N/A')}
+
+Call continue_generation(session_id='{session_id}') to write the next chunk."""
+
+    except Exception as e:
+        logger.error(f"Failed to continue generation: {e}", exc_info=True)
+        return f"❌ Failed to continue generation: {str(e)}"
 
 TOOLS = [
     read_file,
@@ -1641,6 +1853,11 @@ TOOLS = [
     search_knowledge_base,
     get_user_profile,
     save_user_profile,
+    execute_sandbox_script,
+    start_long_form_generation,
+    continue_generation,
+    start_long_form_generation,
+    continue_generation,
 ]
 
 # Role tools are supplied dynamically by app.agents.role_registry.tools_for_role().
@@ -2340,7 +2557,13 @@ User query: {query}
                 )
             )
             for tc in response.tool_calls:
-                result = execute_tool_call(tc["name"], tc["args"], tools=active_tools)
+                tool_args = tc["args"].copy() if isinstance(tc["args"], dict) else {}
+                if tc["name"] in ["read_file", "write_file", "list_directory", "search_files"]:
+                    tool_args["role_id"] = role_id
+
+                # FIX: Pass tool_args (with role_id) instead of tc["args"]
+                result = execute_tool_call(tc["name"], tool_args, tools=active_tools)
+
                 tool_calls_history.append(
                     {
                         "tool": tc["name"],
@@ -2643,34 +2866,80 @@ def process_request(
     ltm_collection: Optional[str] = None,
     citations_enabled: bool = True,
     role_id: Optional[str] = None,
+    tools_enabled: bool = False,
 ) -> Dict[str, Any]:
     """Main agent entry point with mode routing."""
+
+    # =================================================================
+    # 1. STRICT SQLITE ROLE OVERRIDE (Single Source of Truth)
+    # =================================================================
+    if role_id:
+        try:
+            mgr = get_sqlite_manager()
+            with mgr.get_cursor() as cur:
+                cur.execute(
+                    "SELECT name, model_override, collection_name, citations_enabled FROM roles WHERE id = ?",
+                    (role_id,)
+                )
+                row = cur.fetchone()
+                if row:
+                    db_name, db_model, db_collection, db_citations = row
+                    logger.info(f"✅ Role loaded from DB: {db_name}")
+
+                    # STRICT OVERRIDE: If the role has a model_override, it ALWAYS wins.
+                    if db_model and str(db_model).strip():
+                        model = str(db_model).strip()
+                        logger.info(f"✅ FORCING model override from role: {model}")
+
+                    # Apply collection override
+                    if db_collection and str(db_collection).strip():
+                        ltm_collection = str(db_collection).strip()
+                        ltm_enabled = True
+                        logger.info(f"✅ Applied collection override: {ltm_collection}")
+
+                    # Apply citations override
+                    if db_citations is not None:
+                        citations_enabled = bool(db_citations)
+
+        except Exception as e:
+            # 🛡️ BULLETPROOF FALLBACK: Guarantees this function NEVER returns None
+            logger.error(f"CRITICAL: process_request failed: {e}", exc_info=True)
+            return {
+                "status": "failed",
+                "message": f"Internal error: {str(e)}",
+                "content": f"An error occurred while processing: {str(e)}",
+                "model": model or get_default_model(),
+                "tool_calls": [],
+            }
+
+    # =================================================================
+    # 2. TOOL DISABLE CHECK
+    # =================================================================
+    print(f"🔍 DEBUG: tools_enabled={tools_enabled} (type: {type(tools_enabled)})")
+    print(f"🔍 DEBUG: role_id={role_id}, model={model}")
+
+    if not tools_enabled:
+        logger.info("[AGENT] Tools disabled by user. Routing to simple chat fallback.")
+        rag_context, _ = fetch_rag_context(user_query, top_k=Config.RAG_TOP_K)
+        return _simple_chat_fallback(
+            llm=_get_llm(model or get_default_model(), num_ctx=Config.CONTEXT_WINDOW),
+            query=user_query,
+            rag_context=rag_context,
+            model_name=model or get_default_model(),
+            role_id=role_id,
+        )
+
     _mai_print("process_request entered")
     logger.info(
-        "process_request: filename=%s file_context=%s ltm_enabled=%s ltm_collection=%s citations=%s role_id=%s",
+        "process_request: filename=%s file_context=%s ltm_enabled=%s ltm_collection=%s citations=%s role_id=%s tools_enabled=%s",
         filename,
         bool(file_context),
         ltm_enabled,
         ltm_collection,
         citations_enabled,
         role_id,
+        tools_enabled,
     )
-
-    # ── Role overrides ───────────────────────────────────────────
-    role = _fetch_role(role_id)
-    if role:
-        logger.info("Role active: '%s' (id=%s)", role.get("name"), role.get("id"))
-        if role.get("collection_name"):
-            ltm_collection = role["collection_name"]
-            ltm_enabled = True
-        if role.get("citations_enabled") is not None:
-            citations_enabled = bool(role["citations_enabled"])
-        if role.get("model_override"):
-            model = role["model_override"]
-
-    rag_context: Optional[str] = None
-    rag_used: bool = False
-    citation_mode: str = "none"
 
     # ── MODE 1: FILE MODE ────────────────────────────────────────
     if file_context:

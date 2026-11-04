@@ -24,7 +24,7 @@
 
 
 <p align="center">
-  <strong>Version 2.0.0 | Effective Date: June 2026</strong><br />
+  <strong>Version 2.1.0 | Effective Date: June 2026</strong><br />
   <strong>Copyright © 2026 MAi-RAG-PA. All Rights Reserved.</strong>
 </p>
 
@@ -62,6 +62,7 @@ MAi-RAG-P.A. is **completely model-agnostic**. You can use any model available i
 | **Qwen 2.5 Coder 7B** | `ollama pull qwen2.5-coder:7b` | 7B | 6 GB+ | **The Sweet Spot.** Best balance of speed and capability. Highly recommended for everyday coding, file generation, and tool-calling. |
 | **Qwen 2.5 Coder 14B** | `ollama pull qwen2.5-coder:14b` | 14B | 10 GB+ | **Top-Tier Coding.** Ideal for generating full applications, complex debugging, & long document synthesis. Excellent tool-calling. |
 | **Qwen 2.5 Coder 32B** | `ollama pull qwen2.5-coder:32b` | 32B | 20 GB+ | **Heavy Lifter.** Exceptional for complex code generation and architectural planning. Requires 20GB+ RAM. |
+| **Granite 3.3 8B** | `ollama pull granite3.3:8b` | 1B / 8B | 4 GB+ | **Enhanced Edge.** Fine-tuned for reasoning, supports tools. |
 | **Llama 3.2 3B** | `ollama pull llama3.2:3b` | 3B | 3 GB+ | **Ultra-Low End.** Great for older hardware, Raspberry Pi, or quick, simple chat and basic tool calls. |
 | **Llama 3.3 70B** | `ollama pull llama3.3:70b` | 70B | 42 GB+ | **Maximum Intelligence.** Meta's latest flagship. Best for complex architectural planning, deep reasoning, and heavy agentic loops. |
 | **Mistral Nemo 12B** | `ollama pull mistral-nemo:12b` | 12B | 9 GB+ | **The All-Rounder.** Exceptional reasoning & instruction following. Slightly slower than 7B but more reliable on complex tasks. |
@@ -74,7 +75,6 @@ MAi-RAG-P.A. is **completely model-agnostic**. You can use any model available i
 | Model | Ollama Command | Active / Total Params | Min System RAM | Best Use Case / Notes |
 |-------|----------------|----------------------|----------------|----------------------|
 | **Granite 3.1 MoE 3B** | `ollama pull granite3.1-moe:3b` | 1B / 3B | 4 GB+ | **Low-Latency Edge.** IBM's smallest MoE. Extremely fast, low latency, great for simple tool routing on weak hardware. |
-| **Granite 3.3 8B** | `ollama pull granite3.3:8b` | 1B / 8B | 4 GB+ | **Enhanced Edge.** Similar to 3.1 MoE but with larger parameters. Fine-tuned for reasoning, supports tools. |
 | **LFM2.5 8B-A1B** | `ollama pull lfm2.5:8b` | 1B / 8B | 4 GB+ | **Edge Tool-Calling.** Built for fast tool calling on consumer hardware. |
 | **Qwen 3 30B-A3B** | `ollama pull qwen3:30b-a3b` | 3B / 30B | 20 GB+ | **Agentic King.** Only uses 3B active params, but has 30B total knowledge. Incredible tool-calling and MCP compliance. |
 | **Qwen 3.6 35B-A3B** | `ollama pull qwen3.6:35b-a3b` | 3B / 35B | 20 GB+ | **Best for Agentic Coding.** 37% MCPMark, 73.4% SWE-Bench. State-of-the-art for code generation. |
@@ -608,5 +608,5 @@ Every donation helps keep MAi-RAG-P.A. free and continuously improving.
 </p>
 
 <p align="center">
-  Version 2.0.0 | Updated October 2026
+  Version 2.1.0 | Updated November 2026
 </p>
